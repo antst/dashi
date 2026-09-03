@@ -37,6 +37,7 @@ import {
   sessionOverlay,
   statusOverlay,
 } from './catalogs.js'
+import { diffOverlay } from './diff-view.js'
 import { eventsFromRecords } from './history-records.js'
 import { admitDraftImages, encodeDraftImages, readDraftImages } from './image-input.js'
 import { contextPercent, jobViews, subagentViews } from './presentation.js'
@@ -638,6 +639,16 @@ export async function createSessionRuntime(
           if (match[2].includes('.')) await ctx.settings.mutate(match[1], [{ op: 'set', path: match[2].split('.'), value }])
           else await ctx.settings.update(match[1], { [match[2]]: value })
           return { kind: 'success', text: `updated ${match[1]}.${match[2]}` }
+        },
+      },
+      {
+        name: 'diff', description: 'Show working tree or last-turn file changes', input: { hint: '[turn]' }, handler: async (invocation) => {
+          const invalid = ensureCurrent(invocation)
+          if (invalid !== undefined) return invalid
+          const mode = invocation.rawInput.trim()
+          if (mode !== '' && mode !== 'turn') return { kind: 'error', text: 'usage: /diff [turn]' }
+          dispatch({ type: 'open-overlay', overlay: await diffOverlay(ctx, bound.agent, bound.presenter, mode, lifetime.signal) })
+          return { kind: 'success' }
         },
       },
       {

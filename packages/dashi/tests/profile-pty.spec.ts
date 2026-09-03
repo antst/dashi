@@ -564,7 +564,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const helpAt = shell.output.length
       shell.write('/help\r')
-      await shell.waitFor('/memory /config /plugins', helpAt)
+      await shell.waitFor('/memory /config /diff /plugins', helpAt)
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const readAt = shell.output.length
@@ -661,6 +661,51 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
       await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
+
+  it('shows the fixture repository diff and the last turn write metadata', async () => {
+    const workspace = join(testDir, 'diff-workspace')
+    const tracked = join(workspace, 'tracked.txt')
+    mkdirSync(workspace)
+    run('git', ['init', '-q'], process.env, workspace)
+    writeFileSync(tracked, 'W038_BEFORE\n')
+    run('git', ['add', 'tracked.txt'], process.env, workspace)
+    run('git', ['-c', 'user.name=dashi', '-c', 'user.email=dashi@example.invalid',
+      'commit', '-qm', 'fixture'], process.env, workspace)
+    writeFileSync(tracked, 'W038_AFTER\n')
+    const shell = new PtyShell(rollerFixture, undefined, workspace)
+    try {
+      shell.resize(100, 40)
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('record a turn diff\r')
+      await shell.waitFor('Roller turn one complete.', start)
+      await shell.waitFor('idle ·', start)
+
+      let openedAt = shell.output.length
+      shell.write('/diff\r')
+      await shell.waitFor('Working tree diff', openedAt)
+      await shell.waitFor('git diff', openedAt)
+      shell.write('\u000f')
+      await shell.waitFor('-W038_BEFORE', openedAt)
+      await shell.waitFor('+W038_AFTER', openedAt)
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', openedAt)
+
+      openedAt = shell.output.length
+      shell.write('/diff turn\r')
+      await shell.waitFor('Last turn diff', openedAt)
+      await shell.waitFor('Write roller-e2e.txt', openedAt)
+      await shell.waitFor('roller-e2e.txt', openedAt)
+      shell.write('\u000f')
+      await shell.waitFor('+ turn one', openedAt)
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', openedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
     } finally {
       await shell.close()
     }
