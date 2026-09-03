@@ -1,12 +1,12 @@
 name: Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "v*"
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -31,20 +31,86 @@ jobs:
           sudo apt-get install --yes tmux screen
       - run: pnpm install --frozen-lockfile
       - run: pnpm gate
-      - name: Select npm dist-tag
-        id: npm-tag
+      - name: Select release metadata
+        id: release
         run: |
-          release_version="$(node -p "require('./packages/dashi/package.json').version")"
-          npm_tag="${release_version#*-}"
-          if [[ "$npm_tag" == "$release_version" ]]; then
-            npm_tag=latest
+          version="${GITHUB_REF_NAME#v}"
+          for manifest in packages/dashi/package.json packages/dashi-app/package.json packages/dashi-launcher/package.json; do
+            package_version="$(node -p "require('./$manifest').version")"
+            if [[ "$version" != "$package_version" ]]; then
+              echo "Tag $GITHUB_REF_NAME does not match $manifest version $package_version" >&2
+              exit 1
+            fi
+          done
+          dist_tag="${version#*-}"
+          if [[ "$dist_tag" == "$version" ]]; then
+            dist_tag=latest
+            prerelease=false
           else
-            npm_tag="${npm_tag%%.*}"
+            dist_tag="${dist_tag%%.*}"
+            prerelease=true
           fi
-          printf 'tag=%s\n' "$npm_tag" >> "$GITHUB_OUTPUT"
-      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+          {
+            printf 'version=%s\n' "$version"
+            printf 'dist_tag=%s\n' "$dist_tag"
+            printf 'prerelease=%s\n' "$prerelease"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub release $GITHUB_REF_NAME already exists"
+            exit 0
+          fi
+          notes="$(awk -v heading="## $RELEASE_VERSION" '
+            $0 == heading || index($0, heading " ") == 1 { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          args=(release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME")
+          if [[ "$PRERELEASE" == true ]]; then
+            args+=(--prerelease)
+          fi
+          if [[ -n "$notes" ]]; then
+            printf '%s\n' "$notes" > "$RUNNER_TEMP/release-notes.md"
+            args+=(--notes-file "$RUNNER_TEMP/release-notes.md")
+          else
+            args+=(--generate-notes)
+          fi
+          gh "${args[@]}"
+      - name: Publish @antst/dashi
+        env:
+          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@antst/dashi@$RELEASE_VERSION" version >/dev/null 2>&1; then
+            echo "@antst/dashi@$RELEASE_VERSION already published"
+          else
+            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
+          fi
         working-directory: packages/dashi
-      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+      - name: Publish @antst/dashi-app
+        env:
+          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@antst/dashi-app@$RELEASE_VERSION" version >/dev/null 2>&1; then
+            echo "@antst/dashi-app@$RELEASE_VERSION already published"
+          else
+            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
+          fi
         working-directory: packages/dashi-app
-      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+      - name: Publish @antst/dashi-launcher
+        env:
+          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@antst/dashi-launcher@$RELEASE_VERSION" version >/dev/null 2>&1; then
+            echo "@antst/dashi-launcher@$RELEASE_VERSION already published"
+          else
+            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
+          fi
         working-directory: packages/dashi-launcher
