@@ -1469,7 +1469,17 @@ Acceptance evidence: PTY test listing the shipped profile's rows
 `/plugin add` of a packed tarball runs the DSH CLI and the restart
 offer appears; unknown package relays the DSH CLI error; README and
 /help updated; no new state in the reducer beyond the transient list.
-### W-035 Parity audit against Claude Code — status: open (after W-034)
+### W-035 Parity audit against Claude Code — status: accepted 2026-09-03 (table committed as PARITY.md)
+Cited table against the current Claude Code roster: ~20 done, ~25
+doable over existing DSH services, ~30 DSH gaps with the missing
+surface named. Spot-check of twelve citations by an independent
+reader: ten exact, two partial (recordKeyFor is exported earlier in
+auth.ts than cited; DSH's ShellExecutor has no interactive TTY, so an
+$EDITOR launch must be dashi's own inherit-stdio child, see W-037).
+Reversals: /login and /logout doable; /hooks a gap; whole-tool
+--tools doable, pattern permission rules a gap. Work items W-037
+onward are cut from the doable rows in daily-use order; gaps get one
+README sentence each and join the upstream report queue.
 No code. Walk Claude Code's interactive command and launch-flag
 roster (current docs) against dashi and produce one table in the
 handoff: item, dashi status (done / doable / DSH gap), and for every
@@ -1520,7 +1530,56 @@ exposed service, not by parsing logs); clean-install test still
 passes with the added dependency; production source under 40 lines.
 Builder note allowed on the exact 0.4.0 version once published.
 
+### W-037 /memory — status: open (after W-036 or when W-036 is blocked)
+List the instruction files DSH loaded for this session (paths and
+scope from the agent-instructions rendered set, PARITY.md row
+/memory), select one, open it in $EDITOR (fallback vi) as a child
+with inherited stdio while the TUI is suspended, then resume and
+redraw. DSH's skill watcher already reloads; instructions reload per
+DSH's own rules, and the row says which. No file written by dashi.
+Acceptance evidence: PTY test that /memory lists AGENTS.md from the
+fixture cwd and that selecting it runs $EDITOR (a recording script)
+on that exact path, terminal restored after; production source under
+50 lines.
+
+### W-038 /diff — status: open (after W-037)
+Show the current git diff of the session cwd (via ctx.shell, read
+only) and, with an argument `turn`, the write/edit hunks DSH recorded
+in tool-result metadata for the last turn (PARITY.md row /diff),
+rendered with the existing presenter/card mode. Acceptance: PTY test
+with a fixture repo; production source under 50 lines.
+
+### W-039 /config — status: open (after W-038)
+Show effective settings per namespace from SettingsProvider.describe
+(value, base, user) and accept `key=value` edits through the
+provider's validated update; errors relayed verbatim. Acceptance: PTY
+test reading and changing one setting and seeing DSH persist it;
+production source under 50 lines.
+
+### W-040 Aliases and small launch flags — status: open (after W-039)
+Registered aliases over existing behavior: /quit, /reset, /continue,
+/branch (=/fork), /effort <e>; launch flags -n (=--name), --agent
+<preset>, --session-id <uuid>, --fork-session with --resume/
+--continue. Each is one registration or one parser line over the
+cited DSH operation; no new mechanism. Acceptance: one PTY test per
+alias; production source under 40 lines.
+
+### W-041 /login and /logout — status: open (after W-040)
+/login lists AuthorizationService flows and begins the chosen one,
+relaying the provider-owned interactive steps; /logout deletes the
+provider's credential record (PARITY.md rows). Acceptance: PTY test
+with a fake flow from the replay provider or a fixture flow;
+production source under 60 lines. Never print secrets.
+
 ## Backlog
+
+### B-003 Remaining doable parity rows — status: backlog
+From PARITY.md, to be cut into work items after W-041 in this order:
+/init; /copy N and code-block picker; /tasks management, /bashes,
+/subtask; /skills list and search; --tools and bare-name
+--disallowedTools; --system-prompt and --append-system-prompt (and
+file variants); /loop; --verbose; richer /usage from token and
+session stats; /clear NAME and rename-then-clear; /agents authoring.
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
 A separate DSH plugin, not part of the dashi TUI: e.g. `@antst/dsh-checkpoint`
