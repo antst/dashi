@@ -53,8 +53,10 @@ the architect disposes. Disagreement is welcome; scope creep is not.
   redesign instruction names the mechanism to remove, not a patch to add.
 - The builder never edits LEDGER.md decision entries. It may append a
   `Builder note:` line under its own work item.
-- Commits go on the work branch. The architect merges to `main` after
-  ACCEPT.
+- Commits go on the work branch. After ACCEPT the architect squash-merges
+  the pull request into `develop` (one commit per work item; the PR title
+  becomes the commit title, so name it `W-NNN: short description`) and
+  fast-forwards `main` for releases.
 
 ## Verification
 
