@@ -1539,7 +1539,20 @@ exposed service, not by parsing logs); clean-install test still
 passes with the added dependency; production source under 40 lines.
 Builder note allowed on the exact 0.4.0 version once published.
 
-### W-037 /memory — status: open (after W-036 or when W-036 is blocked)
+### W-037 /memory — status: accepted 2026-09-03 (PR #35 squash-merged)
+Defect found and fixed on the way: dashi-app had mirrored the web
+app's disable list wholesale, including `agent-instructions`, so the
+shipped profile loaded no AGENTS.md (the web app disables the row
+because it injects its own). Cause it went unseen: W-027's fixture
+hand-wrote source {kind:'plugin', plugin:'agent-instructions'} while
+live rc.1 emits {kind:'agent-instructions'}; the fold now covers the
+native shape and a PTY test proves a fixture AGENTS.md reaches the
+model context in the shipped profile. profile-drift names this one
+intentional divergence with a reason. /memory lists paths and scopes
+from DSH's durable agent-instructions sources and opens the file via
+the existing cooked-terminal editor path ($EDITOR, fallback vi, argv
+not shell string). 49 production lines; 222 tests. Every alpha.7
+install has the instructions defect: alpha.8 follows promptly.
 List the instruction files DSH loaded for this session (paths and
 scope from the agent-instructions rendered set, PARITY.md row
 /memory), select one, open it in $EDITOR (fallback vi) as a child
