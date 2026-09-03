@@ -34,6 +34,22 @@ afterEach(() => {
 })
 
 describe('dashi profile plugin', () => {
+  it.each([
+    [['--help'], 'Usage: dashi [options] [prompt]', '--permission PRESET'],
+    [['-h'], 'Usage: dashi [options] [prompt]', '--permission PRESET'],
+  ])('prints one-shot launcher information for %s', (args, first, second) => {
+    const exits: number[] = []
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const ctx = new Context()
+    provideCmdline(ctx, { args, exit: code => { exits.push(code) }, ready: { onReady: () => () => {} } })
+
+    apply(ctx)
+    expect(stdout).toHaveBeenCalledWith(expect.stringContaining(first))
+    expect(stdout).toHaveBeenCalledWith(expect.stringContaining(second))
+    expect(exits).toEqual([0])
+    expect(shell.start).not.toHaveBeenCalled()
+  })
+
   it('warns when the CLI and loaded dsh-base versions differ', async () => {
     const fixture = mkdtempSync(join(tmpdir(), 'dashi-dsh-version-'))
     const cli = join(fixture, 'node_modules', '@deepseek-ai', 'dsh')

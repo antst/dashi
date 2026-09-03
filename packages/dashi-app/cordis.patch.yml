@@ -91,6 +91,9 @@
     - id: file-reference-local
       name: '@deepseek-ai/dsh-file-reference-local'
 
+    - id: plugin-inventory
+      name: '@deepseek-ai/dsh-host-plugin-inventory'
+
     - id: dashi
       name: '@antst/dashi'
 

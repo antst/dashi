@@ -7,6 +7,7 @@ import { createTerminalShell, type TerminalShell } from './application.js'
 import { sessionOverlay } from './catalogs.js'
 import { readClipboardImage } from './clipboard-image.js'
 import { editDraftExternally } from './external-editor.js'
+import { FLAG_HELP, VERSION_LINE } from './help.js'
 import {
   formatSessionList, isSessionId, parseSessionListArgs, sessionMatches, sessionNotFound, type SessionListOptions,
 } from './session-list.js'
@@ -15,8 +16,8 @@ import { TuiRoot } from './tui-root.js'
 
 export const name = 'dashi'
 export const inject = [
-  'agentPresets', 'agents', 'attachments', 'cmdlineArgs', 'commands', 'fs', 'permissionPresets', 'sessionController',
-  'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'shell', 'skills', 'tools',
+  'agentPresets', 'agents', 'attachments', 'cmdlineArgs', 'commands', 'fs', 'loader', 'permissionPresets',
+  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'shell', 'skills', 'tools',
 ]
 const validatedVersions = JSON.parse(readFileSync(new URL('../validated-dsh-versions.json', import.meta.url), 'utf8')) as string[]
 
@@ -148,6 +149,10 @@ export function apply(ctx: Context): void {
     throw new Error('dashi: the launcher must provide ctx.appExit, ctx.appReady, and ctx.cmdlineArgs')
   }
   const args = cmdline.get()
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    process.stdout.write(`${VERSION_LINE}\n\nUsage: dashi [options] [prompt]\n\n${FLAG_HELP.join('\n')}\n`)
+    exit(0); return
+  }
   if (args[0] === 'sessions') {
     const options = parseSessionListArgs(args)
     if (options === undefined) {

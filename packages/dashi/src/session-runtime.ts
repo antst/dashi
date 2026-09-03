@@ -1,4 +1,5 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import type {} from '@deepseek-ai/dsh-attachment'
@@ -11,6 +12,7 @@ import type {
 } from '@deepseek-ai/dsh-api-session-controller'
 import type { CommandDefinition, CommandExecution, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-fs'
+import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { createUserMessage, type ContentBlock } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
@@ -53,7 +55,7 @@ import type {
   UiAction,
 } from './state.js'
 import { createToolPresenter, type ToolPresenter } from './tool-presentation.js'
-import { runHumanShell } from './shell-command.js'
+import { quoteShellWord, runHumanShell } from './shell-command.js'
 import { markdownTranscript } from './session-export.js'
 import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { foldCells, pendingShellCells } from './transcript.js'
@@ -597,6 +599,35 @@ export async function createSessionRuntime(
         },
       },
       {
+        name: 'plugins', description: 'List the running profile plugins',
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          if (invocation.rawInput.trim() !== '') return { kind: 'error', text: 'usage: /plugins' }
+          const servers = new Map<string, string>()
+          for (const entry of ctx.loader.entries()) if (entry.options.name === '@deepseek-ai/dsh-mcp-client'
+            && typeof entry.options.config?.serverName === 'string') servers.set(entry.id, entry.options.config.serverName)
+          const snapshot = await (ctx.get('pluginInventory') as PluginInventoryGateway).list()
+          return { kind: 'success', text: snapshot.entries.map(entry =>
+            `${String(entry.entryId)} · ${entry.moduleName}${servers.has(String(entry.entryId)) ? ` · ${servers.get(String(entry.entryId))}` : ''} · ${entry.enabled ? 'enabled' : 'disabled'} · ${entry.fiberPhase ?? 'inactive'}`,
+          ).join('\n') }
+        },
+      },
+      {
+        name: 'plugin', description: 'Run DSH profile plugin management', input: { hint: 'ARGS' },
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          if (invocation.rawInput.trim() === '') return { kind: 'error', text: 'usage: /plugin ARGS' }
+          const command = `dsh plugin --profile ${quoteShellWord(decodeURIComponent(new URL(ctx.baseUrl!).pathname).split('/').at(-2)!)}${invocation.rawInput}`
+          const [message, result] = await bound.agent.runMaintenance(signal => runHumanShell(ctx, bound.agent, command, signal, 'changes load on the next launch; exit and run dashi again'))
+          bound.agent.inject(message)
+          await ctx.sessions.flush(bound.agent.session)
+          publish(bound)
+          return result.exitCode === 0 ? { kind: 'success' } : { kind: 'error', text: `dsh plugin exited ${String(result.exitCode ?? result.signal ?? 'without status')}` }
+        },
+      },
+      {
         name: 'new', description: 'Start a new session', input: { hint: '[--name TITLE]' },
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
@@ -1079,7 +1110,8 @@ export async function createSessionRuntime(
           if (command === '') throw new Error('usage: !command')
           if (attachments.length > 0) throw new Error('!command does not accept image attachments')
           await bound.agent.runMaintenance(async signal => {
-            bound.agent.inject(await runHumanShell(ctx, bound.agent, command, signal))
+            const [message] = await runHumanShell(ctx, bound.agent, command, signal)
+            bound.agent.inject(message)
             await ctx.sessions.flush(bound.agent.session)
           })
           publish(bound)
