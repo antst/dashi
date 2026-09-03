@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint packages scripts",
     "test": "vitest run",
-    "gate": "node scripts/gate.mjs"
+    "gate": "node scripts/gate.mjs",
+    "gate:docker": "docker build --tag dashi-gate . && docker run --rm --env CI --env HOST_UID=\"$(id -u)\" --env HOST_GID=\"$(id -g)\" --security-opt seccomp=unconfined --security-opt apparmor=unconfined --security-opt systempaths=unconfined --volume \"$PWD:/workspace\" --volume /workspace/.pnpm-store --volume /workspace/node_modules --volume /workspace/packages/dashi/node_modules --volume /workspace/packages/dashi-app/node_modules --volume /workspace/packages/dashi-launcher/node_modules dashi-gate"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "catalog:",

@@ -192,6 +192,7 @@ Work branches open pull requests against the integration branch, `develop`;
 `main` contains releases. Pull requests and pushes to `develop` publish
 installable previews of all three packages through pkg.pr.new once its GitHub
 App is installed.
+Run `pnpm gate:docker` to execute the same containerized gate used by CI.
 
 To release, update the versions and changelog on `develop`, merge it to `main`,
 then push the matching `vX.Y.Z` tag. The release workflow runs the full gate,

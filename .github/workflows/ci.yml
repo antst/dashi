@@ -25,12 +25,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Install terminal test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes tmux screen
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm gate
+      - run: pnpm gate:docker
       - name: Publish preview
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
         run: pnpx pkg-pr-new publish ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact
