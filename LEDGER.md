@@ -439,6 +439,15 @@ launch flags are the interactive commands applied before the first
 prompt). The launcher stays a plain forwarder; no environment
 synthesis. dashi-app bundles `@agent-sessions/dsh-comms` at an exact
 published version (closes B-002).
+### D-037 (2026-09-03) Second builder on dashi
+Owner decision: roller-exec (peer codex-roller), idle since roller
+W-010, also builds dashi items. Rules: its own checkout at
+~/dtui-2 (never ~/dtui, which belongs to dsh-exec); one builder per
+checkout; items assigned by the architect with disjoint code areas;
+same handoff protocol, same gate, same squash-merge. Assignment
+now: W-039 /config and W-041 /login and /logout to roller-exec;
+W-037, W-038, W-040 stay with dsh-exec. Later items are assigned at
+acceptance time.
 
 ## Work items
 
@@ -1549,7 +1558,7 @@ in tool-result metadata for the last turn (PARITY.md row /diff),
 rendered with the existing presenter/card mode. Acceptance: PTY test
 with a fixture repo; production source under 50 lines.
 
-### W-039 /config — status: open (after W-038)
+### W-039 /config — status: open (owner roller-exec, D-037; branch `w-039-config` from ~/dtui-2)
 Show effective settings per namespace from SettingsProvider.describe
 (value, base, user) and accept `key=value` edits through the
 provider's validated update; errors relayed verbatim. Acceptance: PTY
@@ -1564,7 +1573,7 @@ Registered aliases over existing behavior: /quit, /reset, /continue,
 cited DSH operation; no new mechanism. Acceptance: one PTY test per
 alias; production source under 40 lines.
 
-### W-041 /login and /logout — status: open (after W-040)
+### W-041 /login and /logout — status: open (owner roller-exec, after W-039; branch `w-041-login`)
 /login lists AuthorizationService flows and begins the chosen one,
 relaying the provider-owned interactive steps; /logout deletes the
 provider's credential record (PARITY.md rows). Acceptance: PTY test
