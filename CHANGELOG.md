@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.4 — 2026-09-03
+
+- Require a two-stage Ctrl+D exit, sharing the same armed state as Ctrl+C.
+- Open the session picker for bare `--resume`/`-r`, accept session names for
+  launch and `/resume`, and support `--continue`/`-c`.
+- Add the Claude Code-style rewind flow for restoring conversation, code, or
+  both while leaving the chosen prompt in the composer.
+- Bundle `@antst/roller` in `@antst/dashi-app` for file rewind by default.
+
 ## 0.1.0-alpha.3 — 2026-09-03
 
 - Track and pin the validated DSH 0.1.2-rc.1 package set.

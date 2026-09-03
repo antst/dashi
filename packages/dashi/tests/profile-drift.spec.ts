@@ -67,7 +67,7 @@ describe('validated DSH patch surface', () => {
     expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)))
 
     const webInserts = new Map(rowsAt(web, 4).map(row => [row.id, row.name]))
-    for (const row of rowsAt(dashi, 4).filter(row => row.id !== 'dashi')) {
+    for (const row of rowsAt(dashi, 4).filter(row => !['dashi', 'roller'].includes(row.id))) {
       expect(webInserts.get(row.id), `web insert ${row.id}`).toBe(row.name)
     }
   })
