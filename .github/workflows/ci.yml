@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install terminal test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes tmux screen
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gate
+      - name: Publish preview
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
+        run: pnpx pkg-pr-new publish ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact

@@ -20,6 +20,17 @@ export function requireMultiplexer(kind: MultiplexerKind): void {
   throw new Error('tmux is required; install the Ubuntu package: tmux')
 }
 
+function waitForScreen(name: string, env: NodeJS.ProcessEnv): void {
+  const deadline = Date.now() + 10_000
+  let detail = ''
+  while (Date.now() < deadline) {
+    const probe = spawnSync('screen', ['-U', '-S', name, '-Q', 'select', '.'], { encoding: 'utf8', env })
+    if (probe.status === 0) return
+    detail = probe.stderr || probe.stdout || String(probe.error ?? probe.status)
+  }
+  throw new Error(`screen session ${name} did not become ready: ${detail}`)
+}
+
 export class MultiplexerPane {
   readonly kind: MultiplexerKind
   readonly modeAfter: string
@@ -47,6 +58,7 @@ export class MultiplexerPane {
         '-U', '-c', '/dev/null', '-dmS', this.name, '-L', '-Logfile', join(directory, `${this.name}.log`),
         '/bin/bash', '--noprofile', '--norc', '-i',
       ], this.env, cwd)
+      waitForScreen(this.name, this.env)
     } else {
       this.env = env
       run('tmux', [
