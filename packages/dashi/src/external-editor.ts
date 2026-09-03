@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, rmdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-function runEditor(command: string, file: string, cwd: string): Promise<void> {
+export function runEditor(command: string, file: string, cwd: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn('/bin/sh', ['-c', `exec ${command} "$1"`, 'dashi-editor', file], {
       cwd, stdio: 'inherit',

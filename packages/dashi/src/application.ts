@@ -1,4 +1,5 @@
 import { createRenderer, type Renderer } from './renderer.js'
+import { runEditor } from './external-editor.js'
 import {
   initialViewState,
   type ActivatableOverlayValue,
@@ -107,7 +108,12 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
   async function run(effect: UiEffect): Promise<void> {
     switch (effect.type) {
       case 'activate-overlay':
-        await options.activateOverlay?.(effect.value)
+        if (effect.value.kind === 'open-file') {
+          const path = effect.value.path
+          await guard.withCookedTerminal(() => runEditor(process.env.EDITOR?.trim() || 'vi', path, options.cwd)).catch(error => {
+            dispatch({ type: 'runtime-error', message: error instanceof Error ? error.message : String(error) })
+          })
+        } else await options.activateOverlay?.(effect.value)
         return
       case 'attach': {
         try {

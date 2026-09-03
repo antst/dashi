@@ -62,6 +62,9 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: 0.1.2-rc.1
         version: 0.1.2-rc.1(6f833cf90b9dd3f0d529840b1aebfb48)
+      '@deepseek-ai/dsh-agent-instructions':
+        specifier: 0.1.2-rc.1
+        version: 0.1.2-rc.1(e5b3de3f5523dbeda269ad8d2cfe7bc3)
       '@deepseek-ai/dsh-agent-presets':
         specifier: 0.1.2-rc.1
         version: 0.1.2-rc.1(ba04eac613f92d66ff12b0df8dedf0e6)

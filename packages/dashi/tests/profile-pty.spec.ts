@@ -594,6 +594,47 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
+  it('loads workspace instructions and opens the selected memory file in a cooked terminal', async () => {
+    const workspace = join(testDir, 'memory-workspace')
+    const instruction = join(workspace, 'AGENTS.md')
+    const trace = join(testDir, 'memory-editor.json')
+    mkdirSync(join(workspace, '.git'), { recursive: true })
+    writeFileSync(instruction, '# Fixture guidance\n\nW037_AGENT_INSTRUCTION\n')
+    const { baseline, shell } = await prepareShell({
+      DSH_DASHI_EDITOR_TRACE: trace,
+      EDITOR: `${process.execPath} ${fakeEditor}`,
+      VISUAL: '',
+    }, workspace)
+    try {
+      shell.resize(100, 60)
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('load workspace memory\r')
+      await shell.waitFor('Context · instructions', start)
+      shell.write('\u000f')
+      await shell.waitFor('W037_AGENT_INSTRUCTION', start)
+      await shell.waitFor('Approval · bash', start)
+      shell.write('\r')
+      await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+      const memoryAt = shell.output.length
+      shell.write('/memory\r')
+      await shell.waitFor('Memory', memoryAt)
+      await shell.waitFor('AGENTS.md', memoryAt)
+      await shell.waitFor('scope .', memoryAt)
+      const selectedAt = shell.output.length
+      shell.write('\r')
+      await shell.waitFor('idle ·', selectedAt)
+      const result = JSON.parse(readFileSync(trace, 'utf8')) as { file: string; terminalMode: string }
+      expect(result.file).toBe(instruction)
+      expect(result.terminalMode).toBe(baseline)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+      await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
+
   it('opens the startup resume picker through long and short launcher flags with cwd and all scopes', async () => {
     const cwd = join(testDir, `startup-picker-${String(Date.now())}`)
     const otherCwd = join(testDir, `startup-picker-other-${String(Date.now())}`)

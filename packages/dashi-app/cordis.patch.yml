@@ -61,9 +61,6 @@
 - id: tool-ralph
   disabled: true
 
-- id: agent-instructions
-  disabled: true
-
 - id: tool-todo
   disabled: true
 

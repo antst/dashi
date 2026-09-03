@@ -58,6 +58,7 @@ import { createToolPresenter, type ToolPresenter } from './tool-presentation.js'
 import { quoteShellWord, runHumanShell } from './shell-command.js'
 import { markdownTranscript } from './session-export.js'
 import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
+import { memoryOverlay } from './memory.js'
 import { foldCells, pendingShellCells } from './transcript.js'
 import type { TuiRoot } from './tui-root.js'
 
@@ -595,6 +596,15 @@ export async function createSessionRuntime(
           const invalid = usage(invocation.rawInput, '/context')
           if (invalid !== undefined) return invalid
           dispatch({ type: 'open-overlay', overlay: contextOverlay(ctx, bound.agent) })
+          return { kind: 'success' }
+        },
+      },
+      {
+        name: 'memory', description: 'Open an instruction file loaded by DSH',
+        handler: (invocation) => {
+          const invalid = ensureCurrent(invocation) ?? usage(invocation.rawInput, '/memory')
+          if (invalid !== undefined) return invalid
+          dispatch({ type: 'open-overlay', overlay: memoryOverlay(bound.agent) })
           return { kind: 'success' }
         },
       },

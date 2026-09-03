@@ -134,6 +134,7 @@ export type OverlayValue =
   | { readonly kind: 'attach'; readonly path: string; readonly source: string; readonly text: string }
   | { readonly kind: 'insert'; readonly text: string }
   | { readonly kind: 'model'; readonly effort?: string; readonly model: string; readonly provider: string }
+  | { readonly kind: 'open-file'; readonly path: string }
   | { readonly interrupt?: true; readonly kind: 'fork' }
   | { readonly agentPreset?: string; readonly interrupt?: true; readonly kind: 'new'; readonly title?: string }
   | { readonly all?: boolean; readonly interrupt?: true; readonly kind: 'open-resume' }
@@ -174,7 +175,7 @@ export type Overlay =
     readonly kind: 'list'
     readonly notice?: string
     readonly options: readonly OverlayOption[]
-    readonly purpose: 'agents' | 'completion' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search'
+    readonly purpose: 'agents' | 'completion' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search'
     readonly title: string
   }
   | { readonly kind: 'info'; readonly lines: readonly string[]; readonly title: string }
@@ -362,7 +363,7 @@ function help(): Overlay {
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue',
-      '/status /context /plugins /plugin /tasks /history /export /copy /exit',
+      '/status /context /memory /plugins /plugin /tasks /history /export /copy /exit',
       ...FLAG_HELP,
     ],
   }
