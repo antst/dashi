@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
 import { createRenderer, type Renderer } from '../src/renderer.js'
+import { testCeiling } from './test-budget.js'
 
 function percentile95(samples: readonly number[]): number {
   return [...samples].sort((left, right) => left - right)[Math.floor(samples.length * 0.95)] ?? Infinity
@@ -619,8 +620,8 @@ describe('terminal renderer', () => {
     const heapDelta = Math.max(0, process.memoryUsage().heapUsed - heapBefore)
     report('composer-200k-p95', p95, 'ms')
     report('paged-200k-heap-delta', heapDelta / (1024 * 1024), 'MiB')
-    expect(p95).toBeLessThan(25)
-    expect(heapDelta).toBeLessThan(64 * 1024 * 1024)
+    expect(p95).toBeLessThan(testCeiling(25))
+    expect(heapDelta).toBeLessThan(testCeiling(64 * 1024 * 1024))
     await shell.dispose()
   })
 
@@ -643,7 +644,7 @@ describe('terminal renderer', () => {
     }
     const p95 = percentile95(samples)
     report('composer-normal-p95', p95, 'ms')
-    expect(p95).toBeLessThan(16)
+    expect(p95).toBeLessThan(testCeiling(16))
     await shell.dispose()
   })
 
@@ -668,7 +669,7 @@ describe('terminal renderer', () => {
     await terminal.flush()
     const elapsed = performance.now() - start
     report('warm-1k-session-first-rows', elapsed, 'ms')
-    expect(elapsed).toBeLessThan(150)
+    expect(elapsed).toBeLessThan(testCeiling(150))
     expect(terminal.lines().join('\n')).toContain('Session 0')
     await shell.dispose()
   })
