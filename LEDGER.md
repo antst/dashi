@@ -1571,7 +1571,13 @@ in tool-result metadata for the last turn (PARITY.md row /diff),
 rendered with the existing presenter/card mode. Acceptance: PTY test
 with a fixture repo; production source under 50 lines.
 
-### W-039 /config — status: open (owner roller-exec, D-037; branch `w-039-config` from ~/dtui-2)
+### W-039 /config — status: accepted 2026-09-03 (PR #34 squash-merged; owner roller-exec)
+/config lists namespaces with DSH-redacted value/base/user layers
+(describe({redactSecrets:true})); `/config NS KEY=VALUE` parses a
+JSON scalar with string fallback and calls the provider's validated
+update, or mutate with path ops for dotted keys; DSH's own errors
+verbatim; PTY test proves DSH persisted the change to settings.yaml.
+34 production lines; 223 tests.
 Show effective settings per namespace from SettingsProvider.describe
 (value, base, user) and accept `key=value` edits through the
 provider's validated update; errors relayed verbatim. Acceptance: PTY
