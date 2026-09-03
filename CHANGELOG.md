@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-alpha.6 — 2026-09-03
+
+- First version published by the tag workflow with npm provenance.
+
 ## 0.1.0-alpha.5 — 2026-09-03
 
 - Add GitHub CI, pkg.pr.new previews, and provenance-ready npm publishing.
