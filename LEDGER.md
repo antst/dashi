@@ -1179,7 +1179,16 @@ the picker and selecting a session, exact --resume, unknown UUID
 error, and --resume with a prompt, all through the launcher; new
 production source under 60 lines.
 
-### W-025 Launch flags: permission, yolo, model, effort — status: open (after W-029)
+### W-025 Launch flags: permission, yolo, model, effort — status: accepted 2026-09-03 (PR #17 merged into develop)
+Flags are the interactive commands applied before TUI bind: --model
+(with --provider inferred for a unique catalog match, required when
+several providers list the id), --effort, --permission <preset>, and
+--yolo / --dangerously-skip-permissions as one alias for the
+danger-full-access preset. DSH persists the model selection as its
+default exactly as /model does; dashi stores and restores nothing
+(session-only selection is a DSH gap, see Upstream reports). Unlisted
+model ids bind because the DSH catalog is advisory; unknown preset,
+provider, and effort relay DSH's own errors.
 Owner: dsh-exec. Branch `w-025-launch-flags`.
 Owner report (2026-09-03): no `--yolo` or
 `--dangerously-skip-permissions`. Audit: DESIGN.md 5.1 lists
@@ -1433,3 +1442,4 @@ dashi session is addressable as a peer: the adapter binds to
 expose the terminal-bound-root branch it already planned for; dashi
 side is expected to be documentation and a fixture test of the host
 contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
+- Queued (not yet posted): DSH Discussion (Ideas): session-scoped model/effort selection. rc.1 selectModel always calls agentDefaultModel.saveSelection (packages/api/session-controller/src/commands.ts:119-145) and neither SessionCreateRequest, resolveAgent, nor AgentPreset carries a model or effort, so a launch flag like `--model` cannot avoid moving the deployment default (W-025). Release to the lane with the install-hazards report.
