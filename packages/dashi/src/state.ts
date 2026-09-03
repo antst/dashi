@@ -359,7 +359,7 @@ function help(): Overlay {
       'Ctrl+B activity details for jobs and subagents',
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
-      '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue · launch -r/-c',
+      '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue · launch -r/-c --model/--effort/--permission/--yolo',
       '/status /context /tasks /history /export /copy /exit',
     ],
   }

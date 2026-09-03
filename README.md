@@ -27,7 +27,7 @@ dashi renders in the terminal's main screen by default. Use
 alternate screen.
 
 Start with a prompt, assign a native session title, or return to an existing
-root without changing global configuration:
+root:
 
 ```sh
 dashi 'inspect this repository'
@@ -35,8 +35,17 @@ dashi --name 'Parser cleanup'
 dashi --resume
 dashi --resume session-00000000-0000-0000-0000-000000000000
 dashi --continue
+dashi --model deepseek-v4-flash --effort high
+dashi --permission read-only
+dashi --yolo
 dashi --image screenshot.png 'inspect this image'
 ```
+
+`--model ID`, `--provider ID`, and `--effort ID` apply the same DSH selection
+as `/model`; DSH also updates its default, because it does not yet expose a
+session-only selection. `--permission PRESET` applies `/permission` before the
+first prompt. `--yolo` and `--dangerously-skip-permissions` explicitly select
+`danger-full-access` without a launch confirmation.
 
 ## Sessions
 
@@ -54,7 +63,8 @@ the current directory.
 After installation:
 
 1. Start with `dashi`, or add `-c`/`--continue`, `-r`/`--resume [NAME|UUID]`,
-   `--name TITLE`, an initial prompt, or repeatable `--image PATH` arguments.
+   launch model/permission flags, `--name TITLE`, an initial prompt, or
+   repeatable `--image PATH` arguments.
 2. Type a request and press Enter. Review streamed reasoning, tool cards, diffs,
    plans, todos, jobs, and subagents in the transcript; answer any decision in
    its numbered overlay.
@@ -92,7 +102,8 @@ and Ctrl+B opens job and subagent details.
 On an idle empty composer, Ctrl+C or Ctrl+D arms exit; press either key again
 within two seconds to exit. Any other key cancels the arm. On an idle nonempty
 composer, Escape twice clears the draft into prompt history, where Up recalls it.
-Permission presets that disable approvals require an explicit confirmation.
+Permission presets that disable approvals require confirmation when selected
+interactively; a danger flag is itself explicit launch consent.
 `?` always remains ordinary prompt input.
 
 Type `@` to open live path completion for files under the session working
