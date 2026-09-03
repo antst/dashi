@@ -1329,7 +1329,12 @@ Acceptance evidence: PR CI green on GitHub except the preview step
 until the owner installs the pkg.pr.new app; both YAML pass
 actionlint; zero production source changes.
 
-### W-031 Exit arm expires after two seconds — status: open (after W-030, before W-025)
+### W-031 Exit arm expires after two seconds — status: accepted 2026-09-03 (PR #9 merged into develop)
+One 2000 ms timer in the effect runner dispatching the existing
+disarm action; PTY proves 250 ms exits and 2.5 s re-arms; also the
+CI-only 3x ceiling for measured gates and observed waits (test-budget
+module), with the decision-EOF test waiting on observed state. 13
+production lines; 199 tests; hosted run green with previews.
 Owner: dsh-exec. Branch `w-031-exit-arm-timeout`; PR against develop.
 Owner report from daily use (2026-09-03): the exit arm never expires;
 a first Ctrl+D and a second one a minute later still exit. Claude
