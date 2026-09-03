@@ -94,7 +94,11 @@ function cellText(cell: TerminalCell, toolMode: ToolMode, accessible: boolean, n
         : accessible ? '[done]' : '◆'
       return `${cell.pending === true ? YELLOW : DIM}${marker} ${safe}${elapsed === undefined ? '' : ` · ${duration(elapsed)}`}${RESET}`
     }
-    case 'context': return `${DIM}Context · ${safe}${RESET}`
+    case 'context': {
+      if (cell.collapsed !== true || cell.detail === undefined) return `${DIM}Context · ${safe}${RESET}`
+      const head = `${DIM}Context · ${plain(cell.detail, true)}${RESET}`
+      return toolMode === 'expanded' ? `${head}\n${safe}` : head
+    }
     case 'shell': return `${DIM}Shell${RESET}\n${safe}`
     case 'compaction': return `${DIM}${accessible ? '[compacted]' : '↻'} ${safe}${RESET}`
     case 'reasoning': return cell.collapsed

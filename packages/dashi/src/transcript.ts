@@ -45,6 +45,24 @@ function shellCell(message: UserMessage, pending: boolean): TerminalCell {
   }
 }
 
+function collapsedContextCell(message: UserMessage, key: string): TerminalCell | undefined {
+  const source = message.source as unknown as Record<string, unknown>
+  const form = source.form
+  if (source.kind !== 'plugin' || !['instructions', 'catalog', 'snapshot', 'notice', 'recall'].includes(String(form))) {
+    return undefined
+  }
+  const text = messageText(message.content)
+  const lines = text.split(/\r?\n/u)
+  const first = form === 'notice' && typeof source.summary === 'string' ? source.summary : lines[0] ?? ''
+  return {
+    collapsed: true,
+    detail: `${String(form)} · ${first.trim()} · ${String(lines.length)} lines`,
+    key,
+    kind: 'context',
+    text,
+  }
+}
+
 /** Project DSH-owned pending injections beside the durable transcript. */
 export function pendingShellCells(messages: readonly UserMessage[]): readonly TerminalCell[] {
   return messages.filter(isDashiShell).map(message => shellCell(message, true))
@@ -162,13 +180,14 @@ export function foldCells(
           break
         }
         const text = messageText(event.data.content)
-        cells.push(isDashiShell(event.data)
+        const context = collapsedContextCell(event.data, `${event.seq}:context`)
+        cells.push(context ?? (isDashiShell(event.data)
           ? shellCell(event.data, false)
           : {
               key: `${event.seq}:user`,
               kind: event.data.source.kind === 'user' ? 'user' : 'context',
               text,
-            })
+            }))
         break
       }
       case 'assistant/chunk': {

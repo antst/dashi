@@ -328,6 +328,33 @@ describe('terminal renderer', () => {
     await shell.dispose()
   })
 
+  it('expands collapsed context through Ctrl+O and history', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false,
+      initialCells: [{
+        collapsed: true, detail: 'instructions · Workspace instructions · 3 lines',
+        key: 'context', kind: 'context', text: 'Workspace instructions\nCONTEXT_BODY_HIDDEN\nlast',
+      }],
+    })
+    shell.start()
+    await terminal.flush()
+    expect(terminal.lines().join('\n')).toContain('Context · instructions · Workspace instructions · 3 lines')
+    expect(terminal.lines().join('\n')).not.toContain('CONTEXT_BODY_HIDDEN')
+
+    terminal.send('\u000F')
+    await shell.whenIdle(); await terminal.flush()
+    expect(terminal.lines().join('\n')).toContain('CONTEXT_BODY_HIDDEN')
+    terminal.send('\u000F\u000F')
+    await shell.whenIdle()
+    shell.dispatch({ type: 'open-history' })
+    shell.dispatch({ type: 'overlay-submit' })
+    await shell.whenIdle(); await terminal.flush()
+    expect(terminal.lines().join('\n')).toContain('CONTEXT_BODY_HIDDEN')
+    await shell.dispose()
+  })
+
   it('sanitizes hostile presenter text before it reaches the terminal', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const shell = createTerminalShell({
