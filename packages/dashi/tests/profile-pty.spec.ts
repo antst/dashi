@@ -776,7 +776,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       dependencies?: Record<string, string>
       version: string
     })
-    expect(manifests.map(manifest => manifest.version)).toEqual(Array(3).fill('0.1.0-alpha.5'))
+    const workspaceVersion = (JSON.parse(readFileSync(
+      join(root, 'packages', 'dashi', 'package.json'), 'utf8',
+    )) as { version: string }).version
+    expect(manifests.map(manifest => manifest.version)).toEqual(Array(3).fill(workspaceVersion))
     expect(manifests[1]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[0]?.version ?? ''}`)
     expect(manifests[1]?.dependencies?.['@antst/roller']).toBe('0.1.2')
     expect(JSON.parse(readFileSync(
