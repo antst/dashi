@@ -1160,6 +1160,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const armedAt = shell.output.length
       shell.write('\u0004')
       await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, 250) })
       shell.write('\u0004')
     }],
     ['Ctrl+C twice', (shell: PtyShell) => { shell.write('\u0003\u0003') }],
@@ -1173,6 +1174,26 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await stop(shell)
       await shell.waitFor('\u001B[?1049l', releasedAt)
       await shell.waitFor('Resume with:', releasedAt)
+      await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('expires the Ctrl+D exit arm after two seconds', async () => {
+    const { baseline, shell } = await prepareShell()
+    try {
+      await launch(shell)
+      const armedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, 2_500) })
+      expect(await firstFrame(shell.output)).not.toContain('Ctrl+C or Ctrl+D again to exit')
+      const rearmedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('Ctrl+C or Ctrl+D again to exit', rearmedAt)
+      shell.write('\u0004')
+      await shell.waitFor('\u001B[?1049l', rearmedAt)
       await expectRestored(shell, baseline)
     } finally {
       await shell.close()

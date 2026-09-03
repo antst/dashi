@@ -92,9 +92,12 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
   })
   const guard: TerminalGuard = createTerminalGuard(renderer)
   const writeError = options.writeError ?? (message => { process.stderr.write(message) })
+  let exitTimer: ReturnType<typeof setTimeout> | undefined
   let released = false
 
   const release = async (): Promise<void> => {
+    if (exitTimer !== undefined) clearTimeout(exitTimer)
+    exitTimer = undefined
     await guard.dispose()
     if (released) return
     released = true
@@ -148,6 +151,10 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
         await options.beforeExit?.()
         await release()
         options.exit(0)
+        return
+      case 'exit-timer':
+        if (exitTimer !== undefined) clearTimeout(exitTimer)
+        exitTimer = effect.armed ? setTimeout(() => { dispatch({ type: 'disarm-exit' }) }, 2_000) : undefined
         return
       case 'external-edit': {
         try {
