@@ -26,6 +26,7 @@ const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
+const modelCatalogPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'model-catalog.patch.yml')
 const cleanReplayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'clean-replay.patch.yml')
 const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'dsh-version-mismatch.yaml')
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
@@ -1987,6 +1988,49 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('infers a unique launch-model provider and accepts an explicit provider', async () => {
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(modelCatalogPatch)} --fullscreen`
+    for (const selection of [
+      { args: '--model w025-unique', expected: 'Model: w025-alpha/w025-unique' },
+      { args: '--provider w025-beta --model w025-shared', expected: 'Model: w025-beta/w025-shared' },
+    ]) {
+      const shell = new PtyShell(replayFixture, undefined, root, {
+        DSH_HOME: launchFlagsHome,
+        PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      })
+      try {
+        const start = await launch(shell, `${launcher} ${selection.args}`)
+        shell.write('/status\r')
+        await shell.waitFor(selection.expected, start)
+        const closedAt = shell.output.length
+        shell.write('\u001B')
+        await shell.waitFor('idle ·', closedAt)
+        await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+        const releasedAt = shell.output.length
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await shell.close()
+      }
+    }
+  }, 30_000)
+
+  it('lists both provider candidates when a launch model is ambiguous', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const command = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(modelCatalogPatch)} --model w025-shared`
+      const start = shell.output.length
+      shell.write(`${command}; printf '__W025_AMBIGUOUS_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('model "w025-shared" is available from multiple providers: w025-alpha, w025-beta; pass --provider', start)
+      await shell.waitFor('__W025_AMBIGUOUS_EXIT__1', start)
     } finally {
       await shell.close()
     }
