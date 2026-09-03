@@ -26,6 +26,7 @@ const presentationChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtu
 const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'request-context-session.jsonl')
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
+const pluginManagementFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'plugin-management')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
 const modelCatalogPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'model-catalog.patch.yml')
 const cleanReplayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'clean-replay.patch.yml')
@@ -44,6 +45,7 @@ let home = ''
 let hardeningCwd = ''
 let hardeningHome = ''
 let launchFlagsHome = ''
+let pluginHome = ''
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -435,11 +437,13 @@ beforeAll(() => {
   home = join(testDir, 'home')
   hardeningHome = join(testDir, 'hardening-home')
   launchFlagsHome = join(testDir, 'launch-flags-home')
+  pluginHome = join(testDir, 'plugin-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
   prepareTestProfile(hardeningHome)
   prepareTestProfile(launchFlagsHome)
+  prepareTestProfile(pluginHome)
 }, 120_000)
 
 afterAll(() => {
@@ -500,6 +504,59 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await viaLauncher.close()
     }
   }, 30_000)
+
+  it('prints launcher info, lists loaded plugins, and relays profile plugin changes', async () => {
+    const archives = join(testDir, 'plugin-archives')
+    mkdirSync(archives)
+    const archive = packWorkspacePackage(pluginManagementFixture, archives)
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: pluginHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)}`
+    try {
+      let start = shell.output.length
+      shell.write(`${launcher} --help; printf '__W034_HELP_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('__W034_HELP_EXIT__0', start)
+      expect(shell.output.slice(start)).toContain(`dashi ${JSON.parse(readFileSync(join(root, 'packages', 'dashi', 'package.json'), 'utf8')).version as string} on DSH ${validatedDshVersion}`)
+      expect(shell.output.slice(start)).toContain('Launch flags:')
+      expect(shell.output.slice(start)).toContain('--permission PRESET')
+      start = shell.output.length
+      shell.write(`${launcher} --version; printf '__W034_VERSION_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('__W034_VERSION_EXIT__0', start)
+      expect(shell.output.slice(start)).toContain(`\r${validatedDshVersion}\r\n`)
+
+      start = await launch(shell, `${launcher} --patch ${quote(replayPatch)} --fullscreen --yolo`)
+      shell.write('/plugins\r')
+      for (const row of [
+        '@deepseek-ai/dsh-api-session-controller',
+        'include:dashi · @antst/dashi · enabled · active',
+        'include:roller · @antst/roller · enabled · active',
+      ]) {
+        await shell.waitFor(row, start)
+      }
+      expect(shell.output.slice(start)).toContain('enabled')
+      expect(shell.output.slice(start)).toContain('active')
+
+      const addAt = shell.output.length
+      shell.write(`/plugin add ${quote(archive)}\r`)
+      await shell.waitFor('changes load on the next launch; exit and run dashi again', addAt)
+      const profileManifest = JSON.parse(readFileSync(join(pluginHome, 'profiles', 'dashi', 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>
+      }
+      expect(profileManifest.dependencies?.['@antst/dashi-plugin-management-fixture']).toContain('.tgz')
+
+      const missingAt = shell.output.length
+      shell.write('/plugin add @antst/dashi-w034-package-does-not-exist\r')
+      await shell.waitFor('dsh: pnpm failed in profile directory', missingAt)
+      expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist is not in the npm registry')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
 
   it('resumes with injected instructions collapsed above the visible prompt', async () => {
     const seed = new PtyShell()

@@ -2,6 +2,7 @@ import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { describe, expect, it } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
+import { VERSION_LINE } from '../src/help.js'
 import { createRenderer, type Renderer } from '../src/renderer.js'
 import { testCeiling } from './test-budget.js'
 
@@ -270,8 +271,11 @@ describe('terminal renderer', () => {
     await terminal.flush()
     expect(shell.readState().composer).toBe('?explain this')
     expect(shell.readState().overlay).toMatchObject({ kind: 'info', title: 'Help' })
-    expect(terminal.lines().join('\n')).toContain('Shift+Tab permission')
-    expect(terminal.lines().join('\n')).toContain('--model/--effort/--permission/--yolo')
+    const help = terminal.lines().join('\n')
+    expect(help).toContain(VERSION_LINE)
+    expect(help).toContain('Shift+Tab permission')
+    expect(help).toContain('/plugins /plugin')
+    expect(help).toContain('--permission PRESET')
     await shell.dispose()
   })
 

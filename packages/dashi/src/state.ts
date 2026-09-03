@@ -1,3 +1,4 @@
+import { FLAG_HELP, VERSION_LINE } from './help.js'
 export interface RootView {
   readonly contextPercent?: number
   readonly cwd: string
@@ -351,6 +352,7 @@ function help(): Overlay {
     kind: 'info',
     title: 'Help',
     lines: [
+      VERSION_LINE,
       'Enter send · Ctrl+J newline · Ctrl+T steer/next turn',
       'Esc interrupt · Ctrl+C clear/interrupt · Ctrl+C/D again within 2s to exit',
       '/ and @ complete live · Tab insert · Shift+Tab permission · Ctrl+O cards',
@@ -359,8 +361,9 @@ function help(): Overlay {
       'Ctrl+B activity details for jobs and subagents',
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
-      '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue · launch -r/-c --model/--effort/--permission/--yolo',
-      '/status /context /tasks /history /export /copy /exit',
+      '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue',
+      '/status /context /plugins /plugin /tasks /history /export /copy /exit',
+      ...FLAG_HELP,
     ],
   }
 }

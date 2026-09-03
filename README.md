@@ -46,6 +46,8 @@ as `/model`; DSH also updates its default, because it does not yet expose a
 session-only selection. `--permission PRESET` applies `/permission` before the
 first prompt. `--yolo` and `--dangerously-skip-permissions` explicitly select
 `danger-full-access` without a launch confirmation.
+`--version` is DSH's own root flag, so `dashi --version` prints the active DSH
+release; `dashi --help` starts with both dashi and DSH versions.
 
 ## Sessions
 
@@ -83,7 +85,7 @@ Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
 `/clear`, `/fork`, `/rewind`, `/rename`, `/model`, `/permission`, `/agents`,
-`/queue`, `/context`, `/tasks`, `/history`, `/export`, `/copy`, and `/exit`;
+`/queue`, `/context`, `/plugins`, `/plugin`, `/tasks`, `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
 text when no command matches.
@@ -92,9 +94,13 @@ text when no command matches.
 native DSH agent preset; after a conversation starts, choosing a preset starts
 a new session with it. `/context` shows DSH's heuristic system, tool-schema,
 and message estimates for the next request. `/tasks` opens the job and subagent
-details view. `/export [path]` writes the complete current transcript as
-Markdown under the session working directory; its default filename is
-`dashi-SESSION_UUID.md`.
+details view. `/plugins` lists each running profile row's id, module, enabled
+state, and fiber phase; MCP client rows also show their configured server name.
+`/plugin ARGS` passes ARGS to `dsh plugin --profile <running profile>` and
+reports when a successful change will load on the next launch. Human `!`
+commands receive the same resolved `DSH_HOME` as the running profile.
+`/export [path]` writes the complete current transcript as Markdown under the
+session working directory; its default filename is `dashi-SESSION_UUID.md`.
 
 F1 opens help, Shift+Tab cycles permission presets, Ctrl+T switches a running
 root between steer and next-turn input, Ctrl+O cycles the global tool-card mode,
@@ -187,9 +193,11 @@ duplicate it.
 The Session Controller has no root-release operation, so roots left by
 `/new`, `/resume`, `/fork`, or `/rewind` remain idle until profile teardown.
 
-DSH currently exposes no MCP server/tool roster service or MCP management
-surface for a terminal `/mcp` view. Login, hooks, add-dir, memory editing, Git
-diff, and autocompact tuning also have no native dashi command surface.
+DSH's plugin CLI exposes no enable/disable verb, so dashi cannot toggle profile
+rows in-session. The MCP client exposes configured server names but no live
+connection-status API, so `/plugins` reports ordinary plugin fiber state, not
+connection health. Login, hooks, add-dir, memory editing, Git diff, and
+autocompact tuning also have no native dashi command surface.
 
 An optional shell alias provides the shorter spelling:
 

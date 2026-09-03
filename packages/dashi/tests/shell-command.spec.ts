@@ -3,7 +3,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ShellRunResult } from '@deepseek-ai/dsh-shell'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  HUMAN_SHELL_STREAM_BYTES, HUMAN_SHELL_TIMEOUT_MS, runHumanShell, shellResultText,
+  HUMAN_SHELL_STREAM_BYTES, HUMAN_SHELL_TIMEOUT_MS, quoteShellWord, runHumanShell, shellResultText,
 } from '../src/shell-command.js'
 
 function result(overrides: Partial<ShellRunResult> = {}): ShellRunResult {
@@ -15,6 +15,10 @@ function result(overrides: Partial<ShellRunResult> = {}): ShellRunResult {
 }
 
 describe('human shell command', () => {
+  it('quotes a profile name containing a space and quote as one shell word', () => {
+    expect(quoteShellWord("my profile's")).toBe("'my profile'\\''s'")
+  })
+
   it('caps each stream and reports timeout and sandbox denial', () => {
     const text = shellResultText('sleep 60', result({
       sandbox: { denied: true, mode: 'workspace-write' },
@@ -39,14 +43,16 @@ describe('human shell command', () => {
     } as unknown as Context
     const agent = { session: { header: { cwd: '/work' } } } as unknown as Agent
     const signal = new AbortController().signal
-    const message = await runHumanShell(ctx, agent, 'echo ok', signal)
+    const [message, shellResult] = await runHumanShell(ctx, agent, 'echo ok', signal, 'reload next time')
     expect(resolve).toHaveBeenCalledWith({
-      command: 'echo ok', sandboxPolicy: policy, signal,
+      command: 'echo ok', env: { DSH_HOME: expect.any(String) }, sandboxPolicy: policy, signal,
       stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES, timeoutMs: HUMAN_SHELL_TIMEOUT_MS, workdir: '/work',
     })
     expect(message).toMatchObject({
+      content: [{ text: expect.stringContaining('[exit 0]\nreload next time') }],
       role: 'user', source: { form: 'notice', kind: 'plugin', plugin: 'dashi', summary: 'Shell: echo ok' },
     })
     expect(message.id).toBeTruthy()
+    expect(shellResult).toBe(spec)
   })
 })

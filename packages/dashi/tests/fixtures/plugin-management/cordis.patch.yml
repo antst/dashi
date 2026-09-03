@@ -1,0 +1,3 @@
+- insert:
+    - id: dashi-plugin-management-fixture
+      name: '@antst/dashi-plugin-management-fixture'

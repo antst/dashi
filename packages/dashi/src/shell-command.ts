@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { boundContextSummary, createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type { CollectedOutput, ShellRunResult } from '@deepseek-ai/dsh-shell'
 
@@ -41,26 +42,28 @@ export function shellResultText(command: string, result: ShellRunResult): string
   return parts.join('\n')
 }
 
+export function quoteShellWord(value: string): string { return `'${value.replaceAll("'", "'\\''")}'` }
 /** Run an explicit human command through DSH and identify its next-step context. */
 export async function runHumanShell(
   ctx: Context,
   agent: Agent,
   command: string,
-  signal: AbortSignal,
-): Promise<UserMessage> {
+  signal: AbortSignal, success?: string,
+): Promise<readonly [UserMessage, ShellRunResult]> {
   const result = await ctx.shell.run(ctx.shell.resolve({
     command,
+    env: { DSH_HOME: resolveDshHome() },
     sandboxPolicy: ctx.sandboxPolicy.resolve({ session: agent.session }),
     signal,
     stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES,
     timeoutMs: HUMAN_SHELL_TIMEOUT_MS,
     workdir: agent.session.header.cwd,
   }))
-  return createUserMessage({
-    content: [{ type: 'text', text: shellResultText(command, result) }],
+  return [createUserMessage({
+    content: [{ type: 'text', text: shellResultText(command, result) + (result.exitCode === 0 && success ? `\n${success}` : '') }],
     source: {
       form: 'notice', kind: 'plugin', plugin: 'dashi',
       summary: boundContextSummary(`Shell: ${command.replace(/\s+/gu, ' ').trim()}`),
     },
-  })
+  }), result]
 }
