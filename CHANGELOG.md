@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.7 — 2026-09-03
+
+- Add launch flags for model, provider, effort, and permission selection.
+- Collapse DSH-injected context rows while preserving expansion and history.
+- Run CI and release gates in the shared container environment.
+
 ## 0.1.0-alpha.6 — 2026-09-03
 
 - First version published by the tag workflow with npm provenance.
