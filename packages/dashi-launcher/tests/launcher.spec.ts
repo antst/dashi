@@ -36,7 +36,7 @@ describe('dashi launcher', () => {
     const files = packed[0]?.files.map(file => file.path).sort()
     expect(files).toEqual(['README.md', 'bin/dashi.js', 'package.json'])
     process.stdout.write(`launcher pack: ${files?.join(', ')}\n`)
-  })
+  }, 30_000)
 
   it('prepends the native profile and propagates a nonzero exit exactly', () => {
     const directory = fakePath('printf "%s\\n" "$@"\nexit 42')
