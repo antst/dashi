@@ -25,12 +25,7 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      - name: Install terminal test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes tmux screen
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm gate
+      - run: pnpm gate:docker
       - name: Select release metadata
         id: release
         run: |
