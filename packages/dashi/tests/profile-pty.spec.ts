@@ -21,6 +21,7 @@ const rewindSteerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 
 const rollerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'roller-three-turn-session.jsonl')
 const questionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-session.jsonl')
 const presentationFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-session.jsonl')
+const contextInjectionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'context-injection-session.jsonl')
 const presentationChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-child-session.jsonl')
 const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'request-context-session.jsonl')
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
@@ -497,6 +498,42 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await viaLauncher.waitFor('Resume with:', releasedAt)
     } finally {
       await viaLauncher.close()
+    }
+  }, 30_000)
+
+  it('resumes with injected instructions collapsed above the visible prompt', async () => {
+    const seed = new PtyShell()
+    let id = ''
+    try {
+      const start = await launch(seed, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      id = sessionId(seed.output, start)
+      const releasedAt = seed.output.length
+      seed.write('\u0004\u0004')
+      await seed.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await seed.close()
+    }
+    const file = findSessionFile(join(home, 'replay-sessions'), id)
+    const header = readFileSync(file, 'utf8').split('\n')[0]
+    const fixture = readFileSync(contextInjectionFixture, 'utf8').split('\n').slice(1).join('\n')
+    writeFileSync(file, `${header}\n${fixture}`)
+
+    const resumed = new PtyShell()
+    try {
+      const start = await launch(resumed,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)}`)
+      await resumed.waitFor('idle ·', start)
+      const frame = await firstFrame(resumed.output.slice(start))
+      const context = frame.indexOf('Context · instructions · Workspace instructions · 18 lines')
+      const prompt = frame.indexOf('VISIBLE_CONTEXT_PROMPT')
+      expect(context).toBeGreaterThanOrEqual(0)
+      expect(prompt).toBeGreaterThan(context)
+      expect(frame).not.toContain('CONTEXT_BODY_18')
+      const releasedAt = resumed.output.length
+      resumed.write('\u0004\u0004')
+      await resumed.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await resumed.close()
     }
   }, 30_000)
 

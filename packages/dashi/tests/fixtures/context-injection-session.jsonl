@@ -1,0 +1,8 @@
+{"type":"session","version":0,"id":"dashi-context-injection","createdAt":1,"cwd":"/recorded","delegationDepth":0,"agentPreset":"standard"}
+{"type":"turn/start","data":{"turn":1},"seq":0,"time":1}
+{"type":"user/message","data":{"id":"context-instructions","role":"user","content":[{"type":"text","text":"Workspace instructions\nCONTEXT_BODY_02\nCONTEXT_BODY_03\nCONTEXT_BODY_04\nCONTEXT_BODY_05\nCONTEXT_BODY_06\nCONTEXT_BODY_07\nCONTEXT_BODY_08\nCONTEXT_BODY_09\nCONTEXT_BODY_10\nCONTEXT_BODY_11\nCONTEXT_BODY_12\nCONTEXT_BODY_13\nCONTEXT_BODY_14\nCONTEXT_BODY_15\nCONTEXT_BODY_16\nCONTEXT_BODY_17\nCONTEXT_BODY_18"}],"source":{"kind":"plugin","plugin":"agent-instructions","form":"instructions"}},"surfaceOp":"append","seq":1,"time":2}
+{"type":"user/message","data":{"id":"context-prompt","role":"user","content":[{"type":"text","text":"VISIBLE_CONTEXT_PROMPT"}],"source":{"kind":"user"}},"surfaceOp":"append","seq":2,"time":3}
+{"type":"step/start","data":{"turn":1,"step":1},"seq":3,"time":4}
+{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"id":"context-answer","role":"assistant","content":[{"type":"text","text":"Context fixture complete."}],"source":{"kind":"model","provider":"deepseek-official","model":"deepseek-v4-flash"}}},"sourceEventSeqs":[],"surfaceOp":"append","seq":4,"time":5}
+{"type":"step/end","data":{"turn":1,"step":1},"seq":5,"time":6}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}},"seq":6,"time":7}

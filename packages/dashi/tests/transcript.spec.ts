@@ -9,6 +9,11 @@ function recordedEvents(): SessionEvent[] {
     .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
 }
 
+function contextEvents(): SessionEvent[] {
+  return readFileSync(new URL('./fixtures/context-injection-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
+    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+}
+
 describe('foldCells', () => {
   it('folds a recorded DSH session log and skips unrelated native events', () => {
     expect(foldCells(recordedEvents())).toEqual([
@@ -16,6 +21,52 @@ describe('foldCells', () => {
       expect.objectContaining({ kind: 'assistant', text: 'Checkpoint 01 is recorded.' }),
       expect.objectContaining({ kind: 'outcome', text: 'completed' }),
     ])
+  })
+
+  it('folds a recorded instructions injection into one collapsed context cell', () => {
+    const cells = foldCells(contextEvents())
+    expect(cells[0]).toMatchObject({
+      collapsed: true,
+      detail: 'instructions · Workspace instructions · 18 lines',
+      kind: 'context',
+      text: expect.stringContaining('CONTEXT_BODY_18'),
+    })
+    expect(cells[1]).toMatchObject({ kind: 'user', text: 'VISIBLE_CONTEXT_PROMPT' })
+  })
+
+  it.each([
+    ['instructions', {}, 'first line'],
+    ['catalog', {}, 'first line'],
+    ['snapshot', { sections: [] }, 'first line'],
+    ['notice', { summary: 'durable summary' }, 'durable summary'],
+    ['recall', {}, 'first line'],
+  ])('collapses plugin context form %s from source fields', (form, extra, summary) => {
+    const message = createUserMessage({
+      content: [{ type: 'text', text: 'first line\nsecond line' }],
+      source: { form, kind: 'plugin', plugin: 'fixture', ...extra } as never,
+    })
+    const events = [{ type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message }] as unknown as SessionEvent[]
+    expect(foldCells(events)[0]).toMatchObject({
+      collapsed: true, detail: `${form} · ${summary} · 2 lines`, kind: 'context',
+    })
+  })
+
+  it('keeps relay and non-plugin instructions context rendering unchanged', () => {
+    const events = [
+      { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: createUserMessage({
+        content: [{ type: 'text', text: 'relay body' }],
+        source: { form: 'relay', kind: 'plugin', plugin: 'fixture' },
+      }) },
+      { type: 'user/message', seq: 2, time: 2, surfaceOp: 'append', data: createUserMessage({
+        content: [{ type: 'text', text: 'skill body' }],
+        source: { form: 'instructions', kind: 'skill-invocation', name: 'fixture' } as never,
+      }) },
+    ] as unknown as SessionEvent[]
+    expect(foldCells(events)).toEqual([
+      expect.objectContaining({ kind: 'context', text: 'relay body' }),
+      expect.objectContaining({ kind: 'context', text: 'skill body' }),
+    ])
+    expect(foldCells(events)).not.toContainEqual(expect.objectContaining({ collapsed: true }))
   })
 
   it('coalesces streamed reasoning and text, then pairs a tool result', () => {
