@@ -1202,7 +1202,7 @@ without an approval overlay, `--permission read-only` refuses a write,
 `--model` changes the durable selection, unknown values exit 1 with
 DSH's message; new production source under 80 lines.
 
-### W-026 Rewind flow per Claude Code — status: accepted 2026-09-03 (d4182dd, merged to main); owner hand check pending on alpha.4
+### W-026 Rewind flow per Claude Code — status: accepted 2026-09-03 (d4182dd, merged to main); owner hand check on alpha.4 confirmed 2026-09-03 ("much better")
 Verified: pure rewind module, four action rows with roller-gated code
 rows, first-prompt paths through create plus selectModel and
 /roller-restore start, double Esc draft recall; 93 production lines;
