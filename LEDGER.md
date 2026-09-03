@@ -1492,8 +1492,9 @@ missing DSH surface named; no row left as "unknown".
 Per D-036. Scope: dashi-app adds `@agent-sessions/dsh-comms` at exact
 0.4.0 as a dependency and a patch row (sibling of dashi and roller;
 activation is service-driven, row order is irrelevant); dashi parses
-`-g <group>` / `--group <group>` repeatable and runs
-`/agent-sessions group <g>` once per flag before TUI bind, relaying
+`-g <group>` / `--group <group>` repeatable and runs one
+`/agent-sessions group <g> [<g> ...]` call with all names (additive,
+one re-hello) before TUI bind, relaying
 the DSH command result on error (unknown command means the comms
 plugin is not loaded; say so verbatim). No name flag beyond the
 existing `--name`; no env variables set by dashi or the launcher.
