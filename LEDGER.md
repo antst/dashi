@@ -1325,6 +1325,24 @@ Acceptance evidence: PR CI green on GitHub except the preview step
 until the owner installs the pkg.pr.new app; both YAML pass
 actionlint; zero production source changes.
 
+### W-031 Exit arm expires after two seconds — status: open (after W-030, before W-025)
+Owner: dsh-exec. Branch `w-031-exit-arm-timeout`; PR against develop.
+Owner report from daily use (2026-09-03): the exit arm never expires;
+a first Ctrl+D and a second one a minute later still exit. Claude
+Code's arm lapses after a short window. Scope: when the reducer arms
+exit (Ctrl+C or Ctrl+D), it emits one effect that schedules a single
+timer of 2000 ms dispatching the existing `disarm-exit` action; a
+second press inside the window exits; a press after it re-arms with
+the hint again; any other key still disarms immediately and clears
+the timer; arming again resets the timer. One timer, cancelled on
+disarm and on dispose; no new state beyond the existing arm flag.
+Key table and README say "press again within two seconds". This is a
+key-chord timer, which DESIGN.md's render scheduling permits.
+Acceptance evidence: gate passes; reducer tests for arm, disarm via
+the timer action, re-arm after expiry; a PTY test proves a second
+Ctrl+D after 2.5 s does not exit and the hint is gone, while a second
+within 500 ms exits; new production source under 25 lines.
+
 ## Backlog
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
