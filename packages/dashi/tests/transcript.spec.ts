@@ -163,7 +163,7 @@ describe('foldCells', () => {
     expect(foldCells(events)).toEqual([])
   })
 
-  it('renders a pending dashi shell and folds its durable notice', () => {
+  it('renders dashi shell notices from pending inbox and durable history', () => {
     const message = createUserMessage({
       content: [{ type: 'text', text: '$ echo ok\n[stdout]\nok\n[exit 0]' }],
       source: { form: 'notice', kind: 'plugin', plugin: 'dashi', summary: 'Shell: echo ok' },
@@ -175,8 +175,7 @@ describe('foldCells', () => {
       type: 'user/message', seq: 4, time: 5, surfaceOp: 'append', data: message,
     }] as unknown as SessionEvent[]
     expect(foldCells(events)).toEqual([expect.objectContaining({
-      collapsed: true, detail: 'notice · Shell: echo ok · 4 lines',
-      kind: 'context', text: expect.stringContaining('[stdout]\nok'),
+      kind: 'shell', pending: false, text: expect.stringContaining('[stdout]\nok'),
     })])
   })
 

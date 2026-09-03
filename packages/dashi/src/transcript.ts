@@ -181,13 +181,13 @@ export function foldCells(
         }
         const text = messageText(event.data.content)
         const context = collapsedContextCell(event.data, `${event.seq}:context`)
-        cells.push(context ?? (isDashiShell(event.data)
+        cells.push(isDashiShell(event.data)
           ? shellCell(event.data, false)
-          : {
+          : context ?? {
               key: `${event.seq}:user`,
               kind: event.data.source.kind === 'user' ? 'user' : 'context',
               text,
-            }))
+            })
         break
       }
       case 'assistant/chunk': {
