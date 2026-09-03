@@ -1369,7 +1369,12 @@ Acceptance evidence: PR CI green with the container; `pnpm
 gate:docker` green locally with the same test count; zero production
 source changes.
 
-### W-033 Release on tag push — status: open (after W-031, before W-032)
+### W-033 Release on tag push — status: accepted 2026-09-03 (PR #11 merged into develop; 0.1.0-alpha.5)
+Tag push gates, validates the tag against all three manifests,
+creates the GitHub release from the CHANGELOG section, publishes the
+three packages in order skipping versions already on npm. First npm
+publish of dashi is manual (trusted publishing needs existing
+packages); the alpha.6 tag is the OIDC proof.
 Owner: dsh-exec. Branch `w-033-release-on-tag`; PR against develop.
 Owner request (2026-09-03), mirroring roller W-010: `release.yml`
 triggers on push of tags matching `v*`; jobs in order: gate, then
