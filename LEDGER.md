@@ -1416,7 +1416,19 @@ dist-tag. Idempotent on rerun. README release procedure: bump,
 changelog, merge to main, push the tag.
 Acceptance evidence: PR CI green; actionlint clean; the alpha.5 tag
 exercises it; zero production source changes.
-### W-034 Plugin management in the session — status: open (after the alpha.7 tag)
+### W-034 Plugin management in the session — status: accepted 2026-09-03 (PR #24 squash-merged into develop)
+Lookup showed `dsh plugin` is a pnpm passthrough with no enable/disable
+verb and mcp-client keeps connection state private, so: /plugins reads
+the DSH plugin-inventory Remote (dashi-app now mounts it) plus the
+configured serverName for mcp-client rows, no health claim; /plugin
+<args> forwards verbatim to `dsh plugin --profile <running profile>`
+(name derived from ctx.baseUrl, shell-quoted) through the human shell,
+which now overlays DSH_HOME via dsh-home-paths for `!` too; one
+next-launch notice, no restart mechanism. Addendum: -h/--help with a
+"dashi <v> on DSH <v>" header shared with /help; --version stays DSH's
+root flag (the launcher does not rewrite argv). Enable/disable and MCP
+status are DSH gaps in README and the queued upstream report. 59
+production lines; 220 tests.
 Claude Code has /plugin (install, remove, enable, disable) and /mcp
 (server list with connection status). DSH manages plugins only from
 the CLI (`dsh plugin --profile <name> add <pkg>`), MCP servers are
