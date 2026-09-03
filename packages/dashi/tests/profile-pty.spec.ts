@@ -775,8 +775,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       dependencies?: Record<string, string>
       version: string
     })
-    expect(manifests.map(manifest => manifest.version)).toEqual(Array(3).fill('0.1.0-alpha.3'))
+    expect(manifests.map(manifest => manifest.version)).toEqual(Array(3).fill('0.1.0-alpha.4'))
     expect(manifests[1]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[0]?.version ?? ''}`)
+    expect(manifests[1]?.dependencies?.['@antst/roller']).toBe('0.1.2')
+    expect(JSON.parse(readFileSync(
+      join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
+    )).version).toBe('0.1.2')
 
     for (const path of [manifestPath, workspacePath, join(profile, 'pnpm-lock.yaml')]) {
       const installed = readFileSync(path, 'utf8')
@@ -795,6 +799,24 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\r')
       const completedAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
       await shell.waitFor('idle ·', completedAt)
+      const commandAt = shell.output.length
+      shell.write('/roller')
+      await shell.waitFor('/roller-restore', commandAt)
+      shell.write('\u001B')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const clearAt = shell.output.length
+      shell.write('\u0003')
+      await shell.waitFor('\r\u001B[2K \u001B[7m', clearAt)
+      const rewindAt = shell.output.length
+      shell.write('/rewind\r')
+      await shell.waitFor('Rewind to a prompt', rewindAt)
+      shell.write('\r')
+      await shell.waitFor('Restore code and conversation', rewindAt)
+      await shell.waitFor('Restore code', rewindAt)
+      const closeAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closeAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const pickerAt = shell.output.length
       shell.write('/model\r')
       await shell.waitFor('Model', pickerAt)
@@ -1918,7 +1940,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && JSON.stringify(event.data).includes('queued from command'))).toBe(true)
   }, 60_000)
 
-  it('lists steered prompts, omits code without roller, and recovers a draft', async () => {
+  it('lists steered prompts, offers bundled roller, and recovers a draft', async () => {
     const shell = new PtyShell(rewindSteerFixture)
     let parent = ''
     let child = ''
@@ -1950,13 +1972,13 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const secondScreen = await firstFrame(shell.output.slice(start))
       expect(secondScreen).toContain('steered rewind prompt')
       expect(secondScreen).toContain('Restore conversation')
-      expect(secondScreen).not.toContain('Restore code')
+      expect(secondScreen).toContain('Restore code')
       if (process.env.DASHI_CAPTURE_REWIND === '1') {
         process.stdout.write(`rewind screen 1 (80x24):\n${firstScreen}\nrewind screen 2 (80x24):\n${secondScreen}\n`)
       }
 
       const neverAt = shell.output.length
-      shell.write('\u001B[B\r')
+      shell.write(`${'\u001B[B'.repeat(3)}\r`)
       await shell.waitFor('Rewind to a prompt', neverAt)
       const closedAt = shell.output.length
       shell.write('\u001B')
@@ -1983,7 +2005,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\r')
       await shell.waitFor('Restore conversation', restoreAt)
       const actionAt = shell.output.length
-      shell.write('\r')
+      shell.write('\u001B[B\r')
       child = await waitForOtherSession(shell, parent, rewindAt)
       await shell.waitFor('steered rewind prompt', actionAt)
 
@@ -2011,18 +2033,6 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   }, 90_000)
 
   it('restores conversation and code at both session start and a turn boundary', async () => {
-    run('pnpm', ['--dir', '/home/antst/roller-main', 'build'])
-    run('pnpm', [
-      '--dir', '/home/antst/roller-main/packages/roller',
-      'pack', '--pack-destination', testDir,
-    ])
-    const archive = readdirSync(testDir).find(entry =>
-      entry.startsWith('antst-roller-') && entry.endsWith('.tgz'))
-    if (archive === undefined) throw new Error('roller pack did not produce an archive')
-    run(dsh, ['plugin', '--profile', 'dashi', 'add', join(testDir, archive)], {
-      ...process.env, DSH_HOME: home,
-    })
-
     const scenarios = [
       { action: 0, first: true, mode: 'both', file: undefined, child: true },
       { action: 2, first: true, mode: 'code', file: undefined, child: false },

@@ -94,6 +94,9 @@
     - id: dashi
       name: '@antst/dashi'
 
+    - id: roller
+      name: '@antst/roller'
+
 - id: session-query-sqlite
   config:
     path: !!js dshHomePath('dashi-session-search.sqlite')

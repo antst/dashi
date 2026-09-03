@@ -11,6 +11,8 @@ dsh plugin --profile dashi add @antst/dashi-app
 dsh --profile dashi
 ```
 
+The profile bundle includes roller for file rewind.
+
 Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.
 When upgrading DSH, remove `node_modules` and the lockfile before installing so

@@ -1,6 +1,6 @@
 {
   "name": "@antst/dashi",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "A terminal UI for DeepSeek Harness",
   "publishConfig": {
     "access": "public"
