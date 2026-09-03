@@ -229,6 +229,7 @@ dashi [PROMPT]
   --model ID
   --effort ID
   --permission PRESET
+  --yolo | --dangerously-skip-permissions
   --image PATH              # repeatable
   --fullscreen | --inline  # inline is the default
   --no-color
@@ -238,9 +239,17 @@ dashi [PROMPT]
 Fresh start, `--resume`, and `--continue` are mutually
 exclusive. Bare `--resume` opens the current-cwd session picker (`--all`
 widens it to every cwd); `-r` and `-c` are aliases for `--resume` and
-`--continue`. All flags are launch-scoped and do not mutate global
-configuration. A `PROMPT` starts or resumes an interactive session and submits
-its first turn after any picker selection.
+`--continue`. These flags affect startup; DSH remains the owner of any durable
+effect. Launch model and effort flags apply DSH's native selection before
+the first prompt; like `/model`, DSH also saves that selection as its default
+because it does not expose session-only selection. dashi stores no setting and
+does not restore the prior default. A `PROMPT` starts or resumes an interactive
+session and submits its first turn after any picker selection.
+
+`--provider` disambiguates a model ID present in more than one catalog group.
+`--permission` applies the native `/permission` command at startup. `--yolo`
+and `--dangerously-skip-permissions` are explicit-consent aliases for
+`--permission danger-full-access`, so they do not add a launch confirmation.
 
 `UUID` in this interface means DSH's complete product `SessionId` (currently
 `session-` plus the generated UUID), not an accepted prefix. An ID-shaped value

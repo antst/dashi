@@ -30,6 +30,10 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let accessible = false
   let inline = true
   let name: string | undefined
+  let effort: string | undefined
+  let model: string | undefined
+  let permission: string | undefined
+  let provider: string | undefined
   let resume: string | undefined
   let resumeAll = false
   let resumePicker = false
@@ -41,11 +45,16 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     if (argument === '--accessible') accessible = true
     else if (argument === '--inline') inline = true
     else if (argument === '--fullscreen') inline = false
-    else if (argument === '--name' || argument === '--image') {
+    else if (argument === '--name' || argument === '--image' || argument === '--effort'
+      || argument === '--model' || argument === '--permission' || argument === '--provider') {
       const value = args[++index]
       if (value === undefined || value === '') return undefined
       if (argument === '--name') name = value
-      else images.push(value)
+      else if (argument === '--image') images.push(value)
+      else if (argument === '--effort') effort = value
+      else if (argument === '--model') model = value
+      else if (argument === '--permission') permission = value
+      else provider = value
     } else if (argument === '--resume' || argument === '-r') {
       const value = args[index + 1]
       if (value === '') return undefined
@@ -53,12 +62,16 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
       else resume = args[++index]
     } else if (argument === '--all') resumeAll = true
     else if (argument === '--continue' || argument === '-c') useContinue = true
+    else if (argument === '--yolo' || argument === '--dangerously-skip-permissions') {
+      permission = 'danger-full-access'
+    }
     else if (argument?.startsWith('-') === true) return undefined
     else if (argument !== undefined) prompt.push(argument)
   }
   if (resume !== undefined && (resumePicker || useContinue) || resumePicker && useContinue
     || name !== undefined && (resume !== undefined || resumePicker || useContinue)
-    || resumeAll && resume === undefined && !resumePicker || resumeAll && useContinue) return undefined
+    || resumeAll && resume === undefined && !resumePicker || resumeAll && useContinue
+    || provider !== undefined && model === undefined) return undefined
   return {
     accessible,
     continue: useContinue,
@@ -66,8 +79,12 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     resumeAll,
     resumePicker,
     ...(images.length === 0 ? {} : { images }),
+    ...(effort === undefined ? {} : { effort }),
+    ...(model === undefined ? {} : { model }),
     ...(name === undefined ? {} : { name }),
+    ...(permission === undefined ? {} : { permission }),
     ...(prompt.length === 0 ? {} : { prompt: prompt.join(' ') }),
+    ...(provider === undefined ? {} : { provider }),
     ...(resume === undefined ? {} : { resume }),
   }
 }

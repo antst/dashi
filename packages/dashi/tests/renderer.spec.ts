@@ -271,6 +271,7 @@ describe('terminal renderer', () => {
     expect(shell.readState().composer).toBe('?explain this')
     expect(shell.readState().overlay).toMatchObject({ kind: 'info', title: 'Help' })
     expect(terminal.lines().join('\n')).toContain('Shift+Tab permission')
+    expect(terminal.lines().join('\n')).toContain('--model/--effort/--permission/--yolo')
     await shell.dispose()
   })
 

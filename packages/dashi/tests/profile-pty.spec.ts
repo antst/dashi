@@ -26,6 +26,7 @@ const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
+const modelCatalogPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'model-catalog.patch.yml')
 const cleanReplayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'clean-replay.patch.yml')
 const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'dsh-version-mismatch.yaml')
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
@@ -41,6 +42,7 @@ let testDir = ''
 let home = ''
 let hardeningCwd = ''
 let hardeningHome = ''
+let launchFlagsHome = ''
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -431,10 +433,12 @@ beforeAll(() => {
   testDir = mkdtempSync(join(tmpdir(), 'dashi-profile-'))
   home = join(testDir, 'home')
   hardeningHome = join(testDir, 'hardening-home')
+  launchFlagsHome = join(testDir, 'launch-flags-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
   prepareTestProfile(hardeningHome)
+  prepareTestProfile(launchFlagsHome)
 }, 120_000)
 
 afterAll(() => {
@@ -1907,6 +1911,155 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.close()
     }
     expect(sessionEvents(id).some(event => event.type === 'model/selection')).toBe(true)
+  }, 30_000)
+
+  it.each(['--yolo', '--dangerously-skip-permissions'])(
+    'applies launch model, effort, and %s before the first prompt', async (dangerFlag) => {
+      const shell = new PtyShell(replayFixture, undefined, root, {
+        DSH_HOME: launchFlagsHome,
+        PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      })
+      let id = ''
+      try {
+        const start = await launch(shell,
+          `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-v4-flash --effort low ${dangerFlag} 'launch flags'`)
+        id = sessionId(shell.output, start)
+        await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+        await shell.waitFor('idle ·', start)
+        expect(shell.output.slice(start)).not.toContain('Approval · bash')
+        shell.write('/status\r')
+        await shell.waitFor('Model: deepseek-official/deepseek-v4-flash', start)
+        await shell.waitFor('Effort: low', start)
+        await shell.waitFor('Permission: danger-full-access', start)
+        const closedAt = shell.output.length
+        shell.write('\u001B')
+        await shell.waitFor('idle ·', closedAt)
+        await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+        const releasedAt = shell.output.length
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await shell.close()
+      }
+      const events = sessionEvents(id, launchFlagsHome)
+      expect(events.some(event => event.type === 'model/selection'
+        && event.data?.reasoningEffort === 'low')).toBe(true)
+      expect(events.some(event => event.type === 'permission/preset'
+        && event.data?.preset === 'danger-full-access')).toBe(true)
+      expect(events.some(event => event.type === 'command/run'
+        && event.data?.name === 'permission')).toBe(true)
+    }, 45_000)
+
+  it('applies read-only at launch and refuses a human-shell write', async () => {
+    const cwd = join(testDir, 'launch-read-only')
+    const target = join(cwd, 'blocked.txt')
+    mkdirSync(cwd)
+    const shell = new PtyShell(replayFixture, undefined, cwd, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    let id = ''
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --permission read-only ${quote(`!printf blocked > ${target}`)}`)
+      id = sessionId(shell.output, start)
+      await shell.waitFor('sandbox denied file access', start)
+      await shell.waitFor('idle ·', start)
+      expect(existsSync(target)).toBe(false)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+    expect(sessionEvents(id, launchFlagsHome).some(event => event.type === 'permission/preset'
+      && event.data?.preset === 'read-only')).toBe(true)
+  }, 30_000)
+
+  it('binds an unlisted launch model because DSH catalogs are advisory', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --model w025-unlisted`)
+      expect(shell.output.slice(start)).toContain('w025-unlisted')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('infers a unique launch-model provider and accepts an explicit provider', async () => {
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(modelCatalogPatch)} --fullscreen`
+    for (const selection of [
+      { args: '--model w025-unique', expected: 'Model: w025-alpha/w025-unique' },
+      { args: '--provider w025-beta --model w025-shared', expected: 'Model: w025-beta/w025-shared' },
+    ]) {
+      const shell = new PtyShell(replayFixture, undefined, root, {
+        DSH_HOME: launchFlagsHome,
+        PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      })
+      try {
+        const start = await launch(shell, `${launcher} ${selection.args}`)
+        shell.write('/status\r')
+        await shell.waitFor(selection.expected, start)
+        const closedAt = shell.output.length
+        shell.write('\u001B')
+        await shell.waitFor('idle ·', closedAt)
+        await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+        const releasedAt = shell.output.length
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await shell.close()
+      }
+    }
+  }, 30_000)
+
+  it('lists both provider candidates when a launch model is ambiguous', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const command = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(modelCatalogPatch)} --model w025-shared`
+      const start = shell.output.length
+      shell.write(`${command}; printf '__W025_AMBIGUOUS_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('model "w025-shared" is available from multiple providers: w025-alpha, w025-beta; pass --provider', start)
+      await shell.waitFor('__W025_AMBIGUOUS_EXIT__1', start)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('returns DSH startup errors for invalid launch permission, provider, and effort values', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)}`
+    try {
+      let start = shell.output.length
+      shell.write(`${launcher} --permission w025-missing; printf '__W025_PERMISSION_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('unknown preset "w025-missing"', start)
+      await shell.waitFor('__W025_PERMISSION_EXIT__1', start)
+      start = shell.output.length
+      shell.write(`${launcher} --provider w025-missing --model unlisted; printf '__W025_PROVIDER_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('no adapter registered for provider "w025-missing"', start)
+      await shell.waitFor('__W025_PROVIDER_EXIT__1', start)
+      expect(shell.output.slice(start)).toContain('startup failed')
+      start = shell.output.length
+      shell.write(`${launcher} --provider deepseek-official --model deepseek-v4-flash --effort w025-missing; printf '__W025_EFFORT_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('provider "deepseek-official" model "deepseek-v4-flash" does not support reasoning effort "w025-missing"', start)
+      await shell.waitFor('__W025_EFFORT_EXIT__1', start)
+      expect(shell.output.slice(start)).toContain('startup failed')
+    } finally {
+      await shell.close()
+    }
   }, 30_000)
 
   it('requires explicit confirmation before switching to a never-approval preset', async () => {

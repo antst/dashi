@@ -92,17 +92,20 @@ describe('dashi profile plugin', () => {
     expect(runtime.shutdown).toHaveBeenCalledOnce()
   })
 
-  it('rejects unsupported launch arguments without taking the terminal', () => {
+  it.each([
+    ['--wat'],
+    ['--provider', 'deepseek-official'],
+  ])('rejects unsupported launch arguments without taking the terminal: %s', (...args) => {
     const exits: number[] = []
     const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     const ctx = new Context()
     provideCmdline(ctx, {
-      args: ['--wat'], exit: code => { exits.push(code) },
+      args, exit: code => { exits.push(code) },
       ready: { onReady: () => () => {} },
     })
 
     apply(ctx)
-    expect(write).toHaveBeenCalledWith('dashi: unsupported arguments: --wat\n')
+    expect(write).toHaveBeenCalledWith(`dashi: unsupported arguments: ${args.join(' ')}\n`)
     expect(exits).toEqual([2])
     expect(shell.start).not.toHaveBeenCalled()
   })

@@ -62,9 +62,13 @@ import type { TuiRoot } from './tui-root.js'
 export interface RootLaunchOptions {
   readonly continue: boolean
   readonly cwd: string
+  readonly effort?: string
   readonly name?: string
   readonly images?: readonly string[]
+  readonly model?: string
+  readonly permission?: string
   readonly prompt?: string
+  readonly provider?: string
   readonly resume?: string
 }
 
@@ -852,6 +856,34 @@ export async function createSessionRuntime(
   }
 
   await install(binding)
+  if (options.model !== undefined || options.effort !== undefined) {
+    const catalog = await ctx.sessionController.modelCatalog()
+    const currentSelection = currentModel(ctx, binding.agent) ?? catalog.default
+    const model = options.model ?? currentSelection.model
+    const candidates = catalog.groups.filter(group => group.models.some(item => item.id === model))
+    if (options.provider === undefined && candidates.length > 1) {
+      throw new Error(`model "${model}" is available from multiple providers: ${candidates.map(group => group.id).join(', ')}; pass --provider`)
+    }
+    const result = await ctx.sessionController.selectModel({
+      sessionId: binding.agent.id,
+      model,
+      provider: options.provider ?? candidates[0]?.id ?? currentSelection.provider,
+      ...(options.effort === undefined ? {} : { reasoningEffort: options.effort }),
+    })
+    const { effort: _previousEffort, ...root } = binding.root
+    binding.root = {
+      ...root, model: result.selected.model, provider: result.selected.provider,
+      ...(result.selected.reasoningEffort === undefined ? {} : { effort: result.selected.reasoningEffort }),
+    }
+  }
+  if (options.permission !== undefined) {
+    const execution = await ctx.commands.execute(
+      binding.agent, `/permission ${options.permission}`, [], lifetime.signal,
+    )
+    if (execution === undefined) throw new Error('DSH supplied no /permission command')
+    if (execution.result.kind === 'error') throw new Error(execution.result.text ?? 'permission change failed')
+    binding.root = { ...binding.root, permission: options.permission }
+  }
   tuiRoot.bind(binding.agent)
 
   const activate = async (value: ActivatableOverlayValue): Promise<void> => {
