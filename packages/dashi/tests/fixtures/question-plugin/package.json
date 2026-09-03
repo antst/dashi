@@ -1,0 +1,13 @@
+{
+  "name": "@antst/dashi-question-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.2-rc.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  }
+}

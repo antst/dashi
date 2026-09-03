@@ -1,0 +1,16 @@
+{"type":"session","version":0,"id":"dashi-rewind-steer","createdAt":1,"cwd":"/recorded","delegationDepth":0}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"First rewind turn complete."}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"First rewind turn complete."}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"reasoning"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"reasoning-delta","index":0,"text":"Inspecting the second rewind turn."}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"reasoning","text":"Inspecting the second rewind turn."}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":1,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"tool-call-delta","index":1,"id":"rewind-steer-call","name":"bash","argumentsDelta":"{\"command\":\"printf REWIND_STEER\",\"description\":\"Pause the second rewind turn.\",\"sandbox_permissions\":\"danger-full-access\",\"justification\":\"Exercise a recorded steered prompt.\"}"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":1,"block":{"type":"tool-call","id":"rewind-steer-call","name":"bash","arguments":"{\"command\":\"printf REWIND_STEER\",\"description\":\"Pause the second rewind turn.\",\"sandbox_permissions\":\"danger-full-access\",\"justification\":\"Exercise a recorded steered prompt.\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Second rewind turn complete."}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Second rewind turn complete."}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}

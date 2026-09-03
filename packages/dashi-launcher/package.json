@@ -1,0 +1,22 @@
+{
+  "name": "@antst/dashi-launcher",
+  "version": "0.1.0-alpha.3",
+  "description": "The dashi command for DeepSeek Harness",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://forgejo.antst.net/ai/dashi.git",
+    "directory": "packages/dashi-launcher"
+  },
+  "type": "module",
+  "bin": {
+    "dashi": "./bin/dashi.js"
+  },
+  "files": ["bin/dashi.js"],
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  }
+}

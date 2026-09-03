@@ -1,0 +1,54 @@
+{"type":"session","version":0,"id":"dashi-presentation","createdAt":1,"cwd":"/recorded","delegationDepth":0}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"plan-first","name":"exit_plan_mode","argumentsDelta":"{\"plan\":\"# First plan\\n\\nUse duplicate state.\"}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"plan-first","name":"exit_plan_mode","arguments":"{\"plan\":\"# First plan\\n\\nUse duplicate state.\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"usage","usage":{"inputTokens":40000,"outputTokens":20}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"tool-call-delta","index":0,"id":"plan-revised","name":"exit_plan_mode","argumentsDelta":"{\"plan\":\"# Revised plan\\n\\nUse one service boundary.\"}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"plan-revised","name":"exit_plan_mode","arguments":"{\"plan\":\"# Revised plan\\n\\nUse one service boundary.\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"usage","usage":{"inputTokens":40000,"outputTokens":20}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"text-delta","index":0,"text":"The revised plan is approved."}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"The revised plan is approved."}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"usage","usage":{"inputTokens":40000,"outputTokens":10}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"todo-first","name":"todo_write","argumentsDelta":"{\"todos\":[{\"content\":\"inspect\",\"status\":\"in_progress\"},{\"content\":\"ship\",\"status\":\"pending\"}]}"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"todo-first","name":"todo_write","arguments":"{\"todos\":[{\"content\":\"inspect\",\"status\":\"in_progress\"},{\"content\":\"ship\",\"status\":\"pending\"}]}"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"tool-call-delta","index":0,"id":"todo-second","name":"todo_write","argumentsDelta":"{\"todos\":[{\"content\":\"inspect\",\"status\":\"completed\"},{\"content\":\"ship\",\"status\":\"in_progress\"}]}"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"todo-second","name":"todo_write","arguments":"{\"todos\":[{\"content\":\"inspect\",\"status\":\"completed\"},{\"content\":\"ship\",\"status\":\"in_progress\"}]}"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":3,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":3,"chunk":{"type":"text-delta","index":0,"text":"Todo revisions complete."}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":3,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Todo revisions complete."}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":3,"chunk":{"type":"usage","usage":{"inputTokens":32000,"outputTokens":8}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":3,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"subagent-start","name":"subagent","argumentsDelta":"{\"description\":\"research cause\",\"prompt\":\"Find the bounded cause summary.\",\"run_in_background\":true}"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"subagent-start","name":"subagent","arguments":"{\"description\":\"research cause\",\"prompt\":\"Find the bounded cause summary.\",\"run_in_background\":true}"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Subagent started."}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Subagent started."}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"text-delta","index":0,"text":"Subagent completion acknowledged."}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Subagent completion acknowledged."}}}}
+{"type":"assistant/chunk","data":{"turn":4,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"job-start","name":"bash","argumentsDelta":"{\"command\":\"sleep 0.5; printf DASHI_JOB_DONE\",\"description\":\"background proof\",\"run_in_background\":true}"}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"job-start","name":"bash","arguments":"{\"command\":\"sleep 0.5; printf DASHI_JOB_DONE\",\"description\":\"background proof\",\"run_in_background\":true}"}}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Background job started."}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Background job started."}}}}
+{"type":"assistant/chunk","data":{"turn":5,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":6,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":6,"step":1,"chunk":{"type":"text-delta","index":0,"text":"Job completion acknowledged."}}}
+{"type":"assistant/chunk","data":{"turn":6,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Job completion acknowledged."}}}}
+{"type":"assistant/chunk","data":{"turn":6,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"compaction/summary","data":{"compactionId":"recorded-compaction","summary":[{"type":"text","text":"# Summary\n\nThe plan, todos, delegated result, and background job completed."}],"shadowedRange":{"start":0,"end":1},"shadowedSeqs":[0,1],"shadowedTokenCount":10000,"provider":"deepseek-official","model":"deepseek-v4-flash","rawOutput":[{"type":"text","text":"# Summary\n\nThe plan, todos, delegated result, and background job completed."}],"llmStreamCall":true,"usage":{"inputTokens":8000,"outputTokens":20}}}

@@ -1,0 +1,41 @@
+{
+  "name": "@antst/dashi-app",
+  "version": "0.1.0-alpha.3",
+  "description": "Installable DeepSeek Harness profile bundle for dashi",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://forgejo.antst.net/ai/dashi.git",
+    "directory": "packages/dashi-app"
+  },
+  "type": "module",
+  "exports": {
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": ["cordis.patch.yml"],
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@antst/dashi": "workspace:^",
+    "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-api-session-controller": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-code-runtime-worker-thread": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-file-reference-local": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-tool-subagent": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-workspace": "0.1.2-rc.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.3"
+  }
+}

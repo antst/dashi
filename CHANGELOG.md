@@ -1,0 +1,34 @@
+# Changelog
+
+## 0.1.0-alpha.3 — 2026-09-03
+
+- Track and pin the validated DSH 0.1.2-rc.1 package set.
+- Reject mixed DSH dependency graphs during the release gate and clean-install
+  test, and warn when the running CLI loads a different `dsh-base` version.
+- Document the pnpm override and clean upgrade procedure required for
+  prerelease DSH.
+
+## 0.1.0-alpha.2 — 2026-09-03
+
+This alpha contains:
+
+- the `@antst/dashi` TUI plugin, installable `@antst/dashi-app` profile bundle,
+  and zero-dependency `@antst/dashi-launcher` command;
+- streaming chat, presenter-owned tool and diff cards, approvals, questions,
+  model and permission selection, session create/list/resume/fork/rewind,
+  history/search, completion, skills, images, shell commands, plans, todos,
+  jobs, subagents, context estimates, and transcript export;
+- main-screen inline rendering by default with terminal-owned scrollback and
+  selection, plus an optional mouse-enabled full-screen viewport;
+- DSH service peer dependencies, installed-profile drift checks, packed-package
+  clean-install coverage, terminal matrices, performance gates, and shutdown
+  fault injection.
+
+Known DSH gaps:
+
+- no cross-process session-writer ownership;
+- conversation-only native rewind; workspace restore requires an external
+  plugin such as roller;
+- no root-release operation, so replaced roots remain idle until teardown;
+- no native MCP roster/management, login, hooks, add-dir, memory editing, Git
+  diff, or autocompact-tuning surface for dashi.

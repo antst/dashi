@@ -1,0 +1,5 @@
+{"type":"session","version":0,"id":"dashi-request-context","createdAt":1,"cwd":"/recorded","delegationDepth":0}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"Observed injected output: {{fromRequest:(DASHI_SHELL_OUTPUT)}}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Observed injected output: {{fromRequest:(DASHI_SHELL_OUTPUT)}}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}

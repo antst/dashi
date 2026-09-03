@@ -1,0 +1,29 @@
+{
+  "name": "dashi-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p packages/dashi/tsconfig.build.json",
+    "dev": "pnpm run build && node scripts/dev.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint packages scripts",
+    "test": "vitest run",
+    "gate": "node scripts/gate.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh": "catalog:",
+    "@deepseek-ai/dsh-llm-replay": "catalog:",
+    "@xterm/headless": "6.0.0",
+    "@types/node": "22.20.0",
+    "node-pty": "1.2.0-beta.15",
+    "oxlint": "1.76.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

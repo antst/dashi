@@ -1,0 +1,25 @@
+{"type":"session","version":0,"id":"dashi-roller-three-turn","createdAt":1,"cwd":"/recorded","delegationDepth":0}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"roller-write-1","name":"write","argumentsDelta":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn one\\n\"}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"roller-write-1","name":"write","arguments":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn one\\n\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Roller turn one complete."}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Roller turn one complete."}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"roller-write-2","name":"write","argumentsDelta":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn two\\n\"}"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"roller-write-2","name":"write","arguments":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn two\\n\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Roller turn two complete."}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Roller turn two complete."}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"roller-write-3","name":"write","argumentsDelta":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn three\\n\"}"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"roller-write-3","name":"write","arguments":"{\"file_path\":\"roller-e2e.txt\",\"content\":\"turn three\\n\"}"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Roller turn three complete."}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Roller turn three complete."}}}}
+{"type":"assistant/chunk","data":{"turn":3,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}

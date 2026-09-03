@@ -1,0 +1,9 @@
+lockfileVersion: '9.0'
+
+packages:
+  '@deepseek-ai/dsh@0.1.2-rc.1':
+    resolution: {integrity: fixture}
+  '@deepseek-ai/dsh-base@0.1.2-alpha.5':
+    resolution: {integrity: deliberate-mismatch}
+
+snapshots: {}

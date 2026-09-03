@@ -1,0 +1,8 @@
+{"type":"session","version":0,"id":"preview-showcase","createdAt":1787472000000,"cwd":"/dsh/workspace","delegationDepth":0,"agentPreset":"standard"}
+{"type":"turn/start","data":{"turn":1},"seq":0,"time":1787472000000}
+{"type":"user/message","data":{"id":"preview-user-01","role":"user","content":[{"type":"text","text":"History checkpoint 01: verify deterministic preview state."}],"source":{"kind":"user"}},"surfaceOp":"append","seq":1,"time":1787472000001}
+{"type":"session/title","data":{"title":"WebWorker Preview Showcase","messageSeqs":[],"source":{"kind":"user"}},"seq":2,"time":1787472000002}
+{"type":"step/start","data":{"turn":1,"step":1},"seq":3,"time":1787472000003}
+{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"id":"preview-assistant-01","role":"assistant","content":[{"type":"text","text":"Checkpoint 01 is recorded."}],"source":{"kind":"model","provider":"preview-fixture","model":"deterministic"}}},"sourceEventSeqs":[],"surfaceOp":"append","seq":4,"time":1787472000004}
+{"type":"step/end","data":{"turn":1,"step":1},"seq":5,"time":1787472000005}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}},"seq":6,"time":1787472000006}
