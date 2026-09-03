@@ -294,6 +294,7 @@ export type UiEffect =
   | { readonly type: 'copy'; readonly text: string }
   | { readonly type: 'cycle-permission' }
   | { readonly type: 'exit' }
+  | { readonly armed: boolean; readonly type: 'exit-timer' }
   | { readonly cwd: string; readonly text: string; readonly type: 'external-edit' }
   | { readonly type: 'interrupt' }
   | { readonly type: 'load-history'; readonly rootId: string }
@@ -351,7 +352,7 @@ function help(): Overlay {
     title: 'Help',
     lines: [
       'Enter send · Ctrl+J newline · Ctrl+T steer/next turn',
-      'Esc interrupt · Ctrl+C clear/interrupt · Ctrl+C/D twice exit',
+      'Esc interrupt · Ctrl+C clear/interrupt · Ctrl+C/D again within 2s to exit',
       '/ and @ complete live · Tab insert · Shift+Tab permission · Ctrl+O cards',
       '↑↓ prompt recall · Ctrl+R recall search · Ctrl+F transcript search',
       'PageUp/PageDown scroll · Ctrl+Home/Ctrl+End ends · Esc Esc rewind/draft recall',
@@ -469,7 +470,7 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
         }, [{ type: 'set-composer', text: '' }, ...redraw()]]
       }
       if (state.exitArmed) return reduce(state, { type: 'exit' })
-      return [{ ...state, exitArmed: true, rewindArmed: false }, redraw()]
+      return [{ ...state, exitArmed: true, rewindArmed: false }, [{ type: 'exit-timer', armed: true }, ...redraw()]]
     }
     case 'ctrl-d':
       if (state.composer !== '') return [state, []]
@@ -543,7 +544,9 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
     }
     case 'disarm-exit':
       return state.exitArmed || state.rewindArmed
-        ? [{ ...state, exitArmed: false, rewindArmed: false }, redraw()] : [state, []]
+        ? [{ ...state, exitArmed: false, rewindArmed: false }, [
+          { type: 'exit-timer', armed: false }, ...redraw(),
+        ]] : [state, []]
     case 'escape':
       if (head !== undefined) return reduce(state, { type: 'decision-cancel' })
       if (state.search !== undefined) return reduce(state, { type: 'search-close' })

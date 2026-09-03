@@ -89,9 +89,9 @@ Markdown under the session working directory; its default filename is
 F1 opens help, Shift+Tab cycles permission presets, Ctrl+T switches a running
 root between steer and next-turn input, Ctrl+O cycles the global tool-card mode,
 and Ctrl+B opens job and subagent details.
-On an idle empty composer, Ctrl+C or Ctrl+D arms exit; press either key again to
-exit. Any other key cancels the arm. On an idle nonempty composer, Escape twice
-clears the draft into prompt history, where Up recalls it.
+On an idle empty composer, Ctrl+C or Ctrl+D arms exit; press either key again
+within two seconds to exit. Any other key cancels the arm. On an idle nonempty
+composer, Escape twice clears the draft into prompt history, where Up recalls it.
 Permission presets that disable approvals require an explicit confirmation.
 `?` always remains ordinary prompt input.
 

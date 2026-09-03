@@ -8,8 +8,9 @@ describe('view-state reducer', () => {
     expect(cleared).toEqual({ ...base, composer: '' })
     expect(clearEffects).toEqual([{ type: 'set-composer', text: '' }, { type: 'redraw', force: false }])
 
-    const [armed] = reduce(cleared, { type: 'ctrl-c' })
+    const [armed, armEffects] = reduce(cleared, { type: 'ctrl-c' })
     expect(armed.exitArmed).toBe(true)
+    expect(armEffects).toEqual([{ type: 'exit-timer', armed: true }, { type: 'redraw', force: false }])
     expect(reduce(armed, { type: 'ctrl-c' })[1]).toEqual([{ type: 'exit' }])
   })
 
@@ -29,10 +30,23 @@ describe('view-state reducer', () => {
     })
     const [armed, effects] = reduce(base, { type: 'ctrl-d' })
     expect(armed.exitArmed).toBe(true)
-    expect(effects).toEqual([{ type: 'redraw', force: false }])
+    expect(effects).toEqual([{ type: 'exit-timer', armed: true }, { type: 'redraw', force: false }])
     expect(reduce(armed, { type: 'ctrl-d' })[1]).toEqual([{ type: 'exit' }])
     const [mixed] = reduce(base, { type: 'ctrl-c' })
     expect(reduce(mixed, { type: 'ctrl-d' })[1]).toEqual([{ type: 'exit' }])
+  })
+
+  it('disarms through the timer action and re-arms after expiry', () => {
+    const base = initialViewState('/work', false, {
+      cwd: '/work', id: 'session-1', model: 'm', status: 'idle',
+    })
+    const [armed] = reduce(base, { type: 'ctrl-d' })
+    const [expired, effects] = reduce(armed, { type: 'disarm-exit' })
+    expect(expired.exitArmed).toBe(false)
+    expect(effects).toEqual([{ type: 'exit-timer', armed: false }, { type: 'redraw', force: false }])
+    expect(reduce(expired, { type: 'ctrl-d' })[1]).toEqual([
+      { type: 'exit-timer', armed: true }, { type: 'redraw', force: false },
+    ])
   })
 
   it('keeps Ctrl+D behavior outside an idle empty composer', () => {

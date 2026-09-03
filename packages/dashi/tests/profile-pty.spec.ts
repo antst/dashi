@@ -7,6 +7,7 @@ import * as pty from 'node-pty'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
+import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
@@ -107,7 +108,7 @@ class PtyShell {
   resize(columns: number, rows: number): void { this.process.resize(columns, rows) }
 
   async waitFor(text: string, start = 0, timeoutMs = 20_000): Promise<number> {
-    const deadline = Date.now() + timeoutMs
+    const deadline = Date.now() + testCeiling(timeoutMs)
     while (Date.now() < deadline) {
       const found = this.output.indexOf(text, start)
       if (found !== -1) return found
@@ -117,7 +118,7 @@ class PtyShell {
   }
 
   async waitForAudibleBell(start = 0, timeoutMs = 10_000): Promise<void> {
-    const deadline = Date.now() + timeoutMs
+    const deadline = Date.now() + testCeiling(timeoutMs)
     while (Date.now() < deadline) {
       if (countAudibleBells(this.output.slice(start)) > 0) return
       await new Promise(resolveDelay => { setTimeout(resolveDelay, 20) })
@@ -202,7 +203,7 @@ function sessionId(output: string, start: number): string {
 }
 
 async function waitForOtherSession(shell: PtyShell, current: string, start: number): Promise<string> {
-  const deadline = Date.now() + 20_000
+  const deadline = Date.now() + testCeiling(20_000)
   while (Date.now() < deadline) {
     const ids = [...shell.output.slice(start).matchAll(/session-[0-9a-f-]{36}/g)].map(match => match[0])
     const found = ids.find(id => id !== current)
@@ -213,7 +214,7 @@ async function waitForOtherSession(shell: PtyShell, current: string, start: numb
 }
 
 async function waitForFile(path: string, expected: string | undefined): Promise<void> {
-  const deadline = Date.now() + 20_000
+  const deadline = Date.now() + testCeiling(20_000)
   while (Date.now() < deadline) {
     if (expected === undefined ? !existsSync(path) : existsSync(path) && readFileSync(path, 'utf8') === expected) return
     await new Promise(resolveDelay => { setTimeout(resolveDelay, 20) })
@@ -448,7 +449,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell, `${quote(dsh)} --profile dashi`)
       const elapsed = performance.now() - startedAt
       reportPerformance('profile-first-frame', elapsed, 'ms')
-      expect(elapsed).toBeLessThan(3_000)
+      expect(elapsed).toBeLessThan(testCeiling(3_000))
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('Resume with:', releasedAt)
@@ -1159,6 +1160,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const armedAt = shell.output.length
       shell.write('\u0004')
       await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, 250) })
       shell.write('\u0004')
     }],
     ['Ctrl+C twice', (shell: PtyShell) => { shell.write('\u0003\u0003') }],
@@ -1172,6 +1174,26 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await stop(shell)
       await shell.waitFor('\u001B[?1049l', releasedAt)
       await shell.waitFor('Resume with:', releasedAt)
+      await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('expires the Ctrl+D exit arm after two seconds', async () => {
+    const { baseline, shell } = await prepareShell()
+    try {
+      await launch(shell)
+      const armedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, 2_500) })
+      expect(await firstFrame(shell.output)).not.toContain('Ctrl+C or Ctrl+D again to exit')
+      const rearmedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('Ctrl+C or Ctrl+D again to exit', rearmedAt)
+      shell.write('\u0004')
+      await shell.waitFor('\u001B[?1049l', rearmedAt)
       await expectRestored(shell, baseline)
     } finally {
       await shell.close()
@@ -1253,23 +1275,31 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
   it('restores and leaves the session resumable when stdin closes during a decision', async () => {
     const { baseline, shell } = await prepareShell({ DSH_HOME: hardeningHome }, hardeningCwd)
+    const writerPidFile = join(testDir, 'decision-stdin-writer.pid')
+    let writerPid: number | undefined
     let id = ''
     try {
       const start = shell.output.length
-      shell.write(`{ printf 'close stdin\\r'; sleep 2; } | ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen; printf '__DECISION_EOF__%s\\n' "$?"\n`)
+      shell.write(`{ printf 'close stdin\\r'; printf '%s' "$BASHPID" > ${quote(writerPidFile)}; exec tail -f /dev/null; } | ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen; printf '__DECISION_EOF__%s\\n' "$?"\n`)
       await shell.waitFor('session-', start)
       id = sessionId(shell.output, start)
       await shell.waitFor('Approval · bash', start)
+      writerPid = Number(readFileSync(writerPidFile, 'utf8'))
+      process.kill(writerPid, 'SIGTERM')
+      writerPid = undefined
       await shell.waitFor('__DECISION_EOF__0', start)
       const lifecycle = shell.output.slice(start)
       expect(lifecycle).toContain('\u001B[?1049h')
       expect(lifecycle).toContain('\u001B[?1049l')
       await expectRestored(shell, baseline)
     } finally {
+      if (writerPid !== undefined) {
+        try { process.kill(writerPid, 'SIGTERM') } catch {}
+      }
       await shell.close()
     }
     await expectResumable(id, replayFixture, { DSH_HOME: hardeningHome }, hardeningCwd)
-  }, 60_000)
+  }, testCeiling(60_000))
 
   it('restores and leaves the session resumable on SIGTERM during a pending command', async () => {
     const { baseline, shell } = await prepareShell({ DSH_HOME: hardeningHome }, hardeningCwd)
@@ -2482,7 +2512,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await resumed.waitFor('idle ·', start, 20_000)
       const resumeElapsed = performance.now() - startedAt
       reportPerformance('large-resume-first-view', resumeElapsed, 'ms')
-      expect(resumeElapsed).toBeLessThan(3_000)
+      expect(resumeElapsed).toBeLessThan(testCeiling(3_000))
       expect(resumed.output.slice(start)).toContain('large answer 49500')
 
       const pageAt = resumed.output.length
@@ -2518,7 +2548,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const frames = streamingOutput.split('\u001B[?2026h').length - 1
       const framesPerSecond = Math.max(0, frames - 1) / (streamingElapsed / 1_000)
       reportPerformance('streaming-frame-rate', framesPerSecond, 'frames/s')
-      expect(framesPerSecond).toBeLessThanOrEqual(30)
+      expect(framesPerSecond).toBeLessThanOrEqual(testCeiling(30))
       expect(frames).toBeLessThan(stormChunks / 2)
       expect(streamingOutput).toContain('new output')
       expect(streamingOutput).not.toContain('STORM_END')

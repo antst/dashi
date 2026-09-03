@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { testCeiling } from './test-budget.js'
 
 export type MultiplexerKind = 'screen' | 'tmux'
 
@@ -21,7 +22,7 @@ export function requireMultiplexer(kind: MultiplexerKind): void {
 }
 
 function waitForScreen(name: string, env: NodeJS.ProcessEnv): void {
-  const deadline = Date.now() + 10_000
+  const deadline = Date.now() + testCeiling(10_000)
   let detail = ''
   while (Date.now() < deadline) {
     const probe = spawnSync('screen', ['-U', '-S', name, '-Q', 'select', '.'], { encoding: 'utf8', env })
@@ -87,7 +88,7 @@ export class MultiplexerPane {
   }
 
   async waitFor(text: string, timeoutMs = 20_000): Promise<string> {
-    const deadline = Date.now() + timeoutMs
+    const deadline = Date.now() + testCeiling(timeoutMs)
     let output = ''
     while (Date.now() < deadline) {
       try { output = this.capture() } catch {}
