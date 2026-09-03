@@ -17,7 +17,7 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'cmdlineArgs', 'commands', 'fs', 'loader', 'permissionPresets',
-  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'shell', 'skills', 'tools',
+  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'tools',
 ]
 const validatedVersions = JSON.parse(readFileSync(new URL('../validated-dsh-versions.json', import.meta.url), 'utf8')) as string[]
 
