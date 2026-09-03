@@ -558,6 +558,37 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 60_000)
 
+  it('reads and persists settings through the native provider', async () => {
+    const shell = new PtyShell()
+    try {
+      await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const helpAt = shell.output.length
+      shell.write('/help\r')
+      await shell.waitFor('/memory /config /plugins', helpAt)
+      shell.write('\u001B')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const readAt = shell.output.length
+      shell.write('/config\r')
+      await shell.waitFor('shell', readAt)
+      await shell.waitFor('base:', readAt)
+      await shell.waitFor('user: —', readAt)
+
+      const updateAt = shell.output.length
+      shell.write('/config shell timeoutMs=61000\r')
+      await shell.waitFor('updated shell.timeoutMs', updateAt)
+      expect(readFileSync(join(home, 'settings.yaml'), 'utf8')).toContain('timeoutMs: 61000')
+
+      const changedAt = shell.output.length
+      shell.write('/config\r')
+      await shell.waitFor('user: {"timeoutMs":61000}', changedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('resumes with injected instructions collapsed above the visible prompt', async () => {
     const seed = new PtyShell()
     let id = ''

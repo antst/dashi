@@ -466,16 +466,18 @@ terminal operations and orchestration of existing services:
 
 ```text
 /help  /status  /new  /clear  /resume  /fork  /rewind  /rename
-/model  /permission  /agents  /queue  /context  /memory  /plugins  /plugin  /tasks
+/model  /permission  /config  /agents  /queue  /context  /memory  /plugins
+/plugin  /tasks
 /history  /export  /copy  /exit
 ```
 
 Command registration, collision, execution, and logging remain
 `ctx.commands` behavior. `/clear` aliases `/new`; `/agents` selects a native
-agent preset; `/context` reads the token-meter estimate; `/memory` opens DSH's
-loaded instruction files; `/tasks` opens native job/subagent details;
-`/plugins` reads DSH's plugin inventory; `/plugin` runs the current profile's
-DSH CLI; `/export` writes controller history as Markdown.
+agent preset; `/config` reads and updates DSH's settings provider; `/context`
+reads the token-meter estimate; `/memory` opens DSH's loaded instruction files;
+`/tasks` opens native job/subagent details; `/plugins` reads DSH's plugin
+inventory; `/plugin` runs the current profile's DSH CLI; `/export` writes
+controller history as Markdown.
 
 Phase B adds `!command` as a deliberately small human shell escape:
 

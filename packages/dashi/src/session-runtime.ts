@@ -19,6 +19,7 @@ import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-sessi
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-shell'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-subagent'
@@ -190,6 +191,18 @@ async function firstControl(
 
 function usage(raw: string, expected: string): CommandResult | undefined {
   return raw.trim() === '' ? undefined : { kind: 'error', text: `usage: ${expected}` }
+}
+
+function configValue(raw: string): unknown {
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return raw
+  }
+}
+
+function configLayer(value: unknown): string {
+  return value === undefined ? '—' : JSON.stringify(value)
 }
 
 /** Create or resume the exact current root and own its replaceable terminal binding. */
@@ -606,6 +619,25 @@ export async function createSessionRuntime(
           if (invalid !== undefined) return invalid
           dispatch({ type: 'open-overlay', overlay: memoryOverlay(bound.agent) })
           return { kind: 'success' }
+        },
+      },
+      {
+        name: 'config', description: 'Show or update native DSH settings', input: { hint: '[NAMESPACE KEY=VALUE]' },
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          const raw = invocation.rawInput.trim()
+          if (raw === '') return { kind: 'success', text: ctx.settings.describe({ redactSecrets: true }).map(item =>
+            `${String(item.ns)}\n  value: ${configLayer(item.value)}\n  base: ${configLayer(item.base)}\n  user: ${configLayer(item.user)}`,
+          ).join('\n') }
+          const match = /^(\S+)\s+([^\s=]+)=(.*)$/su.exec(raw)
+          if (match?.[1] === undefined || match[2] === undefined || match[3] === undefined) {
+            return { kind: 'error', text: 'usage: /config [NAMESPACE KEY=VALUE]' }
+          }
+          const value = configValue(match[3])
+          if (match[2].includes('.')) await ctx.settings.mutate(match[1], [{ op: 'set', path: match[2].split('.'), value }])
+          else await ctx.settings.update(match[1], { [match[2]]: value })
+          return { kind: 'success', text: `updated ${match[1]}.${match[2]}` }
         },
       },
       {

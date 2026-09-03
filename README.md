@@ -70,8 +70,9 @@ After installation:
 2. Type a request and press Enter. Review streamed reasoning, tool cards, diffs,
    plans, todos, jobs, and subagents in the transcript; answer any decision in
    its numbered overlay.
-3. Use `/model` and `/permission` to change native DSH settings, and `/status`
-   to inspect the current root without creating another source of truth.
+3. Use `/model`, `/permission`, and `/config` to change native DSH settings,
+   and `/status` to inspect the current root without creating another source
+   of truth.
 4. Add file mentions with `@`, attach images through `@`, `--image`, or
    Ctrl+V, and use Ctrl+G or Ctrl+S for longer drafts.
 5. Use native scrollback in inline mode, or PageUp/PageDown in full-screen
@@ -84,8 +85,9 @@ After installation:
 Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
-`/clear`, `/fork`, `/rewind`, `/rename`, `/model`, `/permission`, `/agents`,
-`/queue`, `/context`, `/memory`, `/plugins`, `/plugin`, `/tasks`, `/history`, `/export`, `/copy`, and `/exit`;
+`/clear`, `/fork`, `/rewind`, `/rename`, `/model`, `/permission`, `/config`,
+`/agents`, `/queue`, `/context`, `/memory`, `/plugins`, `/plugin`, `/tasks`,
+`/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
 text when no command matches.
@@ -99,6 +101,8 @@ to `vi`); DSH applies edits according to its own instruction reload rules.
 `/tasks` opens the job and subagent
 details view. `/plugins` lists each running profile row's id, module, enabled
 state, and fiber phase; MCP client rows also show their configured server name.
+`/config` lists every DSH settings namespace with its effective, base, and user
+layers; `/config NAMESPACE KEY=VALUE` writes through DSH's validated provider.
 `/plugin ARGS` passes ARGS to `dsh plugin --profile <running profile>` and
 reports when a successful change will load on the next launch. Human `!`
 commands receive the same resolved `DSH_HOME` as the running profile.
