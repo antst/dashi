@@ -194,8 +194,8 @@ installable previews of all three packages through pkg.pr.new once its GitHub
 App is installed.
 
 To release, update the versions and changelog on `develop`, merge it to `main`,
-tag the release as `vX.Y.Z`, and publish a matching GitHub release. The release
-workflow runs the full gate before publishing to npm with trusted publishing.
+then push the matching `vX.Y.Z` tag. The release workflow runs the full gate,
+creates the GitHub release, and publishes to npm with trusted publishing.
 
 After `pnpm install`, build, install both local workspace packages into an
 isolated `dashi-dev` profile, and boot it with one command:

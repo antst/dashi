@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.5 — 2026-09-03
+
+- Add GitHub CI, pkg.pr.new previews, and provenance-ready npm publishing.
+- Expire the shared Ctrl+C/Ctrl+D exit arm after two seconds.
+- Create GitHub releases and publish all three packages from version tag pushes.
+
 ## 0.1.0-alpha.4 — 2026-09-03
 
 - Require a two-stage Ctrl+D exit, sharing the same armed state as Ctrl+C.

@@ -1,6 +1,6 @@
 {
   "name": "@antst/dashi-launcher",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.5",
   "description": "The dashi command for DeepSeek Harness",
   "publishConfig": {
     "access": "public"

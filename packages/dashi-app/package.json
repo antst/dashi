@@ -1,6 +1,6 @@
 {
   "name": "@antst/dashi-app",
-  "version": "0.1.0-alpha.4",
+  "version": "0.1.0-alpha.5",
   "description": "Installable DeepSeek Harness profile bundle for dashi",
   "publishConfig": {
     "access": "public"
