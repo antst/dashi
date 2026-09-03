@@ -1444,6 +1444,25 @@ Acceptance evidence: PTY test listing the shipped profile's rows
 `/plugin add` of a packed tarball runs the DSH CLI and the restart
 offer appears; unknown package relays the DSH CLI error; README and
 /help updated; no new state in the reducer beyond the transient list.
+### W-035 Parity audit against Claude Code — status: open (after W-034)
+No code. Walk Claude Code's interactive command and launch-flag
+roster (current docs) against dashi and produce one table in the
+handoff: item, dashi status (done / doable / DSH gap), and for every
+doable item the DSH service or package that owns the fact, cited
+file:line in the pinned rc.1 tree. Candidates known before the audit:
+/memory (open the instruction files DSH loaded in $EDITOR), /diff
+(git diff since session start or last turn), /hooks (list hooks DSH
+loaded), /status or /config (effective settings, model, preset,
+profile, workspace), /export (transcript to a named file on explicit
+request), /init (AGENTS.md skeleton), and the likely gaps /login,
+/logout, /add-dir, autocompact tuning. Anything the audit finds that
+a developer uses daily in Claude Code is in scope; anything not about
+driving DSH from a terminal is out. The architect turns doable rows
+into W-036 onward in order of daily use; gaps are named in README and
+queued as upstream reports.
+Owner: dsh-exec. Branch none; handoff is the table, cited.
+Acceptance evidence: every row cited or marked as a gap with the
+missing DSH surface named; no row left as "unknown".
 
 ## Backlog
 
