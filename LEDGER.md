@@ -1503,6 +1503,15 @@ session exists; needs the Agent Sessions host daemon installed on the
 machine; delivered messages arrive as ordinary input), groups, and
 that the session title is the peer name. Verified with the Agent
 Sessions architect 2026-09-03: all six design points confirmed.
+Owner requirement (2026-09-03): with no daemon on the host nothing
+breaks and dashi keeps working, messaging simply unavailable, and this
+must not require complex machinery. Gate on the comms plugin (owned by
+Agent Sessions, gated by the architect before dashi pins it):
+activation never throws or blocks startup; no transcript error or
+hello failure to dismiss, at most one log line; `/agent-sessions
+group` while disconnected returns a plain command error; the tool
+returns a plain error instead of hanging; reconnect is at most one
+fixed-interval retry or absent.
 Acceptance evidence: dashi starts and works normally with no daemon
 present (the shipped-profile PTY tests run without one); PTY test with
 the shipped profile showing the comms row in /plugins and the group
