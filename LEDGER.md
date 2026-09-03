@@ -426,6 +426,19 @@ develop; the architect merges develop to main and pushes the tag. No
 new work item starts before the tag is pushed. Plugin management in
 the session (Claude Code's /plugin and /mcp) is a real gap under rule
 1 and becomes W-034, first item after the tag.
+### D-036 (2026-09-03) Agent Sessions: one name, groups by launch flag
+Owner ruling. For a DSH session the Agent Sessions name IS the DSH
+session title: one fact, owned by DSH's title service. `dashi --name`
+and `/rename` are therefore the only name surfaces; the comms plugin
+reads the title and sets it when a wrapper passes a name through the
+environment. Groups have no DSH-owned fact, so dashi exposes them as
+`-g <group>` / `--group <group>`, repeatable, the same spelling as the
+Agent Sessions launchers, implemented as the native
+`/agent-sessions group <g>` command run at startup (the W-025 rule:
+launch flags are the interactive commands applied before the first
+prompt). The launcher stays a plain forwarder; no environment
+synthesis. dashi-app bundles `@agent-sessions/dsh-comms` at an exact
+published version (closes B-002).
 
 ## Work items
 
@@ -1475,6 +1488,22 @@ queued as upstream reports.
 Owner: dsh-exec. Branch none; handoff is the table, cited.
 Acceptance evidence: every row cited or marked as a gap with the
 missing DSH surface named; no row left as "unknown".
+### W-036 Agent Sessions comms in dashi-app and --group — status: open (after W-035; blocked until @agent-sessions/dsh-comms 0.4.0 is on npm)
+Per D-036. Scope: dashi-app adds `@agent-sessions/dsh-comms` at exact
+0.4.0 as a dependency and a patch row (sibling of dashi and roller;
+activation is service-driven, row order is irrelevant); dashi parses
+`-g <group>` / `--group <group>` repeatable and runs
+`/agent-sessions group <g>` once per flag before TUI bind, relaying
+the DSH command result on error (unknown command means the comms
+plugin is not loaded; say so verbatim). No name flag beyond the
+existing `--name`; no env variables set by dashi or the launcher.
+README: one paragraph on Agent Sessions presence, groups, and that the
+session title is the peer name. Acceptance evidence: PTY test with
+the shipped profile showing the comms row in /plugins and the group
+applied (assert through the plugin's own command output or its
+exposed service, not by parsing logs); clean-install test still
+passes with the added dependency; production source under 40 lines.
+Builder note allowed on the exact 0.4.0 version once published.
 
 ## Backlog
 
