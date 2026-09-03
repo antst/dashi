@@ -51,7 +51,17 @@ describe('foldCells', () => {
     })
   })
 
-  it('keeps relay and non-plugin instructions context rendering unchanged', () => {
+  it('collapses DSH durable agent-instructions sources', () => {
+    const message = createUserMessage({
+      content: [{ type: 'text', text: '<system-reminder>\nfixture\n</system-reminder>' }],
+      source: { changes: [{ action: 'set', path: 'AGENTS.md', scope: '.\0AGENTS.md' }],
+        form: 'instructions', kind: 'agent-instructions' } as never,
+    })
+    const events = [{ type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message }] as unknown as SessionEvent[]
+    expect(foldCells(events)[0]).toMatchObject({ collapsed: true, kind: 'context' })
+  })
+
+  it('keeps relay and skill-invocation context rendering unchanged', () => {
     const events = [
       { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: createUserMessage({
         content: [{ type: 'text', text: 'relay body' }],

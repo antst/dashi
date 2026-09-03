@@ -48,7 +48,8 @@ function shellCell(message: UserMessage, pending: boolean): TerminalCell {
 function collapsedContextCell(message: UserMessage, key: string): TerminalCell | undefined {
   const source = message.source as unknown as Record<string, unknown>
   const form = source.form
-  if (source.kind !== 'plugin' || !['instructions', 'catalog', 'snapshot', 'notice', 'recall'].includes(String(form))) {
+  if (source.kind !== 'agent-instructions'
+    && (source.kind !== 'plugin' || !['instructions', 'catalog', 'snapshot', 'notice', 'recall'].includes(String(form)))) {
     return undefined
   }
   const text = messageText(message.content)
