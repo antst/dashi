@@ -1260,7 +1260,14 @@ Esc clearing a draft recallable with Up; headless captures of both
 screens at 80 columns in the handoff; new production source under
 150 lines; the owner confirms by hand.
 
-### W-027 Collapse injected context cells — status: open (after W-026)
+### W-027 Collapse injected context cells — status: accepted 2026-09-03 (PR #20 merged into develop)
+Fold classifies on plugin source fields only (DSH rc.1 ContextFormed
+forms instructions, catalog, snapshot, notice, recall; relay
+unchanged); collapsed row expands through existing card mode and the
+history overlay; reducer unchanged; 28 production lines. Amendment
+during review: "any" means context DSH injects; dashi's own shell
+command messages keep their shell cell in durable history, since that
+is output the user asked for.
 Owner: dsh-exec. Branch `w-027-context-cells`.
 Observed in the W-024 reproduction: on resume, DSH's injected
 workspace instructions (a plugin message with a context form, e.g.
