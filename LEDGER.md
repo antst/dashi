@@ -1498,8 +1498,13 @@ one re-hello) before TUI bind, relaying
 the DSH command result on error (unknown command means the comms
 plugin is not loaded; say so verbatim). No name flag beyond the
 existing `--name`; no env variables set by dashi or the launcher.
-README: one paragraph on Agent Sessions presence, groups, and that the
-session title is the peer name. Acceptance evidence: PTY test with
+README: one paragraph on Agent Sessions presence (starts when the root
+session exists; needs the Agent Sessions host daemon installed on the
+machine; delivered messages arrive as ordinary input), groups, and
+that the session title is the peer name. Verified with the Agent
+Sessions architect 2026-09-03: all six design points confirmed.
+Acceptance evidence: dashi starts and works normally with no daemon
+present (the shipped-profile PTY tests run without one); PTY test with
 the shipped profile showing the comms row in /plugins and the group
 applied (assert through the plugin's own command output or its
 exposed service, not by parsing logs); clean-install test still
