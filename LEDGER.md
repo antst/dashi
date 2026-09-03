@@ -418,6 +418,14 @@ through pull requests. CI publishes previews of all three packages to
 pkg.pr.new from `develop` and pull requests, and to npm with
 provenance on GitHub releases, in dependency order (dashi, dashi-app,
 launcher).
+### D-035 (2026-09-03) alpha.7 is cut after W-027; plugin management is W-034
+Owner decision: when W-027 is accepted, the builder prepares the
+release (bump all three manifests to 0.1.0-alpha.7, one CHANGELOG
+section covering W-025, W-027, W-032) as a pull request against
+develop; the architect merges develop to main and pushes the tag. No
+new work item starts before the tag is pushed. Plugin management in
+the session (Claude Code's /plugin and /mcp) is a real gap under rule
+1 and becomes W-034, first item after the tag.
 
 ## Work items
 
@@ -1401,6 +1409,34 @@ dist-tag. Idempotent on rerun. README release procedure: bump,
 changelog, merge to main, push the tag.
 Acceptance evidence: PR CI green; actionlint clean; the alpha.5 tag
 exercises it; zero production source changes.
+### W-034 Plugin management in the session — status: open (after the alpha.7 tag)
+Claude Code has /plugin (install, remove, enable, disable) and /mcp
+(server list with connection status). DSH manages plugins only from
+the CLI (`dsh plugin --profile <name> add <pkg>`), MCP servers are
+mcp-client plugin rows in the profile patch, and no roster or status
+service exists (README names the /mcp gap). Scope, in order:
+1. Bounded lookup first, reported before code: the exact `dsh plugin`
+   verbs in rc.1 (add, remove, list, anything for the patch-row
+   `disabled` flag), and whether mcp-client exposes any per-server
+   connection state a list can read. Cite file:line.
+2. `/plugins`: read-only list of what the running profile loaded,
+   from the Cordis registry: row id, package name, version, fiber
+   state; mcp-client rows in the same list with their server name and
+   connection state when DSH exposes it. No separate /mcp; an MCP
+   server is a plugin row in DSH.
+3. `/plugin add <pkg>` and `/plugin remove <pkg>`: run DSH's own CLI
+   for the current profile through the existing shell-command
+   mechanism, show its output, then offer to exit so the launcher
+   restarts the profile. dashi writes no files and owns no installer.
+4. Enable/disable only if the DSH CLI has verbs for it; otherwise
+   named as a DSH gap in README and queued as an upstream report, not
+   patched by editing cordis.patch.yml from dashi.
+Owner: dsh-exec. Branch `w-034-plugins`; PR against develop.
+Acceptance evidence: PTY test listing the shipped profile's rows
+(dashi, roller, at least one DSH row) with states; PTY test that
+`/plugin add` of a packed tarball runs the DSH CLI and the restart
+offer appears; unknown package relays the DSH CLI error; README and
+/help updated; no new state in the reducer beyond the transient list.
 
 ## Backlog
 
