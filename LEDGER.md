@@ -1304,7 +1304,11 @@ the owner's profile rebuild then adds only dashi-app.
 Acceptance evidence: gate passes; clean-install test proves the above;
 no change to `@antst/dashi`; new production source under 10 lines.
 
-### W-030 CI/CD on GitHub Actions for dashi — status: open (after W-029)
+### W-030 CI/CD on GitHub Actions for dashi — status: accepted 2026-09-03 (PR #5 merged into develop)
+Hosted gate green; preview blocked only by the missing pkg.pr.new
+app; release workflow publishes the three packages in order with
+provenance and a prerelease dist-tag; two test-only readiness fixes
+(screen server wait, launcher pack timeout).
 Owner: dsh-exec. Branch `w-030-ci` from `develop`; pull request against
 `develop`.
 Scope: mirror roller's two workflows. `ci.yml`: on pull_request and
