@@ -1364,6 +1364,20 @@ Acceptance evidence: PR CI green with the container; `pnpm
 gate:docker` green locally with the same test count; zero production
 source changes.
 
+### W-033 Release on tag push — status: open (after W-031, before W-032)
+Owner: dsh-exec. Branch `w-033-release-on-tag`; PR against develop.
+Owner request (2026-09-03), mirroring roller W-010: `release.yml`
+triggers on push of tags matching `v*`; jobs in order: gate, then
+create the GitHub release for that tag with `gh release create` using
+the CHANGELOG.md section for that version as notes (fallback:
+auto-generated), `--prerelease` for prerelease versions,
+`permissions: contents: write`; then the existing three-package npm
+publish in dependency order with provenance and the version-derived
+dist-tag. Idempotent on rerun. README release procedure: bump,
+changelog, merge to main, push the tag.
+Acceptance evidence: PR CI green; actionlint clean; the alpha.5 tag
+exercises it; zero production source changes.
+
 ## Backlog
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
