@@ -1352,7 +1352,12 @@ the timer action, re-arm after expiry; a PTY test proves a second
 Ctrl+D after 2.5 s does not exit and the hint is gone, while a second
 within 500 ms exits; new production source under 25 lines.
 
-### W-032 One container for the gate, locally and in CI — status: open (after W-031)
+### W-032 One container for the gate, locally and in CI — status: accepted 2026-09-03 (PR #13 merged into develop)
+Dockerfile (node:22-bookworm-slim, git, procps, screen, tmux, bubblewrap;
+drops to the host uid) and one `gate:docker` script that holds the three
+outer-Docker allowances nested bubblewrap needs. ci.yml and release.yml
+run only that script. The inner DSH bubblewrap policy stays under test;
+no Docker-specific skips.
 Owner: dsh-exec. Branch `w-032-gate-container`; PR against develop.
 Owner request (2026-09-03): run CI in Docker. Scope, smallest form: a
 single `Dockerfile` at the repo root on the official Node 22 image
