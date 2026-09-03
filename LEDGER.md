@@ -1286,7 +1286,10 @@ title open the picker showing only those two; substring match; no
 match exits 1; `/resume <title>` in-session; new production source
 under 60 lines.
 
-### W-029 dashi-app bundles roller — status: open (next; pull request against develop on GitHub)
+### W-029 dashi-app bundles roller — status: accepted 2026-09-03 (PR #1 merged into develop; released as 0.1.0-alpha.4)
+dashi-app pins @antst/roller 0.1.2 and inserts its row; clean-install
+proves /roller-restore and the code rows after adding only dashi-app;
+8 mechanism lines; 197 tests.
 Owner: dsh-exec. Branch `w-029-bundle-roller`.
 Scope per D-033: `@antst/dashi-app` depends on `@antst/roller` at the
 exact version from roller's main (0.1.2 once roller bumps for W-006;
