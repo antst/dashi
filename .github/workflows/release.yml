@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install terminal test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes tmux screen
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm gate
+      - name: Select npm dist-tag
+        id: npm-tag
+        run: |
+          release_version="$(node -p "require('./packages/dashi/package.json').version")"
+          npm_tag="${release_version#*-}"
+          if [[ "$npm_tag" == "$release_version" ]]; then
+            npm_tag=latest
+          else
+            npm_tag="${npm_tag%%.*}"
+          fi
+          printf 'tag=%s\n' "$npm_tag" >> "$GITHUB_OUTPUT"
+      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+        working-directory: packages/dashi
+      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+        working-directory: packages/dashi-app
+      - run: pnpm publish --access public --provenance --no-git-checks --tag ${{ steps.npm-tag.outputs.tag }}
+        working-directory: packages/dashi-launcher
