@@ -600,6 +600,47 @@ describe('terminal renderer', () => {
     await shell.dispose()
   })
 
+  for (const inline of [false, true]) {
+    it(`renders completed assistant Markdown in ${inline ? 'inline' : 'alternate'} mode at 80 columns`, async () => {
+      const terminal = new ScreenTerminal(80, 40)
+      const shell = createTerminalShell({
+        createView: bindings => createRenderer({ ...bindings, inline, terminal }),
+        cwd: '/work', exit: () => {}, inline, initialCells: codeBlockCells(),
+      })
+      shell.start()
+      await terminal.flush()
+      const screen = terminal.lines().join('\n')
+      expect(screen).toContain('Markdown answer')
+      expect(screen).not.toContain('# Markdown answer')
+      expect(screen).toContain('Use bold, emphasis, and inline code.')
+      expect(screen).not.toContain('**bold**')
+      expect(screen).toContain('- first item')
+      expect(screen).toContain('```typescript')
+      expect(screen).toContain('const first = 1')
+      expect(terminal.output).toContain('\u001B[1mbold\u001B[22m')
+      expect(terminal.output).toContain('\u001B[3memphasis\u001B[23m')
+      expect(terminal.output).toContain('\u001B[33minline code\u001B[0m')
+      expect(terminal.output).toContain('\u001B[32mconst first = 1\u001B[0m')
+      await shell.dispose()
+    })
+  }
+
+  for (const accessible of [false, true]) {
+    it(`keeps ${accessible ? 'accessible' : 'streaming'} assistant text plain`, async () => {
+      const terminal = new ScreenTerminal(80, 24)
+      const shell = createTerminalShell({
+        accessible,
+        createView: bindings => createRenderer({ ...bindings, accessible, inline: true, terminal }),
+        cwd: '/work', exit: () => {}, inline: true,
+        initialCells: [{ key: 'pending', kind: 'assistant', pending: !accessible, text: '# Raw **source** with `code`' }],
+      })
+      shell.start()
+      await terminal.flush()
+      expect(terminal.lines().join('\n')).toContain('# Raw **source** with `code`')
+      await shell.dispose()
+    })
+  }
+
   it('offers fenced code blocks from a recorded assistant message and copies the selection', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const shell = createTerminalShell({

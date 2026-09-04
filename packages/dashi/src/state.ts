@@ -383,7 +383,7 @@ function moveOverlay(overlay: Overlay, cursor: number, detailsCount = 0): Overla
   return { ...overlay, cursor: Math.max(0, Math.min(limit, cursor)) }
 }
 
-const PAGE_CELLS = 8
+export const PAGE_CELLS = 8
 
 function matches(cells: readonly TerminalCell[], query: string): readonly number[] {
   const needle = query.trim().toLocaleLowerCase()

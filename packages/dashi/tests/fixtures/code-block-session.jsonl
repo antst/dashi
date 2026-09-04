@@ -1,4 +1,4 @@
 {"type":"session","version":0,"id":"dashi-code-blocks","createdAt":1,"cwd":"/recorded","delegationDepth":0}
 {"type":"turn/start","data":{"turn":1},"seq":0,"time":1}
-{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"id":"code-block-answer","role":"assistant","content":[{"type":"text","text":"Two examples:\n\n```typescript\nconst first = 1\n```\n\n```bash\necho second\nprintf done\n```"}],"source":{"kind":"model","provider":"replay","model":"recorded"}}},"sourceEventSeqs":[],"surfaceOp":"append","seq":1,"time":2}
+{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"id":"code-block-answer","role":"assistant","content":[{"type":"text","text":"# Markdown answer\n\nUse **bold**, *emphasis*, and `inline code`.\n\n- first item\n- second item\n\n```typescript\nconst first = 1\n```\n\n```bash\necho second\nprintf done\n```"}],"source":{"kind":"model","provider":"replay","model":"recorded"}}},"sourceEventSeqs":[],"surfaceOp":"append","seq":1,"time":2}
 {"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}},"seq":2,"time":3}

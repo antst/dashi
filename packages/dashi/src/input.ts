@@ -1,5 +1,5 @@
 import { isKeyRelease, matchesKey, type TUI, type TuiInputListenerResult } from '@earendil-works/pi-tui'
-import type { ComposerCursor, UiAction, ViewState } from './state.js'
+import { PAGE_CELLS, type ComposerCursor, type UiAction, type ViewState } from './state.js'
 
 export interface InputBindings {
   readonly dispatch: (action: UiAction) => void
@@ -91,8 +91,8 @@ export function installInput(tui: TUI, bindings: InputBindings): () => void {
       else if (overlay.kind === 'history' && matchesKey(data, 'down')) bindings.dispatch({ type: 'history-move', offset: 1 })
       else if (overlay.kind === 'history' && matchesKey(data, '/')) bindings.dispatch({ type: 'search-open', scope: 'history' })
       else if (overlay.kind === 'history' && matchesKey(data, 'y')) bindings.dispatch({ type: 'history-copy' })
-      else if (overlay.kind === 'info' && matchesKey(data, 'pageUp')) bindings.dispatch({ type: 'overlay-move', offset: -8 })
-      else if (overlay.kind === 'info' && matchesKey(data, 'pageDown')) bindings.dispatch({ type: 'overlay-move', offset: 8 })
+      else if (overlay.kind === 'info' && matchesKey(data, 'pageUp')) bindings.dispatch({ type: 'overlay-move', offset: -PAGE_CELLS })
+      else if (overlay.kind === 'info' && matchesKey(data, 'pageDown')) bindings.dispatch({ type: 'overlay-move', offset: PAGE_CELLS })
       else if (matchesKey(data, 'up')) bindings.dispatch({ type: 'overlay-move', offset: -1 })
       else if (matchesKey(data, 'down')) bindings.dispatch({ type: 'overlay-move', offset: 1 })
       else if (matchesKey(data, 'ctrl+o')) bindings.dispatch({ type: 'toggle-tool-mode' })

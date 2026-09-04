@@ -1,11 +1,13 @@
 import {
   Editor,
+  Markdown,
   TuiAltScreen,
   TuiMainScreen,
   stripTerminalSequences,
   truncateToWidth,
   wrapTextWithAnsi,
   type EditorTheme,
+  type MarkdownTheme,
   type Terminal,
   type TUI,
 } from '@earendil-works/pi-tui'
@@ -29,6 +31,23 @@ const THEME_GENERATION = 1
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
 const SPINNER_INTERVAL_MS = 80
 const MASK_TOKEN = new RegExp(String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|[_P^X][^\u0007]*(?:\u0007|\u001B\\))|[^\s]`, 'gu')
+
+const markdownTheme: MarkdownTheme = {
+  heading: text => `\u001B[36m${text}${RESET}`,
+  link: text => `\u001B[36m${text}${RESET}`,
+  linkUrl: text => `${DIM}${text}${RESET}`,
+  code: text => `${YELLOW}${text}${RESET}`,
+  codeBlock: text => `${GREEN}${text}${RESET}`,
+  codeBlockBorder: text => `${DIM}${text}${RESET}`,
+  quote: text => `${DIM}${text}${RESET}`,
+  quoteBorder: text => `${DIM}${text}${RESET}`,
+  hr: text => `${DIM}${text}${RESET}`,
+  listBullet: text => `\u001B[36m${text}${RESET}`,
+  bold: text => `\u001B[1m${text}\u001B[22m`,
+  italic: text => `\u001B[3m${text}\u001B[23m`,
+  strikethrough: text => `\u001B[9m${text}\u001B[29m`,
+  underline: text => `\u001B[4m${text}\u001B[24m`,
+}
 
 export type CopyResult = 'ok' | 'too-large' | 'unsupported'
 
@@ -235,7 +254,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     const key = `${THEME_GENERATION}:${accessible}:${width}:${toolMode}:${cell.key}:${cell.kind}:${cell.pending === true}:${cell.collapsed === true}:${cell.startedAt ?? ''}:${cell.elapsedMs ?? ''}:${cell.text}:${cell.detail ?? ''}:${JSON.stringify(cell.tool)}`
     const cached = cell.pending === true ? undefined : lineCache.get(key)
     if (cached !== undefined) return cached
-    const rendered = wrapTextWithAnsi(cellText(cell, toolMode, accessible, now), Math.max(1, width - 2)).map(value => `  ${value}`)
+    const cellWidth = Math.max(1, width - 2)
+    const lines = !accessible && cell.kind === 'assistant' && cell.pending !== true
+      ? [`${BOLD_CYAN}Assistant${RESET}`, ...new Markdown(plain(cell.text, true), 0, 0, markdownTheme).render(cellWidth).map(value => value.trimEnd())]
+      : wrapTextWithAnsi(cellText(cell, toolMode, accessible, now), cellWidth)
+    const rendered = lines.map(value => `  ${value}`)
     if (cell.pending !== true) {
       lineCache.set(key, rendered)
       if (lineCache.size > 512) lineCache.delete(lineCache.keys().next().value as string)
