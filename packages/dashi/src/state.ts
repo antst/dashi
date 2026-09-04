@@ -434,6 +434,13 @@ function codeBlockOptions(text: string): readonly OverlayOption[] {
   })
 }
 
+function exitChord(state: ViewState): readonly [ViewState, readonly UiEffect[]] {
+  if (state.exitArmed) return reduce(state, { type: 'exit' })
+  return [{ ...state, exitArmed: true, rewindArmed: false }, [
+    { type: 'exit-timer', armed: true }, ...redraw(),
+  ]]
+}
+
 export function reduce(state: ViewState, action: UiAction): readonly [ViewState, readonly UiEffect[]] {
   const head = state.decisions[0]
   switch (action.type) {
@@ -493,13 +500,11 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
           ...state, attachments: [], composer: '', exitArmed: false, recall: undefined, rewindArmed: false,
         }, [{ type: 'set-composer', text: '' }, ...redraw()]]
       }
-      if (state.exitArmed) return reduce(state, { type: 'exit' })
-      return [{ ...state, exitArmed: true, rewindArmed: false }, [{ type: 'exit-timer', armed: true }, ...redraw()]]
+      return exitChord(state)
     }
     case 'ctrl-d':
       if (state.composer !== '') return [state, []]
-      if (state.root?.status !== 'idle' || state.attachments.length > 0) return reduce(state, { type: 'exit' })
-      return reduce(state, { type: 'ctrl-c' })
+      return exitChord(state)
     case 'decision-cancel': {
       if (head === undefined) return [state, []]
       return head.kind === 'approval'
