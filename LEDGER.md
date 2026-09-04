@@ -1719,7 +1719,14 @@ Acceptance: PTY test with the replay provider proving the request's
 system prompt content for replace and append; production source
 under 40 lines.
 
-### W-048 /loop — status: open (owner dsh-exec, after W-046)
+### W-048 /loop — status: accepted 2026-09-04 (PR #61 squash-merged)
+dashi-app mounts dsh-schedule; /loop INTERVAL TEXT, /loop, /loop stop
+ID call the root agent's native schedule_create/list/delete tools
+through ctx.tools.execute under the agent initiator; DSH errors
+verbatim (five-minute floor is DSH's). PTY: create, list, 1m
+rejection, stop; in-process fake-timer test drives the unmodified
+DSH runtime through two firings and a stop. 45 production lines; 240
+tests. Ships in alpha.11.
 `/loop INTERVAL TEXT` (interval like 5m, 1h) schedules a fixed-rate
 reminder through @deepseek-ai/dsh-schedule for the root agent whose
 firing submits TEXT as a prompt; `/loop` lists active schedules;
@@ -1727,12 +1734,30 @@ firing submits TEXT as a prompt; `/loop` lists active schedules;
 (PARITY.md row /loop). Acceptance: PTY test with a short interval
 showing two firings and a stop; production source under 50 lines.
 
+### W-049 --verbose — status: open (owner dsh-exec, after W-048)
+Launch flag `--verbose`: the initial presentation opens with every
+tool card and context row expanded (the existing card mode set to
+expanded at start) and stays a launch-scoped presentation choice;
+Ctrl+O still toggles. No new state field beyond the existing tool
+mode. Acceptance: PTY test that a resumed session shows an expanded
+tool card on the first screen with --verbose and collapsed without;
+production source under 15 lines.
+
+### W-050 /usage — status: open (owner roller-exec, after W-047)
+`/usage` shows session totals from DSH's token usage projection and
+session stats (PARITY.md rows /usage, /cost, /stats): input, output,
+cached tokens, turns, tool calls, wall time, per-model breakdown when
+present; read only from DSH projections, rendered in the info overlay.
+Plan limits and cost are a DSH gap (one README sentence). Acceptance:
+PTY test after a replayed turn showing nonzero totals; production
+source under 40 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
 From PARITY.md, to be cut into work items in this order (W-042, W-043,
-W-047, W-048 cut 2026-09-04): --verbose; richer /usage from token and
-session stats; /clear NAME and rename-then-clear; /agents authoring.
+W-047, W-048, W-049, W-050 cut 2026-09-04): /clear NAME and
+rename-then-clear; /agents authoring.
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
 A separate DSH plugin, not part of the dashi TUI: e.g. `@antst/dsh-checkpoint`
