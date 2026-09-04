@@ -1672,7 +1672,12 @@ list; DSH's filesystem watcher already reloads skills, so no reload
 command. Acceptance: PTY test with a fixture skill directory showing
 the row and the filter; production source under 40 lines.
 
-### W-045 --tools and --disallowedTools — status: open (owner roller-exec, after W-044)
+### W-045 --tools and --disallowedTools — status: accepted 2026-09-04 (PR #53 squash-merged; owner roller-exec)
+Parser branch in index.ts; one ToolRuntime.restrict call in prepare()
+so every root (fresh, resume, continue, fork) carries the mask, the
+disposer owned by the binding; DSH's unknown-name error relayed with
+exit 2; pattern rules named as a DSH gap. 32 production lines; 237
+tests. Ships in alpha.10.
 Launch flags `--tools a,b` (allow only these tool names) and
 `--disallowedTools a,b` (deny these names) applied to the root agent
 through ToolRuntime.restrict (agent-scoped allow/deny masks by whole
@@ -1695,12 +1700,32 @@ child id; the existing subagent surface shows it. All owners are DSH
 (PARITY.md rows). Acceptance: PTY tests for read, kill, and subtask
 creation with the replay provider; production source under 50 lines.
 
+### W-047 --system-prompt and --append-system-prompt — status: open (owner roller-exec, after W-045)
+Launch flags `--system-prompt TEXT`, `--system-prompt-file PATH`,
+`--append-system-prompt TEXT`, `--append-system-prompt-file PATH`
+(PARITY.md row). Replace variants register one SystemPrompt section
+declared complete; append variants register one ordinary section
+at the end; scope is the root agent, applied in prepare() like
+W-045 so resume/continue/fork carry it. File variants read the file
+once at launch through node:fs (a launch argument, not session
+state); missing file is a launch error, exit 2. No dashi persistence.
+Acceptance: PTY test with the replay provider proving the request's
+system prompt content for replace and append; production source
+under 40 lines.
+
+### W-048 /loop — status: open (owner dsh-exec, after W-046)
+`/loop INTERVAL TEXT` (interval like 5m, 1h) schedules a fixed-rate
+reminder through @deepseek-ai/dsh-schedule for the root agent whose
+firing submits TEXT as a prompt; `/loop` lists active schedules;
+`/loop stop ID` cancels. DSH owns the durable schedule records
+(PARITY.md row /loop). Acceptance: PTY test with a short interval
+showing two firings and a stop; production source under 50 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
-From PARITY.md, to be cut into work items in this order (W-042 /init
-and W-043 /copy cut 2026-09-04): --system-prompt and --append-system-prompt (and
-file variants); /loop; --verbose; richer /usage from token and
+From PARITY.md, to be cut into work items in this order (W-042, W-043,
+W-047, W-048 cut 2026-09-04): --verbose; richer /usage from token and
 session stats; /clear NAME and rename-then-clear; /agents authoring.
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
