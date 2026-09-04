@@ -3333,6 +3333,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
+      const screen = (): Promise<string> => firstFrame(shell.output.slice(start))
       const listAt = shell.output.length
       shell.write('@\t')
       await shell.waitFor('Complete', listAt)
@@ -3341,18 +3342,26 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       shell.write('\u0003')
-      await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
+      await vi.waitFor(async () => {
+        expect((await screen()).split('\n')[21]?.trim()).toBe('')
+      }, { timeout: testCeiling(20_000) })
 
       const attachAt = shell.output.length
       shell.write('@screens/shot\t')
       await shell.waitFor('screens/shot.png', attachAt)
       shell.write('\r')
-      await shell.waitFor('[image 1]', attachAt)
+      await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
+        timeout: testCeiling(20_000),
+      })
       shell.write('\u0013')
-      await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
+      await vi.waitFor(async () => { expect(await screen()).not.toContain('[image 1]') }, {
+        timeout: testCeiling(20_000),
+      })
       const restoreAt = shell.output.length
       shell.write('\u0013')
-      await shell.waitFor('[image 1]', restoreAt)
+      await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
+        timeout: testCeiling(20_000),
+      })
       shell.write('image selected through at\r')
       await shell.waitFor('Approval · bash', restoreAt)
       shell.write('\r')
