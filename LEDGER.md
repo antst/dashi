@@ -2077,23 +2077,16 @@ the hint line so the fact stays visible there. Acceptance: renderer
 tests for both modes; production source under 10 lines. Ships in
 alpha.14.
 
-### W-064 Rewind fails without a durable model selection — status: open (owner dsh-exec)
-Defect, owner report 2026-09-04 on alpha.14: /rewind ended with
-"Error · the current session has no durable model selection". The
-message is dashi's, raised on the rewind path that creates a fresh
-root (first-prompt case, D-032) when it tries to reapply the
-session's model selection and the log has no model/selection event
-because the session ran on DSH's default. Fix: carry a selection over
-only when the source session has one (modelSelection projection
-next or lastUsed); otherwise the fresh root takes DSH's default and
-nothing is selected; the same rule for any other place dashi
-requires a durable selection (audit the throw sites). Acceptance:
-PTY test in the shipped profile: start without --model, one turn,
-/rewind to the first prompt with "conversation" and with "code and
-conversation", both succeed; production source under 15 lines.
+### W-064 Rewind fails without a durable model selection — status: accepted 2026-09-04 (PR #115 squash-merged)
+One carry rule (projection next, else lastUsed, else none); the
+fresh-root rewind path calls selectModel only when DSH recorded a
+selection, otherwise the new root takes DSH's default. A session is
+headerless when its prompt turn ended or was interrupted before
+request assembly emitted request/header and it started on the
+default model; that was the sole throw of this kind. Regression:
+headerless persisted log resumed through the shipped profile, both
+restore choices, plus a unit test. 14 production lines; 274 tests.
 Ships in alpha.15.
-
-### W-064 Rewind fails without a durable model selection — status: open (owner dsh-exec)
 Defect, owner report 2026-09-04 on alpha.14: rewinding to the very
 first prompt ended with "Error · the current session has no durable
 model selection". The message is dashi's, raised on the rewind path
