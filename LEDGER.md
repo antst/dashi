@@ -1807,6 +1807,25 @@ test under the default permission preset (no --yolo) that
 changes; the existing --yolo case stays. Production change under 10
 lines. Ships in alpha.11.
 
+### W-054 Overlays taller than the viewport — status: open (owner dsh-exec, after W-051)
+Defect, owner report 2026-09-04: a list overlay with more rows than
+the screen (e.g. /model with a long catalog) draws all rows, the tail
+is off screen and unreachable, while up/down keep moving the cursor
+through the invisible part. Fix in the renderer only: a list overlay
+draws a window of rows sized to the available viewport height
+(minus title and frame) that always contains the cursor, with a
+one-line marker for hidden rows above and below (e.g. "↑ 12 more"
+and "↓ 30 more"); an info overlay taller than the viewport scrolls
+with up/down and PageUp/PageDown, cursor-free, with the same
+markers. Windowing is pure presentation computed at render from the
+overlay cursor and the terminal size; no new reducer state beyond an
+info-overlay scroll offset if one is needed. Both inline and
+full-screen modes. Acceptance: renderer tests at 24 rows with a
+60-row list (cursor at 0, middle, end) and a 60-line info overlay;
+PTY test that /model on a small terminal shows the markers and that
+the last row is reachable and selectable; production source under
+50 lines. Ships in alpha.11.
+
 ### W-052 /clear NAME and /agents authoring — status: open (owner roller-exec, after W-050)
 Last two PARITY.md doable rows. (a) `/clear NAME` (and `/reset NAME`,
 `/new NAME`): rename the current root to NAME through the title
