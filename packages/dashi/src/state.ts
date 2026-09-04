@@ -368,7 +368,7 @@ function help(): Overlay {
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /usage /context',
-      '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /bashes /subtask /loop /history /export /copy /exit /quit',
+      '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /bashes /subtask /loop /btw /recap /history /export /copy /exit /quit',
       ...FLAG_HELP,
     ],
   }

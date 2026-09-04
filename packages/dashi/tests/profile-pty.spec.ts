@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as pty from 'node-pty'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
@@ -26,6 +26,8 @@ const contextInjectionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtur
 const presentationChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-child-session.jsonl')
 const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'request-context-session.jsonl')
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
+const btwChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'btw-child-session.jsonl')
+const recapChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'recap-child-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
 const pluginManagementFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'plugin-management')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
@@ -296,6 +298,13 @@ function sessionLog(id: string, sessionHome = home): {
     .map(line => JSON.parse(line) as Record<string, unknown>)
   if (header === undefined) throw new Error(`Empty persisted session ${id}`)
   return { header, events: events as Array<{ type: string; seq: number; data?: Record<string, unknown> }> }
+}
+
+function listedSessions(cwd: string): Array<{ sessionId: string; title: string | null }> {
+  const output = run(dsh, ['--profile', 'dashi', '--patch', sessionListPatch, 'sessions', 'list', '--all', '--json'], {
+    ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1',
+  }, cwd)
+  return (JSON.parse(output) as { sessions: Array<{ sessionId: string; title: string | null }> }).sessions
 }
 
 function clipboardHelper(image: boolean): string {
@@ -3375,6 +3384,119 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(events.filter(event => event.type === 'schedule/change')
       .map(event => event.data?.operation)).toEqual(['create', 'delete'])
   }, 60_000)
+
+  it('/btw and /recap answer in titled forks without changing the main conversation', async () => {
+    const cwd = join(testDir, `btw-${String(Date.now())}`)
+    mkdirSync(cwd)
+    const shell = new PtyShell(threeTurnFixture, undefined, cwd, {
+      DSH_SNAPSHOT_CHILD_FILES: [btwChildFixture, recapChildFixture].join(delimiter),
+    })
+    let parent = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      parent = sessionId(shell.output, start)
+      shell.write('establish the main conversation\r')
+      const completedAt = await shell.waitFor('First turn complete.', start)
+      await shell.waitFor('idle ·', completedAt)
+
+      const btwAt = shell.output.length
+      shell.write('/btw why is this isolated\r')
+      await shell.waitFor('Btw · turn 1', btwAt)
+      await shell.waitFor('BTW_SIDE_ANSWER', btwAt)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+
+      const recapAt = shell.output.length
+      shell.write('/recap\r')
+      await shell.waitFor('Btw · turn 1', recapAt)
+      await shell.waitFor('RECAP_SIDE_ANSWER', recapAt)
+      const recapClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', recapClosedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const main = sessionLog(parent)
+    const firstEnd = main.events.findIndex(event => event.type === 'turn/end')
+    expect(main.events.slice(firstEnd + 1).map(event => event.type)).toEqual([
+      'command/run', 'command/done', 'command/run', 'command/done',
+    ])
+    expect(main.events.filter(event => event.type === 'command/run').map(event => event.data))
+      .toEqual([{ commandId: expect.any(String), name: 'btw', source: { kind: 'user' } },
+        { commandId: expect.any(String), name: 'recap', source: { kind: 'user' } }])
+
+    const rows = listedSessions(cwd)
+    const cases = [
+      ['btw · why is this isolated', 'why is this isolated'],
+      ['btw · Summarize this conversation so far in', 'Summarize this conversation so far in ten lines: goal, decisions, open items.'],
+    ] as const
+    const children = rows.map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+      .filter(child => child.log.header.parentSession === parent)
+    for (const [title, prompt] of cases) {
+      const child = children.find(item => item.log.events.filter(event => event.type === 'session/title')
+        .at(-1)?.data?.title === title)
+      expect(child, JSON.stringify(rows)).toBeDefined()
+      const id = child?.id ?? ''
+      expect(rows.map(row => row.sessionId)).toContain(id)
+      const log = child?.log ?? sessionLog(id)
+      expect(log.header.parentSession).toBe(parent)
+      const suffix = log.events.slice(log.events.findIndex(event => event.type === 'session/end-seed') + 1)
+      expect(suffix.filter(event => event.type === 'user/message')).toHaveLength(1)
+      expect(JSON.stringify(suffix)).toContain(prompt)
+      expect(JSON.stringify(suffix)).toContain(prompt.startsWith('Summarize') ? 'RECAP_SIDE_ANSWER' : 'BTW_SIDE_ANSWER')
+    }
+  }, 90_000)
+
+  it('/btw forks a running root at its previous completed turn', async () => {
+    const cwd = join(testDir, `btw-running-${String(Date.now())}`)
+    mkdirSync(cwd)
+    const shell = new PtyShell(threeTurnFixture, undefined, cwd, {
+      DSH_REPLAY_PACE_MS: '300', DSH_SNAPSHOT_CHILD_FILES: btwChildFixture,
+    })
+    let parent = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      parent = sessionId(shell.output, start)
+      shell.write('completed boundary\r')
+      const completedAt = await shell.waitFor('First turn complete.', start)
+      await shell.waitFor('idle ·', completedAt)
+      const runningAt = shell.output.length
+      shell.write('open source turn\r')
+      await shell.waitFor('running ·', runningAt)
+      shell.write('/btw inspect the stable boundary\r')
+      await shell.waitFor('Btw · turn 1', runningAt)
+      await shell.waitFor('BTW_SIDE_ANSWER', runningAt)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const rows = listedSessions(cwd)
+    const match = rows.map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+      .find(item => item.log.header.parentSession === parent
+        && item.log.events.filter(event => event.type === 'session/title').at(-1)?.data?.title
+          === 'btw · inspect the stable boundary')
+    expect(match, JSON.stringify(rows)).toBeDefined()
+    const id = match?.id ?? ''
+    expect(rows.map(row => row.sessionId)).toContain(id)
+    const child = match?.log ?? sessionLog(id)
+    expect(child.header.parentSession).toBe(parent)
+    const humanMessages = child.events.filter(event => event.type === 'user/message'
+      && (event.data?.source as { kind?: string } | undefined)?.kind === 'user')
+    expect(humanMessages).toHaveLength(2)
+    expect(JSON.stringify(humanMessages)).not.toContain('open source turn')
+    expect(JSON.stringify(humanMessages)).toContain('inspect the stable boundary')
+  }, 90_000)
 
   it('resumes a generated 200k-event session and pages older history on demand', async () => {
     const created = new PtyShell()

@@ -259,6 +259,10 @@ mode expanded, after which Ctrl+O keeps cycling that mode normally.
 and `--dangerously-skip-permissions` are explicit-consent aliases for
 `--permission danger-full-access`, so they do not add a launch confirmation.
 
+`/btw TEXT` and `/recap` fork at the latest completed turn, run one side prompt,
+and show the folded answer without switching the main root. A running source's
+open tail is excluded by DSH's native fork boundary; the child remains resumable.
+
 `UUID` in this interface means DSH's complete product `SessionId` (currently
 `session-` plus the generated UUID), not an accepted prefix. An ID-shaped value
 resumes exactly. Every other value matches DSH's native title exactly, then by

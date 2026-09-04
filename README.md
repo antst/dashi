@@ -65,6 +65,13 @@ continued, and forked roots without changing session state.
 `--version` is DSH's own root flag, so `dashi --version` prints the active DSH
 release; `dashi --help` starts with both dashi and DSH versions.
 
+`/btw TEXT` asks a side question in a titled fork at the latest completed turn,
+and `/recap` does the same with a fixed ten-line summary prompt. The answer opens
+over the main session, which receives no conversation events; the fork remains
+in `/resume` because DSH does not expose root release.
+DSH's cold list cannot surface a large seeded fork's title after relaunch, so
+that picker row may be untitled; its UUID remains resumable.
+
 ## Sessions
 
 `--name TITLE` (or `-n`) assigns DSH's native session title at launch; `/rename TITLE`

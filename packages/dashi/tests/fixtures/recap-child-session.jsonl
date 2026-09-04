@@ -1,0 +1,5 @@
+{"type":"session","version":0,"id":"dashi-recap-child","createdAt":3,"cwd":"/recorded","delegationDepth":0,"parentSession":"dashi-three-turn"}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"text-delta","index":0,"text":"RECAP_SIDE_ANSWER"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"RECAP_SIDE_ANSWER"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
