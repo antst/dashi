@@ -994,8 +994,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(all.output.slice(start)).toContain('Startup picker all')
       all.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const armedAt = all.output.length
       all.write('\u0004')
-      await all.waitFor('\u001B[?1049l', start)
+      await all.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      all.write('\u0004')
+      await all.waitFor('\u001B[?1049l', armedAt)
     } finally {
       await all.close()
     }
@@ -1664,6 +1667,25 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u0004')
       await shell.waitFor('\u001B[?1049l', rearmedAt)
       await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('arms Ctrl+D during a running turn before exiting on the second press', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, { DSH_REPLAY_PACE_MS: '500' })
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen 'keep running'`)
+      await shell.waitFor('Inspecting the recorded request.', start)
+      const armedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
+      expect(() => { process.kill(shell.childPid(), 0) }).not.toThrow()
+      const releasedAt = shell.output.length
+      shell.write('\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+      await shell.waitFor('Resume with:', releasedAt)
     } finally {
       await shell.close()
     }

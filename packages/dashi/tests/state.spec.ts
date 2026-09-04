@@ -51,7 +51,7 @@ describe('view-state reducer', () => {
     ])
   })
 
-  it('keeps Ctrl+D behavior outside an idle empty composer', () => {
+  it('ignores Ctrl+D with a draft and arms while running or carrying attachments', () => {
     const idle = initialViewState('/work', false, {
       cwd: '/work', id: 'session-1', model: 'm', status: 'idle',
     })
@@ -60,7 +60,12 @@ describe('view-state reducer', () => {
     const running = initialViewState('/work', false, {
       cwd: '/work', id: 'session-1', model: 'm', status: 'running',
     })
-    expect(reduce(running, { type: 'ctrl-d' })[1]).toEqual([{ type: 'exit' }])
+    const attached = { ...idle, attachments: [{ name: 'pending.png' } as never] }
+    for (const state of [running, attached]) {
+      const [armed, effects] = reduce(state, { type: 'ctrl-d' })
+      expect(armed).toEqual({ ...state, exitArmed: true })
+      expect(effects).toEqual([{ type: 'exit-timer', armed: true }, { type: 'redraw', force: false }])
+    }
   })
 
   it('interrupts a running root without clearing its draft', () => {
