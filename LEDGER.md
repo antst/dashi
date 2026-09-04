@@ -1930,7 +1930,15 @@ files; dashi writes nothing itself. Acceptance: PTY tests for
 /clear NAME (old session listed by name) and for copy and delete;
 production source under 50 lines.
 
-### W-058 Command and shell history recall — status: open (owner dsh-exec)
+### W-058 Command and shell history recall — status: accepted 2026-09-04 (PR #93 squash-merged)
+Ruling during the item: /history stays the transcript cell browser
+(it already shows command and shell cells); only the Up/Down input
+fold widened. One pure projection (historyInput) recovers, in log
+order, human prompts, `/<name><args>` from command/run events that
+carry args, and `!<command>` from dashi's durable shell notice first
+line; recordInput-false commands (/login, /btw, /recap) stay absent,
+README says so. The rewind picker is untouched. 19 production lines;
+265 tests. Ships in alpha.13.
 Owner report 2026-09-04: in Claude Code, up/down recall cycles through
 everything typed, including /commands and !shell lines; in dashi they
 are invisible to history, which recalls human prompts only. Both are
