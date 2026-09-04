@@ -362,8 +362,8 @@ function help(): Overlay {
       'Ctrl+B activity details for jobs and subagents',
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
-      '/new /clear /resume [--all] [NAME|UUID] /fork /rewind /rename /model /permission /agents /queue',
-      '/status /context /memory /config /diff /plugins /plugin /tasks /history /export /copy /exit',
+      '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /context',
+      '/memory /config /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
       ...FLAG_HELP,
     ],
   }

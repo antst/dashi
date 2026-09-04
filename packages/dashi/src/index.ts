@@ -29,6 +29,8 @@ interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
 
 function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let accessible = false
+  let agentPreset: string | undefined, sessionId: string | undefined
+  let forkSession = false
   let inline = true
   let name: string | undefined
   let effort: string | undefined
@@ -46,15 +48,17 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     if (argument === '--accessible') accessible = true
     else if (argument === '--inline') inline = true
     else if (argument === '--fullscreen') inline = false
-    else if (argument === '--name' || argument === '--image' || argument === '--effort'
-      || argument === '--model' || argument === '--permission' || argument === '--provider') {
+    else if (['--name', '-n', '--agent', '--image', '--effort', '--model', '--permission', '--provider',
+      '--session-id'].includes(argument ?? '')) {
       const value = args[++index]
       if (value === undefined || value === '') return undefined
-      if (argument === '--name') name = value
+      if (argument === '--name' || argument === '-n') name = value
+      else if (argument === '--agent') agentPreset = value
       else if (argument === '--image') images.push(value)
       else if (argument === '--effort') effort = value
       else if (argument === '--model') model = value
       else if (argument === '--permission') permission = value
+      else if (argument === '--session-id') sessionId = value
       else provider = value
     } else if (argument === '--resume' || argument === '-r') {
       const value = args[index + 1]
@@ -63,6 +67,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
       else resume = args[++index]
     } else if (argument === '--all') resumeAll = true
     else if (argument === '--continue' || argument === '-c') useContinue = true
+    else if (argument === '--fork-session') forkSession = true
     else if (argument === '--yolo' || argument === '--dangerously-skip-permissions') {
       permission = 'danger-full-access'
     }
@@ -72,11 +77,14 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   if (resume !== undefined && (resumePicker || useContinue) || resumePicker && useContinue
     || name !== undefined && (resume !== undefined || resumePicker || useContinue)
     || resumeAll && resume === undefined && !resumePicker || resumeAll && useContinue
-    || provider !== undefined && model === undefined) return undefined
+    || provider !== undefined && model === undefined
+    || sessionId !== undefined && (!isSessionId(sessionId) || resume !== undefined || resumePicker || useContinue)
+    || agentPreset !== undefined && (resume !== undefined || resumePicker || useContinue)
+    || forkSession && resume === undefined && !resumePicker && !useContinue) return undefined
   return {
     accessible,
     continue: useContinue,
-    inline,
+    ...(agentPreset === undefined ? {} : { agentPreset }), forkSession, inline,
     resumeAll,
     resumePicker,
     ...(images.length === 0 ? {} : { images }),
@@ -86,7 +94,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     ...(permission === undefined ? {} : { permission }),
     ...(prompt.length === 0 ? {} : { prompt: prompt.join(' ') }),
     ...(provider === undefined ? {} : { provider }),
-    ...(resume === undefined ? {} : { resume }),
+    ...(resume === undefined ? {} : { resume }), ...(sessionId === undefined ? {} : { sessionId }),
   }
 }
 
