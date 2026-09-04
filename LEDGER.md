@@ -1984,7 +1984,20 @@ text. Acceptance: completion tests with a fixture profile dir; PTY
 test that `/plugin ex<Tab>` completes to exec and `/plugin exec
 <Tab>` lists a fixture binary; production source under 40 lines.
 
-### W-061 Live plugin activation after /plugin add — status: open (owner: first free builder, after W-059/W-060)
+### W-061 Live plugin activation after /plugin add — status: closed 2026-09-04 (lookup; production source 0)
+Finding (rc.1, vendor/loader/src/config/tree.ts:97-155,
+packages/boot/app-boot/src/index.ts:785-787, apps/cli/src/plugin.ts:59-91,
+apps/cli/src/profile-boot.ts:279-286): the running loader exposes
+create/update/remove and imports with fresh resolution from the
+profile directory, so live activation is mechanically possible; but
+`dsh plugin add` composes no row for a plain plugin package (only
+bundle packages are appended to dsh.profile.bundles), so such a
+package never loads until a patch row is written by hand, and DSH's
+default live patch reload then applies it without restart, while
+bundle additions need a restart. Ruling: no dashi mechanism
+(composing bundle rows duplicates loadProfile; writing patch rows
+makes dashi the writer of a DSH-owned file). README states the two
+cases (W-060); two upstream entries below.
 Owner question 2026-09-04: must dashi restart after `/plugin add`?
 Bounded lookup first, reported before any code: (1) in the pinned
 rc.1 tree and the vendored Cordis loader, does the running loader
@@ -2051,3 +2064,5 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted): DSH Discussion (Ideas): session-scoped model/effort selection. rc.1 selectModel always calls agentDefaultModel.saveSelection (packages/api/session-controller/src/commands.ts:119-145) and neither SessionCreateRequest, resolveAgent, nor AgentPreset carries a model or effort, so a launch flag like `--model` cannot avoid moving the deployment default (W-025). Release to the lane with the install-hazards report.
 - Queued (not yet posted): DSH Discussion: cold session list never shows a title for a seeded (forked) session whose inherited log exceeds coldBlankProbeMaxBytes; ApiSessionList refuses projection-cache rows for cold seeded sessions (packages/api/session-controller/src/list.ts:327-336) and probes the log only under the size bound (list.ts:164-205), so a durable session/title event is ignored in the picker until the session is opened (W-051). Suggest honoring a projection-cache title row, or probing the tail of the log for the latest title event.
 - Queued (not yet posted): DSH Discussion: @deepseek-ai/dsh-mcp-client spawns stdio MCP servers with stderr inherited (transport.ts:31-39 passes no stderr option; the MCP SDK defaults to 'inherit', stdio.js:48-75), so server logs write straight to the host terminal and corrupt any TUI frame; suggest piping stderr into DSH's logger or a diagnostics channel. Nearest existing thread: Discussion 4465 (silent stdio spawn failures); related 1241, 5129; third-party reproduction ccch1mneyyy/dsh-TUI issue 17 (W-057).
+- Queued (not yet posted): DSH Discussion: `dsh plugin add` of a plugin package without a bundle manifest installs it and warns, but composes no loader row, so it never loads; suggest adding an insert row to the profile patch (or a `dsh plugin enable <pkg>` verb) and making the warning say what is missing (apps/cli/src/plugin.ts:59-91) (W-061).
+- Queued (not yet posted): DSH Discussion: live patch reload (patchReload: live) applies cordis.patch.yml edits at runtime but not dsh.profile.bundles additions, and nothing documents the asymmetry; suggest either reloading bundle layers live or stating the restart requirement in the profile docs (apps/cli/src/profile-boot.ts:279-286, packages/boot/app-boot/src/index.ts:236-267) (W-061).
