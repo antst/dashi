@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.14 — 2026-09-04
+
+- Recall `!` shell lines typed in the running session with Up/Down.
+- Turn the status line into a values-only HUD: model, effort, preset, context, cache rate, tokens, running agents and jobs, session title, repo and branch.
+- Show the model in the hint line only in accessible mode.
+
 ## 0.1.0-alpha.13 — 2026-09-04
 
 - Recall slash commands and `!` shell lines with Up/Down, and list them in the rewind picker.
