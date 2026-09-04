@@ -1955,7 +1955,13 @@ prompts, two commands, and a shell line proving the recall order and
 that a recordInput-false command is skipped; PTY test that up recalls
 the last `/model` line; production source under 30 lines.
 
-### W-059 Rewind picker lists the same entries as recall — status: open (owner dsh-exec, after W-058)
+### W-059 Rewind picker lists the same entries as recall — status: accepted 2026-09-04 (PR #102 squash-merged)
+The rewind boundary fold uses W-058's historyInput for every
+sequenced event, so prompts, recorded slash commands, and shell
+notices share one picker projection; each maps to the latest earlier
+turn/end, session-start fallback, second screen, and composer
+prefill unchanged; mid-turn marking stays for human prompts only.
+11 production lines added, 12 removed; 269 tests. Ships in alpha.13.
 Owner correction 2026-09-04: in Claude Code the rewind picker
 ("Rewind to a prompt") lists the same entries as Up/Down recall,
 commands and shell lines included; dashi's picker lists human
