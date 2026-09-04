@@ -1971,7 +1971,14 @@ Acceptance: rewind tests with the W-058 mixed recorded log proving
 the picker rows and the boundary each maps to; PTY test rewinding to
 a `!` entry; production source under 30 lines.
 
-### W-060 Completion for /plugin arguments — status: open (owner roller-exec)
+### W-060 Completion for /plugin arguments — status: accepted 2026-09-04 (PR #100 squash-merged; owner roller-exec)
+First word from the fixed pnpm verb list; after exec, the running
+profile's node_modules/.bin; after remove/update/why, the profile's
+direct dependencies; both reread at completion time from the profile
+directory (ctx.baseUrl), no cache; later words free text. README and
+the post-success notice carry the W-061 wording (bundles load next
+launch; plain plugins need a patch row that DSH live-reloads). 38
+production lines; 268 tests. Ships in alpha.13.
 Owner request 2026-09-04. `/plugin` forwards to pnpm, so complete
 its vocabulary through the existing live completion trigger: first
 word from the fixed list add, remove, update, outdated, list, why,
