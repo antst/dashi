@@ -2102,6 +2102,23 @@ sites). Acceptance: PTY test in the shipped profile: start without
 and with "code and conversation", both succeed; production source
 under 15 lines. Ships in alpha.15.
 
+### W-065 Drag-and-drop files into the composer — status: open (owner roller-exec)
+Owner request 2026-09-04. In a terminal a drop arrives as a paste of
+one or more file paths, shell-escaped (single quotes, backslash
+spaces, or bare). Claude Code turns them into references. Scope: when
+a bracketed paste, after unescaping, consists only of whitespace-
+separated paths that exist on disk, dashi does not insert the raw
+text; image files (by extension DSH's attachment service accepts)
+become attachments exactly as `--image PATH` does, other files become
+`@<path relative to cwd, or absolute when outside>` references in the
+composer with a trailing space, through the existing @ reference
+path. Any paste that is not entirely existing paths is inserted
+unchanged. Pure input handling, no new state; the existence check is
+one stat per path at paste time. Acceptance: input tests for the
+three escape forms and a mixed non-path paste; PTY test dropping one
+image and one text file (pasted with bracketed paste) shows an
+attachment row and an @ reference; production source under 40 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
