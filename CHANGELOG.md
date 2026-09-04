@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-alpha.11 — 2026-09-04
+
+- Add `/btw` and `/recap`: ask a side question in a fork of the session without touching the conversation.
+- Add `/loop` fixed-rate reminders over DSH's schedule service.
+- Add `/usage` session token and timing totals.
+- Add `/clear NAME`, `/reset NAME`, and `/new NAME` to name the previous conversation before starting fresh.
+- Add `/agents new`, `copy`, and `delete` over DSH's preset authoring.
+- Add `--system-prompt`, `--system-prompt-file`, `--append-system-prompt`, and `--append-system-prompt-file`.
+- Add `--verbose` to start with tool cards expanded.
+- Fix `/plugin` failing with a read-only profile directory under the session sandbox.
+
 ## 0.1.0-alpha.10 — 2026-09-04
 
 - Add `--tools` and `--disallowedTools` launch flags over DSH's tool restriction.
