@@ -237,6 +237,7 @@ dashi [PROMPT]
   --fullscreen | --inline  # inline is the default
   --no-color
   --accessible
+  --verbose                # initial tool-card mode is expanded
 ```
 
 Fresh start, `--resume`, and `--continue` are mutually
@@ -250,6 +251,8 @@ the first prompt; like `/model`, DSH also saves that selection as its default
 because it does not expose session-only selection. dashi stores no setting and
 does not restore the prior default. A `PROMPT` starts or resumes an interactive
 session and submits its first turn after any picker selection.
+`--verbose` is launch-scoped presentation state: it starts the existing card
+mode expanded, after which Ctrl+O keeps cycling that mode normally.
 
 `--provider` disambiguates a model ID present in more than one catalog group.
 `--permission` applies the native `/permission` command at startup. `--yolo`

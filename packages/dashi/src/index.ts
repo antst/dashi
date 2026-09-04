@@ -28,6 +28,7 @@ interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
   readonly argumentError?: string
   readonly inline: boolean
   readonly resumeAll: boolean; readonly resumePicker: boolean
+  readonly verbose: boolean
 }
 
 function parseArgs(args: readonly string[]): ParsedArgs | undefined {
@@ -48,6 +49,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let resumePicker = false
   let systemPrompt: string | undefined, appendSystemPrompt: string | undefined
   let useContinue = false
+  let verbose = false
   const images: string[] = []
   const prompt: string[] = []
   for (let index = 0; index < args.length; index++) {
@@ -91,6 +93,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     } else if (argument === '--all') resumeAll = true
     else if (argument === '--continue' || argument === '-c') useContinue = true
     else if (argument === '--fork-session') forkSession = true
+    else if (argument === '--verbose') verbose = true
     else if (argument === '--yolo' || argument === '--dangerously-skip-permissions') {
       permission = 'danger-full-access'
     }
@@ -122,7 +125,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     ...(tools === undefined ? {} : { tools }),
     ...(disallowedTools === undefined ? {} : { disallowedTools }),
     ...(resume === undefined ? {} : { resume }), ...(sessionId === undefined ? {} : { sessionId }),
-    ...(systemPrompt === undefined ? {} : { systemPrompt }),
+    ...(systemPrompt === undefined ? {} : { systemPrompt }), verbose,
   }
 }
 
@@ -267,6 +270,7 @@ export function apply(ctx: Context): void {
           initialAttachments: initial.initialAttachments, initialCells: initial.initialCells, initialHasMore: initial.initialHasMore,
           initialPrompts: initial.initialPrompts, initialRoot: initial.root,
         }),
+        ...(parsed.verbose ? { initialToolMode: 'expanded' as const } : {}),
         inline: parsed.inline || parsed.accessible,
         interrupt: () => { runtime?.interrupt() },
         loadHistory: rootId => runtime?.loadHistory(rootId) ?? Promise.resolve(),
