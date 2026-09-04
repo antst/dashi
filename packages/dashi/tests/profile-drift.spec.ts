@@ -68,8 +68,8 @@ describe('validated DSH patch surface', () => {
     expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)).filter(id => id !== 'agent-instructions'))
 
     const webInserts = new Map(rowsAt(web, 4).map(row => [row.id, row.name]))
-    // The web models backend mounts authorization internally; dashi mounts it directly for /login.
-    for (const row of rowsAt(dashi, 4).filter(row => !['authorization', 'dashi', 'roller'].includes(row.id))) {
+    // Authorization supports /login; Schedule owns /loop. Neither host row belongs to the web client patch.
+    for (const row of rowsAt(dashi, 4).filter(row => !['authorization', 'schedule', 'dashi', 'roller'].includes(row.id))) {
       expect(webInserts.get(row.id), `web insert ${row.id}`).toBe(row.name)
     }
   })

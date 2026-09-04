@@ -19,7 +19,11 @@
   "devDependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@deepseek-ai/dsh": "catalog:",
+    "@deepseek-ai/dsh-agent-loop": "catalog:",
+    "@deepseek-ai/dsh-agent-loop-testkit": "catalog:",
     "@deepseek-ai/dsh-llm-replay": "catalog:",
+    "@deepseek-ai/dsh-schedule": "catalog:",
+    "@deepseek-ai/dsh-session-projection": "catalog:",
     "@xterm/headless": "6.0.0",
     "@types/node": "22.20.0",
     "node-pty": "1.2.0-beta.15",
