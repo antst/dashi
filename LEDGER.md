@@ -1821,7 +1821,15 @@ test under the default permission preset (no --yolo) that
 changes; the existing --yolo case stays. Production change under 10
 lines. Ships in alpha.11.
 
-### W-054 Overlays taller than the viewport — status: open (owner dsh-exec, after W-051)
+### W-054 Overlays taller than the viewport — status: accepted 2026-09-04 (PR #83 squash-merged)
+One pure window function in the renderer sizes list and info
+overlays to the viewport, keeps the cursor row visible, and prints
+exact "↑ N more" / "↓ N more" markers; info overlays scroll with
+Up/Down/PageUp/PageDown through one optional scrollOffset, the limit
+passed in the action from the renderer so the reducer never reads
+the terminal; a one-line isOverlayFocused override stops pi-tui's
+alternate screen from consuming PageUp/PageDown while a dashi overlay
+is open. 49 production lines; 252 tests. Ships in alpha.12.
 Defect, owner report 2026-09-04: a list overlay with more rows than
 the screen (e.g. /model with a long catalog) draws all rows, the tail
 is off screen and unreachable, while up/down keep moving the cursor
