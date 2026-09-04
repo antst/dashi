@@ -2093,6 +2093,22 @@ PTY test in the shipped profile: start without --model, one turn,
 conversation", both succeed; production source under 15 lines.
 Ships in alpha.15.
 
+### W-064 Rewind fails without a durable model selection — status: open (owner dsh-exec)
+Defect, owner report 2026-09-04 on alpha.14: rewinding to the very
+first prompt ended with "Error · the current session has no durable
+model selection". The message is dashi's, raised on the rewind path
+that creates a fresh root (first-prompt case, D-032) when it tries
+to reapply the session's model selection and the log has no
+model/selection event because the session ran on DSH's default.
+Fix: carry a selection over only when the source session has one
+(modelSelection projection next or lastUsed); otherwise the fresh
+root takes DSH's default and nothing is selected; the same rule for
+any other place dashi requires a durable selection (audit the throw
+sites). Acceptance: PTY test in the shipped profile: start without
+--model, one turn, /rewind to the first prompt with "conversation"
+and with "code and conversation", both succeed; production source
+under 15 lines. Ships in alpha.15.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
