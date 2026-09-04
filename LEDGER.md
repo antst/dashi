@@ -1891,6 +1891,12 @@ report. (3) Search deepseek-harness issues and discussions for an
 existing report first and link it instead of duplicating.
 Acceptance: the handoff is the cited finding and, if a gap, the
 ledger upstream entry with the search result; production source 0.
+Builder note: confirmed against pinned rc.1 commit a66e470: mcp-client
+omits the transport's stderr option (packages/mcp/mcp-client/src/transport.ts:31-39),
+while the resolved MCP SDK defaults it to inherited fd 2 (stdio.js:48-75).
+The shipped-profile PTY fixture proves a post-handshake stderr line appears
+inside the active alternate screen. No exact upstream report exists; Discussion
+4465 is nearest, with related 1241 and 5129 and third-party dsh-TUI issue 17.
 
 ### W-052 /clear NAME and /agents authoring — status: accepted 2026-09-04 (PR #77 squash-merged; owner roller-exec)
 /clear NAME, /reset NAME, /new NAME rename the current root through
