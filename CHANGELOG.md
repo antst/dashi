@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.13 — 2026-09-04
+
+- Recall slash commands and `!` shell lines with Up/Down, and list them in the rewind picker.
+- Complete `/plugin` subcommands, `exec` binaries, and dependency names.
+- Document what loads after `/plugin add`: bundles on the next launch, plain plugins after a patch row that DSH live-reloads.
+
 ## 0.1.0-alpha.12 — 2026-09-04
 
 - Window list and info overlays to the viewport with hidden-row markers; PageUp/PageDown scroll info overlays.
