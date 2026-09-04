@@ -2151,6 +2151,29 @@ skip, never a silent pass, or (c) a DSH gap on mac (README, upstream
 queue). Handoff is the job plus the classified list; when the job is
 green, a second PR removes continue-on-error. Production source 0.
 
+### W-067 macOS test harness — status: open (owner mac-dashi, D-038)
+Mac peer's first host-gate run 2026-09-04 (macOS 27 arm64, Node 22,
+pnpm 11, tmux 3.7, brew screen 5.0): non-PTY suites 164/164 pass;
+PTY suite 100 pass, 9 fail, all harness assumptions, no DSH gap:
+CRLF in the --version assertion; Darwin's PENDIN bit breaks exact
+stty -g comparison (/memory, /agents editor, Ctrl+G); /private/var
+temp paths wrap /init and /skills assertions; GNU screen socket path
+over the Darwin limit (2); the clipboard fixture hardcodes wl-paste
+and xclip; plus fixture git commits inheriting the user's signing
+config, /var vs /private/var cwd assertions, system screen 4.0
+lacking -Logfile, and the stdin-close-during-decision test killing
+the Vitest worker on Darwin. Scope: one PR of test and fixture
+changes only (production source 0): normalize line endings; compare
+the tty mode fields that matter instead of the raw stty -g string;
+realpath both sides of path assertions; short screen socket dir on
+every platform; pbpaste/pbcopy fixture helpers selected by platform;
+hermetic git config (GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM) in
+fixtures; screen >= 4.1 required with the found binary printed and a
+README mac note; the worker-killing case fixed at its cause or
+skipped on Darwin only with the reason beside the skip. Acceptance:
+`pnpm gate` green on the mac and the hosted Linux gate green; the
+hosted macos-latest job (W-066) reported on after the change.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
