@@ -18,6 +18,7 @@ const replayFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'repl
 const inlineScrollFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'inline-scroll-session.jsonl')
 const threeTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'three-turn-session.jsonl')
 const rewindSteerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'rewind-steer-session.jsonl')
+const headerlessTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'headerless-one-turn-session.jsonl')
 const rollerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'roller-three-turn-session.jsonl')
 const questionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-session.jsonl')
 const presentationFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-session.jsonl')
@@ -53,6 +54,7 @@ let overlayHome = ''
 let pluginHome = ''
 let pluginSandboxHome = ''
 let mcpHome = ''
+let rewindDefaultHome = ''
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -485,6 +487,7 @@ beforeAll(() => {
   pluginHome = join(testDir, 'plugin-home')
   pluginSandboxHome = join(testDir, 'plugin-sandbox-home')
   mcpHome = join(testDir, 'mcp-home')
+  rewindDefaultHome = join(testDir, 'rewind-default-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
@@ -494,6 +497,7 @@ beforeAll(() => {
   prepareTestProfile(pluginHome)
   prepareTestProfile(pluginSandboxHome)
   prepareTestProfile(mcpHome)
+  prepareTestProfile(rewindDefaultHome)
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${validatedDshVersion}`],
     { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
 }, 120_000)
@@ -3153,6 +3157,74 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
     expect(sessionLog(child).header.parentSession).toBeUndefined()
   }, 60_000)
+
+  it('rewinds a headerless first prompt while using the DSH default model', async () => {
+    for (const action of [0, 1]) {
+      const workspace = join(testDir, `rewind-default-${action}`)
+      mkdirSync(workspace)
+      const parent = `session-00000000-0000-0000-0000-00000000064${action}`
+      const seed = new PtyShell(rollerFixture, undefined, workspace, { DSH_HOME: rewindDefaultHome })
+      try {
+        const seededAt = await launch(seed,
+          `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --session-id ${parent}`,
+          'idle ·')
+        seed.write('\u0004\u0004')
+        await seed.waitFor('\u001B[?1049l', seededAt)
+      } finally {
+        await seed.close()
+      }
+      const fixture = readFileSync(headerlessTurnFixture, 'utf8').trim().split('\n')
+      const header = JSON.parse(fixture[0] ?? '{}') as Record<string, unknown>
+      writeFileSync(findSessionFile(join(rewindDefaultHome, 'replay-sessions'), parent), [
+        JSON.stringify({ ...header, id: parent, cwd: workspace, createdAt: Date.now() }),
+        ...fixture.slice(1),
+      ].join('\n') + '\n')
+
+      const shell = new PtyShell(rollerFixture, undefined, workspace, { DSH_HOME: rewindDefaultHome })
+      let child = ''
+      try {
+        const start = await launch(shell,
+          `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --resume ${parent}`,
+          'idle ·')
+        const sourceTypes = sessionEvents(parent, rewindDefaultHome).map(event => event.type)
+        expect(sourceTypes.slice(0, 3)).toEqual(['turn/start', 'user/message', 'turn/end'])
+        expect(sourceTypes).not.toContain('request/header')
+        expect(sourceTypes).not.toContain('model/selection')
+
+        const rewindAt = shell.output.length
+        shell.write('/rewind\r')
+        await shell.waitFor('Rewind to a prompt', rewindAt)
+        shell.write('\u001B[A\r')
+        await shell.waitFor('Restore code and conversation', rewindAt)
+        const actionAt = shell.output.length
+        shell.write(`${'\u001B[B'.repeat(action)}\r`)
+        child = await waitForOtherSession(shell, parent, actionAt)
+        await vi.waitFor(async () => {
+          expect((await firstFrame(shell.output.slice(start))).split('\n')[21])
+            .toContain('headerless default model prompt')
+        }, { timeout: testCeiling(20_000) })
+        expect(await firstFrame(shell.output.slice(start)))
+          .not.toContain('the current session has no durable model selection')
+
+        const clearAt = shell.output.length
+        shell.write('\u0003')
+        await vi.waitFor(async () => {
+          expect((await firstFrame(shell.output.slice(start))).split('\n')[21]?.trim()).toBe('')
+        }, { timeout: testCeiling(20_000) })
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', clearAt)
+      } finally {
+        await shell.close()
+      }
+      const events = sessionEvents(parent, rewindDefaultHome)
+      const commandId = events.find(event => event.type === 'command/run'
+        && event.data?.name === 'rewind')?.data?.commandId
+      expect(commandId).toBeDefined()
+      expect(events.find(event => event.type === 'command/done'
+        && event.data?.commandId === commandId)?.data?.kind).toBe('success')
+      expect(sessionLog(child, rewindDefaultHome).header.parentSession).toBeUndefined()
+    }
+  }, testCeiling(60_000))
 
   it('restores conversation and code at both session start and a turn boundary', async () => {
     const scenarios = [
