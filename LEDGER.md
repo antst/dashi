@@ -1792,6 +1792,21 @@ own command/run and command/done pair (DSH logs every command; use
 recordInput false) and no turn/start, user/message, assistant/*,
 tool/*, or turn/end, and the fork exists with the title; production source under 50 lines.
 
+### W-053 /plugin fails under the sandbox — status: open (owner roller-exec, before W-052)
+Defect, owner report 2026-09-04: `/plugin add <pkg>` in a normal
+session fails with `EROFS: read-only file system` on
+`~/.dsh/profiles/dashi/_tmp_...` because the nested `dsh plugin`
+runs through the human shell under the session sandbox policy, which
+mounts the profile directory read-only. W-034's PTY test launched with
+--yolo, so the sandbox was off and the defect stayed hidden. Fix: the
+/plugin passthrough runs the nested DSH CLI without the session
+sandbox (it is DSH's own profile-management command, explicitly typed
+by the user); human `!` commands keep the sandbox. Acceptance: PTY
+test under the default permission preset (no --yolo) that
+`/plugin add <packed tarball>` succeeds and the profile manifest
+changes; the existing --yolo case stays. Production change under 10
+lines. Ships in alpha.11.
+
 ### W-052 /clear NAME and /agents authoring — status: open (owner roller-exec, after W-050)
 Last two PARITY.md doable rows. (a) `/clear NAME` (and `/reset NAME`,
 `/new NAME`): rename the current root to NAME through the title
