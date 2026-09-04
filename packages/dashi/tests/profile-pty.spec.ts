@@ -48,6 +48,7 @@ let home = ''
 let hardeningCwd = ''
 let hardeningHome = ''
 let launchFlagsHome = ''
+let overlayHome = ''
 let pluginHome = ''
 let pluginSandboxHome = ''
 
@@ -160,8 +161,8 @@ function modeBetween(output: string, marker: string): string {
   return match[1]
 }
 
-async function firstFrame(output: string): Promise<string> {
-  const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: 80, rows: 24 })
+async function firstFrame(output: string, columns = 80, rows = 24): Promise<string> {
+  const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: columns, rows })
   await new Promise<void>(resolveWrite => { terminal.write(output, resolveWrite) })
   const lines = Array.from({ length: terminal.rows }, (_, row) =>
     terminal.buffer.active.getLine(row)?.translateToString(true) ?? '')
@@ -346,6 +347,36 @@ function chunkStormSnapshot(chunks = 400): string {
   return path
 }
 
+function tallModelCatalogPatch(): string {
+  const path = join(testDir, 'tall-model-catalog.patch.yml')
+  const models = Array.from({ length: 60 }, (_, index) => [
+    `              - id: w054-${String(index).padStart(2, '0')}`,
+    `                name: W054 row ${String(index).padStart(2, '0')}`,
+    '                contextWindow: 100000',
+  ].join('\n')).join('\n')
+  writeFileSync(path, `- id: llm-deepseek
+  disabled: true
+- id: session-title-llm
+  disabled: true
+- id: session-persistence-jsonl
+  config:
+    root: !!js dshHomePath('replay-sessions')
+    compression: none
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        file: !!js process.env.DSH_SNAPSHOT_FILE
+        paceMs: 0
+        providers:
+          - id: w054-provider
+            name: W054 provider
+            models:
+${models}
+`)
+  return path
+}
+
 function presenterFailureSnapshot(): string {
   const path = join(testDir, `presenter-failure-${String(Date.now())}.jsonl`)
   const rows = [
@@ -448,6 +479,7 @@ beforeAll(() => {
   home = join(testDir, 'home')
   hardeningHome = join(testDir, 'hardening-home')
   launchFlagsHome = join(testDir, 'launch-flags-home')
+  overlayHome = join(testDir, 'overlay-home')
   pluginHome = join(testDir, 'plugin-home')
   pluginSandboxHome = join(testDir, 'plugin-sandbox-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
@@ -455,6 +487,7 @@ beforeAll(() => {
   prepareTestProfile(home)
   prepareTestProfile(hardeningHome)
   prepareTestProfile(launchFlagsHome)
+  prepareTestProfile(overlayHome)
   prepareTestProfile(pluginHome)
   prepareTestProfile(pluginSandboxHome)
 }, 120_000)
@@ -2504,6 +2537,40 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.close()
     }
     expect(sessionEvents(id).some(event => event.type === 'model/selection')).toBe(true)
+  }, 30_000)
+
+  it('keeps the selected row reachable in a model picker taller than the terminal', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: overlayHome })
+    shell.resize(100, 12)
+    let id = ''
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(tallModelCatalogPatch())} --fullscreen`)
+      id = sessionId(shell.output, start)
+      const pickerAt = shell.output.length
+      shell.write('/model\r')
+      await shell.waitFor('↓ 53 more', pickerAt)
+      let frame = await firstFrame(shell.output.slice(start), 100, 12)
+      expect(frame).toContain('W054 provider · W054 row 00')
+      expect(frame).not.toContain('W054 row 59')
+
+      const endAt = shell.output.length
+      shell.write('\u001B[B'.repeat(59))
+      await shell.waitFor('↑ 53 more', endAt)
+      await shell.waitFor('W054 provider · W054 row 59', endAt)
+      frame = await firstFrame(shell.output.slice(start), 100, 12)
+      expect(frame).toContain('W054 provider · W054 row 59')
+      const selectedAt = shell.output.length
+      shell.write('\r')
+      await shell.waitFor('idle · w054-59', selectedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+    expect(sessionEvents(id, overlayHome).some(event => event.type === 'model/selection'
+      && event.data?.model === 'w054-59' && event.data.provider === 'w054-provider')).toBe(true)
   }, 30_000)
 
   it.each(['--yolo', '--dangerously-skip-permissions'])(
