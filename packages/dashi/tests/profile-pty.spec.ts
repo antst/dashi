@@ -5,7 +5,7 @@ import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as pty from 'node-pty'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
 import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
@@ -2252,6 +2252,66 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(sessionEvents(id).some(event => event.type === 'session/title'
       && event.data?.title === 'Terminal title')).toBe(true)
   }, 30_000)
+
+  it('/clear NAME preserves the previous root under that title', async () => {
+    const shell = new PtyShell()
+    let previous = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      previous = sessionId(shell.output, start)
+      const clearAt = shell.output.length
+      shell.write('/clear W052 archived root\r')
+      await waitForOtherSession(shell, previous, clearAt)
+      const resumeAt = shell.output.length
+      shell.write('/resume\r')
+      await shell.waitFor('W052 archived root', resumeAt)
+      shell.write('\u001B')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+    expect(sessionEvents(previous).some(event => event.type === 'session/title'
+      && event.data?.title === 'W052 archived root')).toBe(true)
+  }, 30_000)
+
+  it('/agents authors presets through DSH and opens a new copy in the editor', async () => {
+    const authoredRoot = join(home, '.agent-presets')
+    const trace = join(testDir, 'agents-editor.json')
+    const { baseline, shell } = await prepareShell({
+      DSH_DASHI_EDITOR_TRACE: trace,
+      EDITOR: `${process.execPath} ${fakeEditor}`,
+      VISUAL: '',
+    })
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('/agents copy standard w052-copy\r')
+      await shell.waitFor('copied standard to w052-copy', start)
+      expect(existsSync(join(authoredRoot, 'w052-copy', 'agent.cordis.yml'))).toBe(true)
+      shell.write('/agents delete w052-copy\r')
+      await shell.waitFor('deleted w052-copy', start)
+      expect(existsSync(join(authoredRoot, 'w052-copy'))).toBe(false)
+
+      shell.write('/agents new w052-new\r')
+      await shell.waitFor('created w052-new from standard', start)
+      await vi.waitFor(() => { expect(existsSync(trace)).toBe(true) }, { timeout: testCeiling(20_000) })
+      const result = JSON.parse(readFileSync(trace, 'utf8')) as { file: string; terminalMode: string }
+      expect(result.file).toBe(join(authoredRoot, 'w052-new', 'agent.cordis.yml'))
+      expect(result.terminalMode).toBe(baseline)
+      expect(readFileSync(result.file, 'utf8')).toContain(' from editor')
+      shell.write('/agents delete w052-new\r')
+      await shell.waitFor('deleted w052-new', start)
+      expect(existsSync(join(authoredRoot, 'w052-new'))).toBe(false)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+      await expectRestored(shell, baseline)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
 
   it('creates a root, resumes through the picker, and emits post-swap root events in order', async () => {
     const eventsFile = join(testDir, `root-events-${String(Date.now())}.jsonl`)
