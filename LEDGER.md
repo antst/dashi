@@ -1706,7 +1706,13 @@ child id; the existing subagent surface shows it. All owners are DSH
 (PARITY.md rows). Acceptance: PTY tests for read, kill, and subtask
 creation with the replay provider; production source under 50 lines.
 
-### W-047 --system-prompt and --append-system-prompt — status: open (owner roller-exec, after W-045)
+### W-047 --system-prompt and --append-system-prompt — status: accepted 2026-09-04 (PR #59 squash-merged; owner roller-exec)
+Four flags parsed in index.ts, file variants read once at launch
+(missing file: LaunchArgumentError, exit 2); prepare() registers a
+complete SystemPrompt section or an ordinary final section on the
+root, disposers on the binding, so resume/continue/fork carry them.
+PTY test inspects the recorded request's system prompt. 32
+production lines; 239 tests. Ships in alpha.11.
 Launch flags `--system-prompt TEXT`, `--system-prompt-file PATH`,
 `--append-system-prompt TEXT`, `--append-system-prompt-file PATH`
 (PARITY.md row). Replace variants register one SystemPrompt section
