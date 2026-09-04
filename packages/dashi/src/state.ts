@@ -227,6 +227,7 @@ export interface ViewState {
 
 export type UiAction =
   | { readonly attachment: DraftAttachment; readonly source?: string; readonly text?: string; readonly type: 'attachment-added' }
+  | { readonly path: string; readonly type: 'attachment-path' }
   | { readonly index: number; readonly type: 'attachment-remove' }
   | { readonly type: 'clipboard-paste' }
   | { readonly caret?: number; readonly completion?: boolean; readonly type: 'composer-changed'; readonly text: string }
@@ -443,6 +444,7 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
         ...(replace ? { composer: action.text } : {}),
       }, [...(replace ? [{ type: 'set-composer', text: action.text } as const] : []), ...redraw()]]
     }
+    case 'attachment-path': return [state, [{ type: 'attach', path: action.path, source: state.composer, text: state.composer }]]
     case 'attachment-remove': {
       if (action.index < 0 || action.index >= state.attachments.length) return [state, []]
       return [{ ...state, attachments: state.attachments.filter((_item, index) => index !== action.index) }, redraw()]

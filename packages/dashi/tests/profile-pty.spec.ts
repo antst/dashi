@@ -3454,6 +3454,25 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     ]))
   }, testCeiling(60_000))
 
+  it('turns a dropped image and text file into a draft attachment and @ reference', async () => {
+    const workspace = join(testDir, 'drop-workspace')
+    mkdirSync(workspace)
+    writeFileSync(join(workspace, 'shot.png'), png)
+    writeFileSync(join(workspace, 'notes.txt'), 'dropped notes\n')
+    const shell = new PtyShell(replayFixture, undefined, workspace)
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write(`\u001B[200~${workspace}/shot.png ${workspace}/notes.txt\u001B[201~`)
+      await shell.waitFor('shot.png · image/png', start)
+      await vi.waitFor(async () => { expect(await firstFrame(shell.output.slice(start))).toContain('@notes.txt') }, {
+        timeout: testCeiling(20_000),
+      })
+      shell.write('\u0003\u0004\u0004')
+    } finally {
+      await shell.close()
+    }
+  }, testCeiling(60_000))
+
   it('accepts repeated --image paths including one outside cwd and persists durable references', async () => {
     const workspace = join(testDir, 'cli-image-workspace')
     mkdirSync(workspace)
