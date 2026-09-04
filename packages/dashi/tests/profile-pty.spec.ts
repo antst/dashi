@@ -768,6 +768,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('dashi-fixture/account · Dashi fixture account', start)
       shell.write('/login dashi-fixture/account fixture\r')
       await shell.waitFor('Enter the fixture secret.', start)
+      await shell.waitFor('https://example.invalid/login', start)
       expect(await firstFrame(shell.output.slice(start))).toContain('https://example.invalid/login')
       shell.write(`\u001B[200~${secret}\u001B[201~\r`)
       await shell.waitFor('Choose the fixture account.', start)
@@ -1410,7 +1411,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     'runs the daily inline flow inside a private %s server and restores its pane',
     async (kind) => {
       const pane = new MultiplexerPane(kind, testDir, hardeningCwd, {
-        ...process.env, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: replayFixture,
+        ...process.env, ...hermeticGitEnv, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: replayFixture,
         DSH_TELEMETRY_DISABLED: '1', NO_COLOR: '1', PROMPT_COMMAND: '', PS1: '',
       })
       try {
@@ -1449,7 +1450,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       generateLargeSession(id, 30, 0, hardeningHome)
 
       const pane = new MultiplexerPane(kind, testDir, hardeningCwd, {
-        ...process.env, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: threeTurnFixture,
+        ...process.env, ...hermeticGitEnv, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: threeTurnFixture,
         DSH_TELEMETRY_DISABLED: '1', NO_COLOR: '1', PROMPT_COMMAND: '', PS1: '',
       })
       try {
@@ -2292,10 +2293,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   it('inserts a user-invocable skill token as prompt text, never as a command', async () => {
     const workspace = join(testDir, 'workspace-skill-fixture')
     const skill = join(workspace, '.dsh', 'skills', 'workspace-proof')
+    const skillFile = join(skill, 'SKILL.md')
     const preStepEvents = join(testDir, 'workspace-skill-pre-step.jsonl')
     mkdirSync(join(workspace, '.git'), { recursive: true })
     mkdirSync(skill, { recursive: true })
-    writeFileSync(join(skill, 'SKILL.md'), [
+    writeFileSync(skillFile, [
       '---',
       'name: workspace-proof',
       'description: Prove DSH project skill discovery',
@@ -2306,7 +2308,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const shell = new PtyShell(replayFixture, undefined, workspace, {
       DSH_DASHI_PRE_STEP_EVENTS: preStepEvents,
     })
-    shell.resize(240, 30)
+    const canonicalSkillFile = realpathSync(skillFile)
+    shell.resize(Math.max(240, canonicalSkillFile.length + 140), 30)
     let id = ''
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
@@ -2314,6 +2317,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/skills\r')
       await shell.waitFor('/workspace-proof', start)
       await shell.waitFor('user yes · model yes · source project-dsh · provider filesystem · path ', start)
+      await shell.waitFor(canonicalSkillFile, start)
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const filteredAt = shell.output.length
