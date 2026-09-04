@@ -1781,8 +1781,10 @@ relay that refusal (cite the check). `/recap` is `/btw` with the fixed prompt "S
 conversation so far in ten lines: goal, decisions, open items." No
 new state; the wait reuses the existing turn-end follow used by
 executeAccepted. Acceptance: PTY test with the replay provider
-proving the answer appears, the root's event log has no new events,
-and the fork exists with the title; production source under 50 lines.
+proving the answer appears, the root's log gains only the command's
+own command/run and command/done pair (DSH logs every command; use
+recordInput false) and no turn/start, user/message, assistant/*,
+tool/*, or turn/end, and the fork exists with the title; production source under 50 lines.
 
 ## Backlog
 
