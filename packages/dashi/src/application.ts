@@ -160,7 +160,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
         return
       case 'exit-timer':
         if (exitTimer !== undefined) clearTimeout(exitTimer)
-        exitTimer = effect.armed ? setTimeout(() => { dispatch({ type: 'disarm-exit' }) }, 2_000) : undefined
+        exitTimer = effect.armed ? setTimeout(() => { dispatch({ type: 'disarm-exit' }) }, 1_500) : undefined
         return
       case 'external-edit': {
         try {

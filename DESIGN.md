@@ -441,8 +441,8 @@ While work runs, the footer exposes `steer` or `next turn`; `Ctrl+T` toggles:
 | `Esc` | overlay | close/cancel |
 | `Ctrl+C` | running | interrupt and preserve any draft |
 | `Ctrl+C` | idle, nonempty composer | clear draft |
-| `Ctrl+C` twice within two seconds | idle, empty composer | exit |
-| `Ctrl+D` twice within two seconds | idle, empty composer | exit; shares the Ctrl+C arm |
+| `Ctrl+C` twice within 1.5 seconds | idle, empty composer | exit |
+| `Ctrl+D` twice within 1.5 seconds | idle, empty composer | exit; shares the Ctrl+C arm |
 | `Ctrl+F` | any non-decision focus | open transcript search; preserve draft |
 | `Ctrl+O` | no decision | cycle global tool-card mode |
 | `Ctrl+B` | no decision | job and subagent details |
