@@ -89,7 +89,7 @@ After installation:
 Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
-`/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`,
+`/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`, `/login`, `/logout`,
 `/agents`, `/queue`, `/context`, `/memory`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
 `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
@@ -110,6 +110,8 @@ details view. `/plugins` lists each running profile row's id, module, enabled
 state, and fiber phase; MCP client rows also show their configured server name.
 `/config` lists every DSH settings namespace with its effective, base, and user
 layers; `/config NAMESPACE KEY=VALUE` writes through DSH's validated provider.
+`/login [KEY [METHOD]]` lists or starts DSH authorization flows; `/logout [KEY]`
+lists stored record metadata or forgets one credential without reading its value.
 `/plugin ARGS` passes ARGS to `dsh plugin --profile <running profile>` and
 reports when a successful change will load on the next launch. Human `!`
 commands receive the same resolved `DSH_HOME` as the running profile.
@@ -210,7 +212,7 @@ The Session Controller has no root-release operation, so roots left by
 DSH's plugin CLI exposes no enable/disable verb, so dashi cannot toggle profile
 rows in-session. The MCP client exposes configured server names but no live
 connection-status API, so `/plugins` reports ordinary plugin fiber state, not
-connection health. Login, hooks, add-dir, and
+connection health. Hooks, add-dir, and
 autocompact tuning also have no native dashi command surface.
 
 An optional shell alias provides the shorter spelling:

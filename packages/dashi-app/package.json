@@ -34,6 +34,7 @@
     "@antst/roller": "0.1.2",
     "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",
     "@deepseek-ai/dsh-api-session-controller": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-authorization": "0.1.2-rc.1",
     "@deepseek-ai/dsh-code-runtime-worker-thread": "0.1.2-rc.1",
     "@deepseek-ai/dsh-file-reference-local": "0.1.2-rc.1",
     "@deepseek-ai/dsh-host-plugin-inventory": "0.1.2-rc.1",

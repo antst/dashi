@@ -11,6 +11,8 @@ import type {
   SessionSummary,
 } from '@deepseek-ai/dsh-api-session-controller'
 import type { CommandDefinition, CommandExecution, CommandInvocation, CommandResult } from '@deepseek-ai/dsh-commands'
+import { AuthorizationDeclinedError, type AuthorizationPrompt } from '@deepseek-ai/dsh-authorization'
+import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { createUserMessage, type ContentBlock } from '@deepseek-ai/dsh-llm'
@@ -324,6 +326,15 @@ export async function createSessionRuntime(
     }) as Promise<T>
   }
 
+  const authorizationPrompt = (bound: Binding, prompt: AuthorizationPrompt, detail?: string): Promise<string> =>
+    decide<Exclude<DecisionAnswer, string>>({
+      answers: [], cursor: 0, custom: '', id: `authorization:${String(++decisionSequence)}`, index: 0, kind: 'question', owner: { id: bound.root.id, ...(bound.root.title === undefined ? {} : { label: bound.root.title }) }, selected: [],
+      questions: [{ allowCustom: prompt.kind !== 'select', ...(detail === undefined ? {} : { detail }), header: 'Login', id: 'authorization', multiSelect: false, options: prompt.kind === 'select' ? prompt.options : [], question: prompt.message, secret: prompt.kind === 'secret' }],
+    }, prompt.signal).then(result => prompt.kind === 'select' ? prompt.options[prompt.options.findIndex(option => option.label === result.answers[0]?.selected[0])]?.id ?? ''
+      : result.answers[0]?.custom ?? '').catch(error => {
+      if (prompt.signal?.aborted !== true && (error as { code?: unknown }).code === 'ASK_ABORTED') throw new AuthorizationDeclinedError()
+      throw error
+    })
   const transcriptCells = (bound: Binding): readonly TerminalCell[] => [
     ...foldCells(bound.events, bound.presenter, { truncatedStart: bound.hasMore }),
     ...pendingShellCells(bound.agent.inbox.nextStep),
@@ -640,6 +651,36 @@ export async function createSessionRuntime(
           if (match[2].includes('.')) await ctx.settings.mutate(match[1], [{ op: 'set', path: match[2].split('.'), value }])
           else await ctx.settings.update(match[1], { [match[2]]: value })
           return { kind: 'success', text: `updated ${match[1]}.${match[2]}` }
+        },
+      },
+      { name: 'login', description: 'List or start provider sign-in', input: { hint: '[KEY [METHOD]]' },
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          const values = invocation.rawInput.trim().split(/\s+/u).filter(Boolean)
+          if (values.length === 0) return { kind: 'success', text: ctx.authorization.list().map(entry => `${String(entry.key)} · ${entry.label} · ${entry.methods.map(method => `${method.id}: ${method.label}`).join(', ')}${entry.inFlight ? ' · in progress' : ''}`).join('\n') || 'no authorization flows' }
+          if (values.length > 2) return { kind: 'error', text: 'usage: /login [KEY [METHOD]]' }
+          const entry = ctx.authorization.describe(parseCredentialKey(values[0]!))
+          if (entry === undefined) return { kind: 'error', text: `no authorization flow for ${values[0]}` }
+          const notices: string[] = []
+          const outcome = await ctx.authorization.begin({ key: entry.key, ...(values[1] === undefined ? {} : { method: values[1] }), signal: invocation.signal,
+            interaction: { notify: notice => {
+              notices.push(notice.message, ...(notice.url === undefined ? [] : [notice.url]), ...(notice.code === undefined ? [] : [`Code: ${notice.code}`]))
+              dispatch({ type: 'open-overlay', overlay: { kind: 'info', title: 'Login', lines: notices } })
+            }, prompt: prompt => authorizationPrompt(bound, prompt, notices.join('\n')) },
+          }).finally(() => { dispatch({ type: 'overlay-close' }) })
+          return { kind: 'success', text: outcome.status === 'authorized' ? `signed in to ${entry.label}` : 'login cancelled' }
+        },
+      },
+      { name: 'logout', description: 'List or forget provider credentials', input: { hint: '[KEY]' },
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          const raw = invocation.rawInput.trim()
+          if (raw === '') return { kind: 'success', text: (await ctx.credentials.listRecords()).map(record => `${String(record.key)} · ${record.kind}`).join('\n') || 'no stored credentials' }
+          if (/\s/u.test(raw)) return { kind: 'error', text: 'usage: /logout [KEY]' }
+          await ctx.credentials.deleteRecord(parseCredentialKey(raw))
+          return { kind: 'success', text: `signed out ${raw}` }
         },
       },
       {

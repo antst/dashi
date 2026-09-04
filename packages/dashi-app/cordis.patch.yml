@@ -91,6 +91,9 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'
+
     - id: dashi
       name: '@antst/dashi'
 
