@@ -1866,7 +1866,14 @@ Acceptance: renderer tests with a recorded log containing each
 construct at 80 columns in inline and full-screen modes; production
 source under 40 lines.
 
-### W-056 Persistent status line — status: open (owner roller-exec, after W-052)
+### W-056 Persistent status line — status: accepted 2026-09-04 (PR #84 squash-merged; owner roller-exec)
+One line above the composer from live projection snapshots
+(modelSelection, permissions, tokenUsage, contextPressure) read at
+render, plus the git branch via ctx.shell under an explicit
+read-only policy at launch and on turn/end only, kept as the single
+branch field on the binding and redrawn only on change; hidden in
+accessible mode and under the exit arm; truncates branch then cache
+rate at the right. 49 production lines; 257 tests. Ships in alpha.12.
 One always-visible line above the composer (Claude Code has one):
 model, permission preset, context tokens used with the model's
 limit when the projection exposes it, cache-hit rate from
