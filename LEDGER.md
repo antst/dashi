@@ -2055,7 +2055,17 @@ composer; fixture shapes corrected to match the live event if they
 differed (the W-037 lesson); production source under 15 lines.
 Ships in alpha.14.
 
-### W-063 Model shown twice — status: open (owner roller-exec)
+### W-063 Model shown twice — status: accepted 2026-09-04 (PR #110 squash-merged; owner roller-exec)
+Grew into the HUD row by owner addenda: one values-only line
+`<model> · <effort> · <preset> · ctx <used>/<limit> <pct>% · cache
+<pct>% · <total> tok · <n> agents · <n> jobs · <title> ·
+<repo>/<branch>`, effort/agents/jobs only when present or nonzero,
+drop from the right in that order; model and title from DSH's
+selection and title projections, tokens summed over the four
+token-meter buckets (DSH has no total), repo root and branch from one
+read-only shell call at launch and turn/end kept as the latest
+result; the hint line keeps the model only in accessible mode. 39
+production lines; 272 tests. Ships in alpha.14.
 Owner report 2026-09-04 on alpha.13: the W-056 status row shows
 `model <provider/model> · permission <preset>` above the composer
 and the pre-existing hint line below it still shows `idle ·
