@@ -95,7 +95,7 @@ Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
 `/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`, `/login`, `/logout`,
-`/agents`, `/queue`, `/context`, `/init`, `/memory`, `/skills`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
+`/agents`, `/queue`, `/context`, `/init`, `/memory`, `/skills`, `/diff`, `/plugins`, `/plugin`, `/tasks`, `/bashes`, `/subtask`,
 `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
@@ -117,7 +117,9 @@ to `vi`); DSH applies edits according to its own instruction reload rules.
 and descriptions; choosing one inserts its human invocation into the composer.
 `/diff` shows the working tree against `HEAD`; `/diff turn` shows write/edit
 hunks recorded by DSH for the last turn. `/tasks` opens the job and subagent
-details view. `/plugins` lists each running profile row's id, module, enabled
+details view, Enter reads selected job output, and `/tasks kill ID` stops a job;
+`/bashes` aliases it. `/subtask TEXT` starts a continuable child with TEXT as
+its first prompt. `/plugins` lists each running profile row's id, module, enabled
 state, and fiber phase; MCP client rows also show their configured server name.
 `/config` lists every DSH settings namespace with its effective, base, and user
 layers; `/config NAMESPACE KEY=VALUE` writes through DSH's validated provider.

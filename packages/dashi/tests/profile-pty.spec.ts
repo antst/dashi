@@ -21,6 +21,7 @@ const rewindSteerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 
 const rollerFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'roller-three-turn-session.jsonl')
 const questionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-session.jsonl')
 const presentationFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-session.jsonl')
+const tasksFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'tasks-session.jsonl')
 const contextInjectionFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'context-injection-session.jsonl')
 const presentationChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'presentation-child-session.jsonl')
 const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'request-context-session.jsonl')
@@ -3141,6 +3142,54 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(childLog.events.some(event => text(event).includes('CHILD_RESULT'))).toBe(true)
     expect(parentLog.events.some(event => event.type === 'user/message'
       && (event.data?.source as { plugin?: unknown } | undefined)?.plugin === 'tool-jobs')).toBe(true)
+  }, 120_000)
+
+  it('reads and kills jobs and starts a continuable subtask through DSH', async () => {
+    const shell = new PtyShell(tasksFixture, undefined, root, {
+      DSH_SNAPSHOT_CHILD_FILES: presentationChildFixture,
+    })
+    let parent = ''
+    let child = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      parent = sessionId(shell.output, start)
+      shell.write('launch managed job\r')
+      const launched = await shell.waitFor('Managed job launched.', start)
+      await shell.waitFor('Job · printf DASHI_JOB_OUTPUT; sleep 30 · running', start)
+      await shell.waitFor('idle ·', launched)
+
+      const readAt = shell.output.length
+      shell.write('/bashes\r')
+      await shell.waitFor('Activity', readAt)
+      shell.write('\r')
+      await shell.waitFor('DASHI_JOB_OUTPUT', readAt)
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', shell.output.length - 1)
+
+      const killAt = shell.output.length
+      shell.write('/tasks kill bash-1\r')
+      await shell.waitFor('stopping bash-1', killAt)
+      await shell.waitFor('Job · printf DASHI_JOB_OUTPUT; sleep 30 · killed', killAt)
+
+      const subtaskAt = shell.output.length
+      shell.write('/subtask inspect W046 continuation\r')
+      await shell.waitFor('subtask ', subtaskAt)
+      await shell.waitFor(' started', subtaskAt)
+      child = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
+      expect(child).not.toBe('')
+      await shell.waitFor('Subagent · inspect W046 continuation ·', subtaskAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const commands = sessionEvents(parent).filter(event => event.type === 'command/run')
+      .map(event => event.data?.name)
+    expect(commands).toEqual(expect.arrayContaining(['bashes', 'tasks', 'subtask']))
+    expect(sessionEvents(child).some(event => event.type === 'user/message'
+      && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
   }, 120_000)
 
   it('resumes a generated 200k-event session and pages older history on demand', async () => {

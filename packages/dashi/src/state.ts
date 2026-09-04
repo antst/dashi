@@ -136,6 +136,7 @@ export type OverlayValue =
   | { readonly kind: 'attach'; readonly path: string; readonly source: string; readonly text: string }
   | { readonly kind: 'copy'; readonly text: string }
   | { readonly kind: 'insert'; readonly text: string }
+  | { readonly jobId: string; readonly kind: 'job-output' }
   | { readonly kind: 'model'; readonly effort?: string; readonly model: string; readonly provider: string }
   | { readonly kind: 'open-file'; readonly path: string }
   | { readonly interrupt?: true; readonly kind: 'fork' }
@@ -366,7 +367,7 @@ function help(): Overlay {
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /context',
-      '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
+      '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /bashes /subtask /history /export /copy /exit /quit',
       ...FLAG_HELP,
     ],
   }
@@ -684,9 +685,11 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
       if (overlay === undefined) return [state, []]
       if (overlay.kind === 'history') return reduce(state, { type: 'history-toggle' })
       if (overlay.kind === 'info') return reduce(state, { type: 'overlay-close' })
-      if (overlay.kind === 'details') return [{
-        ...state, overlay: { ...overlay, expanded: !overlay.expanded },
-      }, redraw()]
+      if (overlay.kind === 'details') {
+        const job = state.root?.jobs?.[overlay.cursor - (state.root?.subagents?.length ?? 0)]
+        if (job !== undefined) return [state, [{ type: 'activate-overlay', value: { jobId: job.id, kind: 'job-output' } }]]
+        return [{ ...state, overlay: { ...overlay, expanded: !overlay.expanded } }, redraw()]
+      }
       if (overlay.kind === 'confirm') {
         if (overlay.cursor !== 0) return reduce(state, { type: 'overlay-close' })
         const { overlay: _overlay, ...withoutOverlay } = state

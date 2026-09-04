@@ -26,6 +26,7 @@ catalog:
   '@deepseek-ai/dsh-fs': 0.1.2-rc.1
   '@deepseek-ai/dsh-llm': 0.1.2-rc.1
   '@deepseek-ai/dsh-llm-replay': 0.1.2-rc.1
+  '@deepseek-ai/dsh-jobs': 0.1.2-rc.1
   '@deepseek-ai/dsh-permission-presets': 0.1.2-rc.1
   '@deepseek-ai/dsh-plan-mode': 0.1.2-rc.1
   '@deepseek-ai/dsh-sandbox-policy': 0.1.2-rc.1

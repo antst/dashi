@@ -1,0 +1,13 @@
+{"type":"session","version":0,"id":"dashi-tasks","createdAt":1,"cwd":"/recorded","delegationDepth":0}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"job-start","name":"bash","argumentsDelta":"{\"command\":\"printf DASHI_JOB_OUTPUT; sleep 30\",\"description\":\"managed job\",\"run_in_background\":true}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"job-start","name":"bash","arguments":"{\"command\":\"printf DASHI_JOB_OUTPUT; sleep 30\",\"description\":\"managed job\",\"run_in_background\":true}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Managed job launched."}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Managed job launched."}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"text-delta","index":0,"text":"Subtask completion acknowledged."}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Subtask completion acknowledged."}}}}
+{"type":"assistant/chunk","data":{"turn":2,"step":1,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
