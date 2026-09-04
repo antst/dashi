@@ -183,6 +183,20 @@ function milliseconds(value: unknown): string {
   return typeof value === 'number' ? `${number(value)} ms` : 'unavailable'
 }
 
+export function sessionStatusLine(ctx: Context, agent: Agent, root: RootView, branch?: string): string {
+  const { modelSelection, permissions, tokenUsage, contextPressure } = ctx.sessionProjections
+    .snapshot(agent.session, ['modelSelection', 'permissions', 'tokenUsage', 'contextPressure']).values
+  const model = modelSelection?.next ?? modelSelection?.lastUsed
+  const input = tokenUsage === undefined ? 0 : tokenUsage.uncachedInputTokens + tokenUsage.cacheReadTokens + tokenUsage.cacheWriteTokens
+  const used = contextPressure?.projectedTokens ?? contextPressure?.pressureTokens
+  return [
+    `model ${model == null ? `${root.provider === undefined ? '' : `${root.provider}/`}${root.model}` : `${model.provider}/${model.model}`}`,
+    `permission ${permissions?.currentValue ?? root.permission ?? 'unknown'}`,
+    ...(used === undefined || contextPressure?.contextWindow === undefined ? [] : [`context ${number(used)}/${number(contextPressure.contextWindow)}`]),
+    ...(input === 0 ? [] : [`cache ${String(Math.min(tokenUsage?.cacheReadTokens === input ? 100 : 99, Math.round((tokenUsage?.cacheReadTokens ?? 0) / input * 100)))}%`]),
+    ...(branch === undefined ? [] : [`branch ${branch}`]),
+  ].join(' · ')
+}
 /** Read DSH-owned root facts for /status in one projection cut. */
 export function statusOverlay(ctx: Context, agent: Agent, root: RootView): Overlay {
   const values = ctx.sessionProjections.snapshot(agent.session, [

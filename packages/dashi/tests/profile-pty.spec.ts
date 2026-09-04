@@ -518,6 +518,26 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
+  it('shows the configured model and git branch in the persistent status line', async () => {
+    const workspace = join(testDir, 'status-workspace')
+    mkdirSync(workspace)
+    run('git', ['init', '--initial-branch=status-proof'], process.env, workspace)
+    const shell = new PtyShell(threeTurnFixture, undefined, workspace)
+    try {
+      shell.resize(200, 24)
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      await shell.waitFor('model deepseek-official/deepseek-v4-flash', start)
+      await shell.waitFor('branch status-proof', start)
+      run('git', ['branch', '-m', 'status-after-turn'], process.env, workspace)
+      const turnAt = shell.output.length
+      shell.write('refresh status branch\r')
+      await shell.waitFor('First turn complete.', turnAt)
+      await shell.waitFor('branch status-after-turn', turnAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('renders the first profile frame within the large-resume budget', async () => {
     const shell = new PtyShell()
     try {
@@ -661,7 +681,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const readAt = shell.output.length
       shell.write('/config\r')
-      await shell.waitFor('shell', readAt)
+      await shell.waitFor('maxSpillBytes', readAt)
       await shell.waitFor('base:', readAt)
       await shell.waitFor('user: —', readAt)
 

@@ -62,6 +62,7 @@ export interface Renderer extends TerminalSession {
 export interface RendererOptions extends InputBindings {
   readonly accessible?: boolean
   readonly inline: boolean
+  readonly statusLine?: () => string | undefined
   readonly terminal?: Terminal
   readonly terminalType?: string
 }
@@ -466,6 +467,11 @@ export function createRenderer(options: RendererOptions): Renderer {
       ))
       const activityRows = decision !== undefined || state.search !== undefined || state.overlay !== undefined
         ? [] : activities(state).map(item => line(`${DIM}${activityText(item, now)}${RESET}`, width))
+      const persistentStatus = accessible || state.exitArmed ? undefined : options.statusLine?.()
+      const composer = (): string[] => [
+        ...(persistentStatus === undefined ? [] : [line(`${DIM}${plain(persistentStatus)}${RESET}`, width)]),
+        ...editor.render(width),
+      ]
       const control = decision !== undefined
         ? decisionPanel(decision, width, rows)
         : state.search !== undefined
@@ -481,11 +487,11 @@ export function createRenderer(options: RendererOptions): Renderer {
             `${DIM}${state.search.matches.length === 0 ? 'no matches' : `${String(state.search.cursor + 1)}/${String(state.search.matches.length)}`} · Enter next · Shift+Enter previous${RESET}`,
           ]
         : state.overlay === undefined
-          ? [...activityRows, ...attachmentRows, ...editor.render(width)]
+          ? [...activityRows, ...attachmentRows, ...composer()]
           : [
             ...overlayPanel(state.overlay, state, width, rows),
             ...(state.overlay.kind === 'list' && state.overlay.purpose === 'completion'
-              ? [...attachmentRows, ...editor.render(width)]
+              ? [...attachmentRows, ...composer()]
               : []),
           ]
       const fixedRows = header.length + control.length + 2

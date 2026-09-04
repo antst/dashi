@@ -42,6 +42,7 @@ export interface TerminalShellOptions {
   readonly onReleased?: () => void
   readonly pasteImage?: () => Promise<DraftAttachment>
   readonly search?: (query: string, rootId: string) => Promise<void>
+  readonly statusLine?: () => string | undefined
   readonly submit?: (text: string, mode: 'next-turn' | 'steer', attachments: readonly DraftAttachment[]) => Promise<void> | void
   readonly suspend?: () => Promise<void>
   readonly writeError?: (message: string) => void
@@ -91,7 +92,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
     readState: () => state,
   }
   const renderer = options.createView?.(bindings) ?? createRenderer({
-    ...bindings, ...(options.accessible === undefined ? {} : { accessible: options.accessible }), inline: options.inline,
+    ...bindings, ...(options.accessible === undefined ? {} : { accessible: options.accessible }), ...(options.statusLine === undefined ? {} : { statusLine: options.statusLine }), inline: options.inline,
   })
   const guard: TerminalGuard = createTerminalGuard(renderer)
   const writeError = options.writeError ?? (message => { process.stderr.write(message) })

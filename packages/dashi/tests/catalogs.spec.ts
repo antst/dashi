@@ -3,6 +3,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { describe, expect, it, vi } from 'vitest'
 import {
   agentPresetOverlay, completionOptions, contextOverlay, modelOverlay, permissionOverlay, sessionOverlay,
+  sessionStatusLine,
 } from '../src/catalogs.js'
 
 function agent(): Agent {
@@ -147,5 +148,21 @@ describe('terminal catalogs', () => {
         { active: false, label: 'ptc', value: { kind: 'agent-preset', preset: 'ptc' } },
       ],
     })
+  })
+
+  it('builds the status line from current DSH projections', () => {
+    const ctx = {
+      sessionProjections: { snapshot: () => ({ values: {
+        contextPressure: { contextWindow: 200_000, projectedTokens: 12_345 },
+        modelSelection: { next: { model: 'recorded', provider: 'replay' } },
+        permissions: { currentValue: 'workspace-write', options: [] },
+        tokenUsage: { cacheReadTokens: 90, cacheWriteTokens: 0, outputTokens: 5, uncachedInputTokens: 10 },
+      } }) },
+    } as unknown as Context
+    expect(sessionStatusLine(ctx, agent(), {
+      cwd: '/work', id: 'session', model: 'fallback', status: 'idle',
+    }, 'feature/status')).toBe(
+      'model replay/recorded · permission workspace-write · context 12,345/200,000 · cache 90% · branch feature/status',
+    )
   })
 })
