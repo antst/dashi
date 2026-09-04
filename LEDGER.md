@@ -1768,9 +1768,12 @@ forks the current session at its latest completed turn
 for its turn/end, and shows the assistant text in the info overlay
 with cells (Ctrl+O expands). The main root is untouched; the fork
 stays a normal DSH session (resumable from the sessions list; DSH
-has no root-release, README says so). If the root is running, refuse
-with "finish or interrupt the turn first" (DSH forks only at
-turn/end). `/recap` is `/btw` with the fixed prompt "Summarize this
+has no root-release, README says so). While the root is running, the
+fork is taken at the previous completed turn boundary (fork is cold,
+from the log) and the answer is labelled with that turn number, so
+/btw works mid-turn without seeing the in-progress prompt; only if
+SessionController.fork itself refuses a running source does dashi
+relay that refusal (cite the check). `/recap` is `/btw` with the fixed prompt "Summarize this
 conversation so far in ten lines: goal, decisions, open items." No
 new state; the wait reuses the existing turn-end follow used by
 executeAccepted. Acceptance: PTY test with the replay provider
