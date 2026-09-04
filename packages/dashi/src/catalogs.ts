@@ -1,3 +1,6 @@
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { AgentPreset } from '@deepseek-ai/dsh-agent-presets'
@@ -13,7 +16,7 @@ import { isUserInvocable } from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-token-meter'
 import type { Overlay, OverlayOption, RootView } from './state.js'
 import { detectAtTrigger } from './at-trigger.js'
-import { slashCompletionQuery } from './completion-trigger.js'
+import { pluginCompletionQuery, slashCompletionQuery } from './completion-trigger.js'
 import { isImagePath } from './image-input.js'
 import { sessionTitle } from './session-list.js'
 
@@ -36,6 +39,27 @@ export async function completionOptions(
   caret = input.length,
   signal?: AbortSignal,
 ): Promise<readonly OverlayOption[]> {
+  const plugin = pluginCompletionQuery(input, caret)
+  if (plugin !== undefined) {
+    let candidates: readonly string[] = ['add', 'remove', 'update', 'outdated', 'list', 'why', 'exec', 'licenses']
+    if (plugin.command !== undefined) {
+      const profile = fileURLToPath(new URL('.', ctx.baseUrl!))
+      if (plugin.command === 'exec') {
+        candidates = (await readdir(join(profile, 'node_modules', '.bin')).catch(
+          (error: NodeJS.ErrnoException) => error.code === 'ENOENT' ? [] : Promise.reject(error),
+        )).sort()
+      } else {
+        const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+          dependencies?: Record<string, string>
+        }
+        candidates = Object.keys(manifest.dependencies ?? {}).sort()
+      }
+    }
+    return candidates.filter(name => matchRank(name, plugin.query) < 2).map(name => ({
+      group: 'Commands', label: name,
+      value: { kind: 'insert', text: `/plugin ${plugin.command === undefined ? '' : `${plugin.command} `}${name} ` },
+    }))
+  }
   const at = detectAtTrigger(input, caret)
   if (at !== undefined) {
     const service = ctx.get('fileReferences') as FileReferenceService | undefined

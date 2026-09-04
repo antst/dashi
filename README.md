@@ -152,8 +152,12 @@ layers; `/config NAMESPACE KEY=VALUE` writes through DSH's validated provider.
 `/login [KEY [METHOD]]` lists or starts DSH authorization flows; `/logout [KEY]`
 lists stored record metadata or forgets one credential without reading its value.
 `/plugin ARGS` passes ARGS to `dsh plugin --profile <running profile>` and
-reports when a successful change will load on the next launch. Human `!`
-commands receive the same resolved `DSH_HOME` as the running profile.
+reports how a successful change loads. A package that ships a DSH bundle is
+appended to the profile's bundle list by `dsh plugin add` and loads on the next
+launch. A plain plugin package is installed but gets no loader row, so it needs
+an `insert` row in the profile's `cordis.patch.yml`; DSH's live patch reload
+then applies it without restart. Human `!` commands receive the same resolved
+`DSH_HOME` as the running profile.
 `/export [path]` writes the complete current transcript as Markdown under the
 session working directory; its default filename is `dashi-SESSION_UUID.md`.
 

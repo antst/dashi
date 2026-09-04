@@ -627,7 +627,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
-      await shell.waitFor('changes load on the next launch; exit and run dashi again', addAt)
+      await shell.waitFor('bundles load on the next launch; plain plugins need a patch row', addAt)
       const profileManifest = JSON.parse(readFileSync(join(pluginHome, 'profiles', 'dashi', 'package.json'), 'utf8')) as {
         dependencies?: Record<string, string>
       }
@@ -645,6 +645,34 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 60_000)
 
+  it('completes /plugin verbs and binaries from the running profile', async () => {
+    const bin = join(pluginHome, 'profiles', 'dashi', 'node_modules', '.bin')
+    mkdirSync(bin, { recursive: true })
+    const binary = join(bin, 'w060-fixture-bin')
+    writeFileSync(binary, '#!/bin/sh\n')
+    chmodSync(binary, 0o755)
+    const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: pluginHome })
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('/plugin ex')
+      await shell.waitFor('› 1 exec', start)
+      const tabAt = shell.output.length
+      shell.write('\t')
+      await shell.waitFor('/plugin exec', tabAt)
+      shell.write('\t')
+      await shell.waitFor('w060-fixture-bin', tabAt)
+      shell.write('\u001B')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      shell.write('\u0003')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('/plugin changes the profile outside the default session sandbox', async () => {
     const archives = join(testDir, 'plugin-sandbox-archives')
     mkdirSync(archives)
@@ -657,7 +685,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell,
         `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
       shell.write(`/plugin add ${quote(archive)}\r`)
-      await shell.waitFor('changes load on the next launch; exit and run dashi again', start)
+      await shell.waitFor('bundles load on the next launch; plain plugins need a patch row', start)
       const manifest = JSON.parse(readFileSync(
         join(pluginSandboxHome, 'profiles', 'dashi', 'package.json'), 'utf8',
       )) as { dependencies?: Record<string, string> }

@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { describe, expect, it, vi } from 'vitest'
@@ -11,6 +15,40 @@ function agent(): Agent {
 }
 
 describe('terminal catalogs', () => {
+  it('completes the fixed pnpm plugin vocabulary and leaves later arguments free', async () => {
+    const ctx = {} as Context
+    const options = await completionOptions(ctx, agent(), '/plugin ')
+    expect(options.map(option => option.label)).toEqual([
+      'add', 'remove', 'update', 'outdated', 'list', 'why', 'exec', 'licenses',
+    ])
+    expect((await completionOptions(ctx, agent(), '/plugin ex')).map(option => option.value)).toEqual([
+      { kind: 'insert', text: '/plugin exec ' },
+    ])
+    await expect(completionOptions(ctx, agent(), '/plugin add package')).resolves.toEqual([])
+  })
+
+  it('rereads profile binaries and direct dependencies for plugin completion', async () => {
+    const profile = mkdtempSync(join(tmpdir(), 'dashi-plugin-completion-'))
+    try {
+      const bin = join(profile, 'node_modules', '.bin')
+      mkdirSync(bin, { recursive: true })
+      writeFileSync(join(bin, 'fixture-bin'), '')
+      writeFileSync(join(profile, 'package.json'), JSON.stringify({ dependencies: { '@antst/fixture': '1.0.0' } }))
+      const ctx = { baseUrl: pathToFileURL(join(profile, 'agent.cordis.yml')).href } as Context
+      expect((await completionOptions(ctx, agent(), '/plugin exec fix')).map(option => option.label)).toEqual(['fixture-bin'])
+      for (const command of ['remove', 'update', 'why']) {
+        expect((await completionOptions(ctx, agent(), `/plugin ${command} antst`)).map(option => option.label)).toEqual(['@antst/fixture'])
+      }
+      writeFileSync(join(bin, 'later-bin'), '')
+      writeFileSync(join(profile, 'package.json'), JSON.stringify({ dependencies: { 'later-dependency': '2.0.0' } }))
+      expect((await completionOptions(ctx, agent(), '/plugin exec later')).map(option => option.label)).toEqual(['later-bin'])
+      expect((await completionOptions(ctx, agent(), '/plugin update later')).map(option => option.label)).toEqual(['later-dependency'])
+      await expect(completionOptions(ctx, agent(), '/plugin exec later --flag')).resolves.toEqual([])
+    } finally {
+      rmSync(profile, { force: true, recursive: true })
+    }
+  })
+
   it('groups native commands and only user-invocable skills without executing either', async () => {
     const listCommands = vi.fn(() => [
       { name: 'status', description: 'Show status' },
