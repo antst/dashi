@@ -1718,6 +1718,47 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 60_000)
 
+  it('starts resumed tool cards expanded only with --verbose', async () => {
+    const seed = new PtyShell()
+    let id = ''
+    try {
+      const start = await launch(seed,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen 'seed verbose mode'`)
+      id = sessionId(seed.output, start)
+      await seed.waitFor('Approval · bash', start)
+      seed.write('\r')
+      await seed.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+      await seed.waitFor('idle ·', start)
+      const releasedAt = seed.output.length
+      seed.write('\u0004\u0004')
+      await seed.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await seed.close()
+    }
+
+    for (const [flag, expanded] of [['', false], [' --verbose', true]] as const) {
+      const resumed = new PtyShell()
+      try {
+        const start = await launch(resumed,
+          `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen${flag} --resume ${quote(id)}`)
+        await resumed.waitFor('idle ·', start)
+        const frame = await firstFrame(resumed.output.slice(start))
+        expect(/^  DASHI_TOOL_ROUND_TRIP$/mu.test(frame)).toBe(expanded)
+        expect(frame).toContain(`cards ${expanded ? 'expanded' : 'collapsed'}`)
+        if (expanded) {
+          const toggledAt = resumed.output.length
+          resumed.write('\u000f')
+          await resumed.waitFor('cards hidden', toggledAt)
+        }
+        const releasedAt = resumed.output.length
+        resumed.write('\u0004\u0004')
+        await resumed.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await resumed.close()
+      }
+    }
+  }, 90_000)
+
   it('suppresses the decision bell in accessible mode', async () => {
     const shell = new PtyShell()
     try {

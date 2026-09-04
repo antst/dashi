@@ -35,6 +35,7 @@ export interface TerminalShellOptions {
   readonly initialHasMore?: boolean
   readonly initialPrompts?: ViewState['prompts']
   readonly initialRoot?: ViewState['root']
+  readonly initialToolMode?: ViewState['toolMode']
   readonly interrupt?: () => void
   readonly inline: boolean
   readonly loadHistory?: (rootId: string) => Promise<void>
@@ -75,6 +76,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
     options.cwd, options.inline, options.initialRoot, options.initialCells, options.initialPrompts,
     options.initialHasMore,
     options.initialAttachments,
+    options.initialToolMode,
   )
   let accepting = true
   let failed = false

@@ -320,11 +320,12 @@ export function initialViewState(
   prompts: readonly string[] = [],
   historyHasMore = false,
   attachments: readonly DraftAttachment[] = [],
+  toolMode: ToolMode = 'collapsed',
 ): ViewState {
   return {
     attachments, cells, composer: '', cwd, decisions: [], exitArmed: false, historyHasMore, inline,
     newOutput: 0, prompts, rewindArmed: false, scrollOffset: 0,
-    sendMode: 'steer', toolMode: 'collapsed',
+    sendMode: 'steer', toolMode,
     ...(root === undefined ? {} : { root }),
   }
 }
