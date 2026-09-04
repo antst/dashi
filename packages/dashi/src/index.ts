@@ -277,6 +277,7 @@ export function apply(ctx: Context): void {
         onReleased: () => { process.stdout.write(`${runtime?.summary ?? ''}\n`) },
         pasteImage: readClipboardImage,
         search: (query, rootId) => runtime?.search(query, rootId) ?? Promise.resolve(),
+        statusLine: () => runtime?.statusLine,
         submit: (text, mode, attachments) => runtime?.submit(text, mode, attachments),
       })
       shell.start()

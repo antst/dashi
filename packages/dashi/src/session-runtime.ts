@@ -42,6 +42,7 @@ import {
   modelOverlay,
   permissionOverlay,
   searchOverlay,
+  sessionStatusLine,
   sessionOverlay,
   skillOverlay,
   statusOverlay,
@@ -99,6 +100,7 @@ export interface SessionRuntime {
   readonly initialHasMore: boolean
   readonly initialPrompts: readonly string[]
   readonly root: RootView
+  readonly statusLine: string
   readonly summary: string
   activate(value: ActivatableOverlayValue): Promise<void>
   attach(path: string): Promise<DraftAttachment | undefined>
@@ -124,6 +126,7 @@ interface Binding {
   readonly controlIterator: AsyncIterator<SessionControlFrame>
   readonly iterator: AsyncIterator<SessionFollowFrame>
   readonly presenter: ToolPresenter
+  branch: string | undefined
   commandScope?: Fiber
   readonly cursor: number
   disposers: Array<() => void>
@@ -211,6 +214,16 @@ async function firstControl(
   return first.value
 }
 
+async function gitBranch(ctx: Context, agent: Agent, signal: AbortSignal): Promise<string | undefined> {
+  try {
+    const result = await ctx.shell.run(ctx.shell.resolve({
+      command: 'git branch --show-current', sandboxPolicy: ctx.sandboxPolicy.resolve({ mode: 'read-only' }),
+      signal, stdoutMaxBytes: 512, timeoutMs: 2_000, workdir: agent.session.header.cwd,
+    }))
+    return result.exitCode === 0 && result.stdout.text.trim() !== '' ? result.stdout.text.trim() : undefined
+  } catch { return undefined }
+}
+
 function usage(raw: string, expected: string): CommandResult | undefined {
   return raw.trim() === '' ? undefined : { kind: 'error', text: `usage: ${expected}` }
 }
@@ -289,8 +302,9 @@ export async function createSessionRuntime(
         address: { kind: 'session', sessionId }, maxMessages: 50,
       }, abort.signal)[Symbol.asyncIterator]()
       const controlIterator = ctx.sessionController.control(abort.signal)[Symbol.asyncIterator]()
-      const [opening, controlOpening, subagents] = await Promise.all([
+      const [opening, controlOpening, subagents, branch] = await Promise.all([
         firstSnapshot(iterator), firstControl(controlIterator), subagentViews(ctx, sessionId, abort.signal),
+        gitBranch(ctx, agent, abort.signal),
       ])
       title ??= projectionString(opening.projections, 'title')
       const selected = projectionModel(opening.projections)
@@ -302,6 +316,7 @@ export async function createSessionRuntime(
       return {
         abort,
         agent,
+        branch,
         controlIterator,
         cursor: opening.cursor,
         disposers,
@@ -412,11 +427,18 @@ export async function createSessionRuntime(
       })
     }, 34)
   }
+  const refreshBranch = async (bound: Binding): Promise<void> => {
+    const branch = await gitBranch(ctx, bound.agent, bound.abort.signal)
+    if (bound.abort.signal.aborted || current() !== bound || bound.branch === branch) return
+    bound.branch = branch
+    dispatch({ type: 'redraw' })
+  }
   const consume = (bound: Binding, frame: Exclude<SessionFollowFrame, { type: 'snapshot' }>): void => {
     const [event] = eventsFromRecords([frame])
     if (event === undefined) return
     bound.events.push(event)
     if (event.type === 'turn/end') {
+      void refreshBranch(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
       if (startedAt !== undefined) {
         dispatch({
@@ -1314,6 +1336,7 @@ export async function createSessionRuntime(
     get initialHasMore() { return current().hasMore },
     get initialPrompts() { return humanPrompts(current().events) },
     get root() { return current().root },
+    get statusLine() { const bound = current(); return sessionStatusLine(ctx, bound.agent, bound.root, bound.branch) },
     get summary() { return `Resume with: dsh --profile dashi --resume ${current().root.id}` },
     activate,
     async attach(path) {

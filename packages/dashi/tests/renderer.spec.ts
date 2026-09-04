@@ -84,6 +84,46 @@ describe('terminal renderer', () => {
     }
   }
 
+  for (const columns of [80, 120]) {
+    it(`keeps the persistent status directly above the composer at ${String(columns)} columns`, async () => {
+      const terminal = new ScreenTerminal(columns, 24)
+      const status = 'model replay/recorded · permission default · context 12,345/200,000 · cache 90% · branch feature/long-status-proof'
+      const shell = createTerminalShell({
+        createView: bindings => createRenderer({ ...bindings, inline: false, statusLine: () => status, terminal }),
+        cwd: '/work', exit: () => {}, inline: false,
+        initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+      })
+      shell.start()
+      await terminal.flush()
+      const lines = terminal.lines()
+      const statusIndex = lines.findIndex(value => value.includes('model replay/recorded'))
+      expect(statusIndex).toBeGreaterThan(-1)
+      expect(lines[statusIndex + 1]?.trimStart()).toMatch(/^─/u)
+      expect(lines.join('\n')).toContain('cache 90%')
+      expect(lines.join('\n').includes('branch feature/long-status-proof')).toBe(columns === 120)
+      terminal.send('\u0004')
+      await shell.whenIdle(); await terminal.flush()
+      expect(terminal.lines().join('\n')).not.toContain('model replay/recorded')
+      expect(terminal.lines().join('\n')).toContain('Ctrl+C or Ctrl+D again to exit')
+      await shell.dispose()
+    })
+  }
+
+  it('omits the persistent status in accessible mode', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      accessible: true,
+      createView: bindings => createRenderer({
+        ...bindings, accessible: true, inline: true, statusLine: () => 'model hidden', terminal,
+      }),
+      cwd: '/work', exit: () => {}, inline: true,
+    })
+    shell.start()
+    await terminal.flush()
+    expect(terminal.lines().join('\n')).not.toContain('model hidden')
+    await shell.dispose()
+  })
+
   it('accepts ordinary input, Ctrl+J, and a multiline bracketed paste', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const shell = createTerminalShell({
