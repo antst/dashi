@@ -6,7 +6,9 @@ import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
 import { VERSION_LINE } from '../src/help.js'
 import { createRenderer, type Renderer } from '../src/renderer.js'
+import { historyInputs } from '../src/rewind.js'
 import { foldCells } from '../src/transcript.js'
+import { inputHistoryEvents } from './fixtures/input-history.js'
 import { testCeiling } from './test-budget.js'
 
 function codeBlockCells() {
@@ -61,6 +63,25 @@ class ScreenTerminal {
 }
 
 describe('terminal renderer', () => {
+  it('renders recalled command and shell input from a mixed durable log', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false,
+      initialCells: foldCells(inputHistoryEvents),
+      initialPrompts: historyInputs(inputHistoryEvents),
+      initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+    })
+    shell.start()
+    terminal.send('\u001B[A')
+    await shell.whenIdle()
+    terminal.send('\u001B[A')
+    await shell.whenIdle(); await terminal.flush()
+    expect(shell.readState().composer).toBe("!printf 'ok value'")
+    expect(terminal.lines().join('\n')).toContain("!printf 'ok value'")
+    await shell.dispose()
+  })
+
   for (const inline of [false, true]) {
     for (const columns of [48, 80, 160]) {
       for (const rows of [8, 24]) {

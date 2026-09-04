@@ -2580,6 +2580,32 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(sessionEvents(id).some(event => event.type === 'model/selection')).toBe(true)
   }, 30_000)
 
+  it('recalls the last /model line with Up', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const pickerAt = shell.output.length
+      shell.write('/model\r')
+      await shell.waitFor('Model', pickerAt)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const recalledAt = shell.output.length
+      shell.write('\u001B[A')
+      await shell.waitFor('/model', recalledAt)
+      expect((await firstFrame(shell.output.slice(start))).split('\n')[21]).toContain('/model')
+      const clearedAt = shell.output.length
+      shell.write('\u0003')
+      await shell.waitFor('\u001B[22;1H\u001B[2K', clearedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('keeps the selected row reachable in a model picker taller than the terminal', async () => {
     const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: overlayHome })
     shell.resize(100, 12)

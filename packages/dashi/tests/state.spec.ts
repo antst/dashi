@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { historyInputs } from '../src/rewind.js'
 import { initialViewState, reduce, TURN_BELL_THRESHOLD_MS } from '../src/state.js'
+import { inputHistory, inputHistoryEvents } from './fixtures/input-history.js'
 
 describe('view-state reducer', () => {
   it('clears a draft before arming or exiting', () => {
@@ -244,21 +246,30 @@ describe('view-state reducer', () => {
     expect(unchanged.root?.model).toBe('old')
   })
 
-  it('recalls current prompts without submitting and restores the draft', () => {
+  it('recalls durable prompt, command, and shell inputs without submitting', () => {
+    const prompts = historyInputs(inputHistoryEvents)
+    expect(prompts).toEqual(inputHistory)
     const base = {
       ...initialViewState('/work', false, {
         cwd: '/work', id: 'current', model: 'm', status: 'idle' as const,
-      }, [], ['one', 'two']),
+      }, [], prompts),
       composer: 'draft',
     }
-    const [two, firstEffects] = reduce(base, { type: 'recall-move', offset: -1 })
-    expect(two.composer).toBe('two')
-    expect(firstEffects).toContainEqual({ type: 'set-composer', text: 'two' })
+    const [permission, firstEffects] = reduce(base, { type: 'recall-move', offset: -1 })
+    expect(permission.composer).toBe('/permission default')
+    expect(firstEffects).toContainEqual({ type: 'set-composer', text: '/permission default' })
     expect(firstEffects.some(effect => effect.type === 'submit')).toBe(false)
-    const [one] = reduce(two, { type: 'recall-move', offset: -1 })
-    expect(one.composer).toBe('one')
-    const [backToTwo] = reduce(one, { type: 'recall-move', offset: 1 })
-    const [draft] = reduce(backToTwo, { type: 'recall-move', offset: 1 })
+    const [shell] = reduce(permission, { type: 'recall-move', offset: -1 })
+    expect(shell.composer).toBe("!printf 'ok value'")
+    const [model] = reduce(shell, { type: 'recall-move', offset: -1 })
+    expect(model.composer).toBe('/model')
+    const [first] = reduce(model, { type: 'recall-move', offset: -1 })
+    expect(first.composer).toBe('first prompt')
+    let forward = first
+    for (let index = 0; index < inputHistory.length; index++) {
+      [forward] = reduce(forward, { type: 'recall-move', offset: 1 })
+    }
+    const draft = forward
     expect(draft.composer).toBe('draft')
     expect(draft.recall).toBeUndefined()
   })
