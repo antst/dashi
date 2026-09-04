@@ -47,6 +47,7 @@ let hardeningCwd = ''
 let hardeningHome = ''
 let launchFlagsHome = ''
 let pluginHome = ''
+let pluginSandboxHome = ''
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -439,12 +440,14 @@ beforeAll(() => {
   hardeningHome = join(testDir, 'hardening-home')
   launchFlagsHome = join(testDir, 'launch-flags-home')
   pluginHome = join(testDir, 'plugin-home')
+  pluginSandboxHome = join(testDir, 'plugin-sandbox-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
   prepareTestProfile(hardeningHome)
   prepareTestProfile(launchFlagsHome)
   prepareTestProfile(pluginHome)
+  prepareTestProfile(pluginSandboxHome)
 }, 120_000)
 
 afterAll(() => {
@@ -551,6 +554,31 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/plugin add @antst/dashi-w034-package-does-not-exist\r')
       await shell.waitFor('dsh: pnpm failed in profile directory', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist is not in the npm registry')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
+
+  it('/plugin changes the profile outside the default session sandbox', async () => {
+    const archives = join(testDir, 'plugin-sandbox-archives')
+    mkdirSync(archives)
+    const archive = packWorkspacePackage(pluginManagementFixture, archives)
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: pluginSandboxHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write(`/plugin add ${quote(archive)}\r`)
+      await shell.waitFor('changes load on the next launch; exit and run dashi again', start)
+      const manifest = JSON.parse(readFileSync(
+        join(pluginSandboxHome, 'profiles', 'dashi', 'package.json'), 'utf8',
+      )) as { dependencies?: Record<string, string> }
+      expect(manifest.dependencies?.['@antst/dashi-plugin-management-fixture']).toContain('.tgz')
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

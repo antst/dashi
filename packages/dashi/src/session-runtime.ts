@@ -820,7 +820,9 @@ export async function createSessionRuntime(
           if (stale !== undefined) return stale
           if (invocation.rawInput.trim() === '') return { kind: 'error', text: 'usage: /plugin ARGS' }
           const command = `dsh plugin --profile ${quoteShellWord(decodeURIComponent(new URL(ctx.baseUrl!).pathname).split('/').at(-2)!)}${invocation.rawInput}`
-          const [message, result] = await bound.agent.runMaintenance(signal => runHumanShell(ctx, bound.agent, command, signal, 'changes load on the next launch; exit and run dashi again'))
+          const [message, result] = await bound.agent.runMaintenance(signal => runHumanShell(
+            ctx, bound.agent, command, signal, 'changes load on the next launch; exit and run dashi again', false,
+          ))
           bound.agent.inject(message)
           await ctx.sessions.flush(bound.agent.session)
           publish(bound)
