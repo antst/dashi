@@ -93,6 +93,7 @@ export function installInput(tui: TUI, bindings: InputBindings): () => void {
       else if (overlay.kind === 'history' && matchesKey(data, 'y')) bindings.dispatch({ type: 'history-copy' })
       else if (matchesKey(data, 'up')) bindings.dispatch({ type: 'overlay-move', offset: -1 })
       else if (matchesKey(data, 'down')) bindings.dispatch({ type: 'overlay-move', offset: 1 })
+      else if (matchesKey(data, 'ctrl+o')) bindings.dispatch({ type: 'toggle-tool-mode' })
       else if (matchesKey(data, 'enter')) bindings.dispatch({ type: 'overlay-submit', execute: true })
       else if (matchesKey(data, 'tab')) bindings.dispatch({ type: 'overlay-submit' })
       else if (overlay.kind === 'list' && overlay.purpose === 'completion') {

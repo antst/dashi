@@ -313,9 +313,11 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (overlay.kind === 'history') return historyPanel(overlay, state, width, rows)
     if (overlay.kind === 'details') return detailsPanel(overlay, state, width, rows)
     if (overlay.kind === 'info') {
+      const cards = overlay.cells?.flatMap(cell => wrapTextWithAnsi(cellText(cell, state.toolMode, accessible), width)) ?? []
       return [
-        `${BOLD_CYAN}${announcement(plain(overlay.title), overlay.lines.length)}${RESET}`,
+        `${BOLD_CYAN}${announcement(plain(overlay.title), overlay.lines.length + (overlay.cells?.length ?? 0))}${RESET}`,
         ...overlay.lines.flatMap(value => wrapTextWithAnsi(plain(value, true), width)),
+        ...cards,
         `${DIM}Enter or Esc to close${RESET}`,
       ].slice(0, Math.max(2, rows - 3))
     }
