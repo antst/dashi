@@ -523,6 +523,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         : action)
     },
     insertNewline: () => { editor.insertTextAtCursor('\n') },
+    insertText: text => { editor.insertTextAtCursor(text) },
     readComposerCursor: () => editor.getCursor(),
   })
 

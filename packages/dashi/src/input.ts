@@ -1,11 +1,41 @@
+import { statSync } from 'node:fs'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import { isKeyRelease, matchesKey, type TUI, type TuiInputListenerResult } from '@earendil-works/pi-tui'
+import { isImagePath } from './image-input.js'
 import { PAGE_CELLS, type ComposerCursor, type UiAction, type ViewState } from './state.js'
 
 export interface InputBindings {
   readonly dispatch: (action: UiAction) => void
   readonly insertNewline?: () => void
+  readonly insertText?: (text: string) => void
   readonly readComposerCursor?: () => ComposerCursor
   readonly readState: () => ViewState
+}
+
+export function droppedPaths(data: string, cwd: string, inspect: (path: string) => { isDirectory(): boolean } = statSync,
+): { readonly images: readonly string[]; readonly text: string } | undefined {
+  const [start, end] = ['\u001B[200~', '\u001B[201~']
+  if (!data.startsWith(start) || !data.endsWith(end)) return undefined
+  const token = /(?:[^\s'\\]+|'[^']*'|\\[\s\S])+/gu
+  const source = data.slice(start.length, -end.length)
+  const chunks = source.match(token) ?? []
+  if (chunks.length === 0 || source.replace(token, '').trim() !== '') return undefined
+  const paths = chunks.map(chunk => chunk.replace(/'([^']*)'|\\([\s\S])/gu,
+    (_match, quoted: string | undefined, escaped: string | undefined) => quoted ?? escaped ?? ''))
+  try {
+    const entries = paths.map(value => {
+      const absolute = resolve(cwd, value)
+      const directory = inspect(absolute).isDirectory()
+      if (!directory && isImagePath(absolute)) return { absolute }
+      const local = relative(resolve(cwd), absolute)
+      const mention = formatFileMention({ kind: directory ? 'directory' : 'file', path: local !== '' && !isAbsolute(local) && local !== '..' && !local.startsWith(`..${sep}`) ? local : absolute }, false)
+      if (mention === undefined) throw new Error('path cannot be mentioned')
+      return { absolute, mention }
+    })
+    const mentions = entries.flatMap(entry => entry.mention === undefined ? [] : [entry.mention])
+    return { images: entries.flatMap(entry => entry.mention === undefined ? [entry.absolute] : []), text: mentions.length === 0 ? '' : `${mentions.join(' ')} ` }
+  } catch { return undefined }
 }
 
 export function caretOffset(text: string, cursor: ComposerCursor): number {
@@ -24,6 +54,12 @@ export function installInput(tui: TUI, bindings: InputBindings): () => void {
       const customQuestion = question !== undefined && decision?.kind === 'question'
         && decision.cursor === question.options.length
       const completion = state.overlay?.kind === 'list' && state.overlay.purpose === 'completion'
+      const dropped = decision === undefined && state.overlay === undefined && state.search === undefined && droppedPaths(data, state.root?.cwd ?? state.cwd)
+      if (dropped) {
+        bindings.insertText?.(dropped.text)
+        for (const path of dropped.images) bindings.dispatch({ type: 'attachment-path', path })
+        return { consume: true }
+      }
       return customQuestion || state.search !== undefined || completion
         || decision === undefined && state.overlay === undefined ? undefined : { consume: true }
     }
