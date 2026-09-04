@@ -2119,6 +2119,19 @@ three escape forms and a mixed non-path paste; PTY test dropping one
 image and one text file (pasted with bracketed paste) shows an
 attachment row and an @ reference; production source under 40 lines.
 
+### W-066 macOS gate on hosted runners — status: open (owner dsh-exec)
+Owner decision 2026-09-04: macOS is a primary target and nothing has
+run there. Scope: a `macos-latest` job in ci.yml running the host
+gate (`pnpm gate`, not the container; brew-installed tmux and screen)
+on pull requests and develop, `continue-on-error: true` until it is
+green, so it never blocks merges; release.yml unchanged. First run:
+classify every failure as (a) a dashi defect on mac (fix in a
+follow-up item), (b) a test-harness assumption (Linux-only helper,
+bubblewrap, xclip) to skip on mac with a one-line reason next to the
+skip, never a silent pass, or (c) a DSH gap on mac (README, upstream
+queue). Handoff is the job plus the classified list; when the job is
+green, a second PR removes continue-on-error. Production source 0.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
