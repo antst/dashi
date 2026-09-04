@@ -2159,7 +2159,18 @@ skip, never a silent pass, or (c) a DSH gap on mac (README, upstream
 queue). Handoff is the job plus the classified list; when the job is
 green, a second PR removes continue-on-error. Production source 0.
 
-### W-067 macOS test harness — status: open (owner mac-dashi, D-038)
+### W-067 macOS test harness — status: accepted 2026-09-04 (PR #126 squash-merged; owner mac-dashi; production source 0)
+All nine mac failures fixed in the harness: line endings normalized;
+tty compare on icanon/echo/isig/opost; realpath on both sides of
+path assertions; screen socket dir under /tmp everywhere with
+screen >= 4.1 required and the binary printed; clipboard fixture
+fakes the platform helper production invokes (pngpaste on Darwin,
+wl-paste/xclip on Linux); hermetic git config in every fixture and
+pane; the worker-killing stdin case fixed at its cause (macOS bash
+3.2 leaves BASHPID empty, so pid 0 signalled the process group; the
+fixture now uses /bin/sh $$); turn and resize waits on observed
+idle markers and the synchronized-render close. No Darwin skips.
+Mac gate 274/274; hosted macos-gate green for the first time.
 Mac peer's first host-gate run 2026-09-04 (macOS 27 arm64, Node 22,
 pnpm 11, tmux 3.7, brew screen 5.0): non-PTY suites 164/164 pass;
 PTY suite 100 pass, 9 fail, all harness assumptions, no DSH gap:
