@@ -2109,7 +2109,7 @@ From PARITY.md, to be cut into work items in this order (W-042, W-043,
 W-047..W-052 cut 2026-09-04): none left. Remaining parity rows are
 DSH gaps; see PARITY.md and the upstream report queue.
 
-### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
+### B-001 Workspace restore plugin (Claude Code style file rewind) — status: closed 2026-09-04, satisfied by @antst/roller 0.1.2 (bundled in dashi-app since D-033; rewind offers conversation, code, or both since D-032)
 A separate DSH plugin, not part of the dashi TUI: e.g. `@antst/dsh-checkpoint`
 in its own package or repo. Records the before-content of every file
 touched by DSH's own file-mutation tools, keyed by the turn boundary
