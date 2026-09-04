@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-alpha.15 — 2026-09-04
+
+- Fix rewinding to the first prompt in a session that never reached the model, which failed with "no durable model selection".
+
 ## 0.1.0-alpha.14 — 2026-09-04
 
 - Recall `!` shell lines typed in the running session with Up/Down.
