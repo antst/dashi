@@ -1592,7 +1592,15 @@ provider's validated update; errors relayed verbatim. Acceptance: PTY
 test reading and changing one setting and seeing DSH persist it;
 production source under 50 lines.
 
-### W-040 Aliases and small launch flags — status: open (after W-039)
+### W-040 Aliases and small launch flags — status: accepted 2026-09-04 (PR #42 squash-merged)
+/quit, /reset, /continue, /branch are the existing definitions
+re-registered under a second name; /effort reuses the model
+activation with the current provider/model; -n, --agent, --session-id,
+--fork-session pass through SessionCreateRequest and
+SessionController.fork; diff-view uses the shared stream constant. 39
+production lines; 232 tests. Note to both builders: line caps bound
+mechanisms, not formatting; do not pack statements or type fields onto
+one line to meet a cap, ask for a higher cap instead.
 Registered aliases over existing behavior: /quit, /reset, /continue,
 /branch (=/fork), /effort <e>; launch flags -n (=--name), --agent
 <preset>, --session-id <uuid>, --fork-session with --resume/
@@ -1607,11 +1615,31 @@ provider's credential record (PARITY.md rows). Acceptance: PTY test
 with a fake flow from the replay provider or a fixture flow;
 production source under 60 lines. Never print secrets.
 
+### W-042 /init — status: open (owner dsh-exec, after W-040)
+`/init` writes a starter AGENTS.md in the session cwd through ctx.fs
+(atomic create, refuses to overwrite an existing file, DSH error
+verbatim) with a short fixed template: project name from the cwd
+basename, a "Working agreement" heading, and three placeholder
+bullets; then reports the path. DSH's agent-instructions plugin
+picks it up per its own rules; say which in README (next session or
+live). Acceptance: PTY test in an empty fixture cwd, then a second
+/init refused; production source under 30 lines.
+
+### W-043 /copy N and code-block picker — status: open (owner dsh-exec, after W-042)
+`/copy N` copies the Nth latest assistant message (1 = latest, the
+existing /copy behavior); `/copy` with argument `code` opens the
+existing list overlay with the fenced code blocks of the latest
+assistant message (language and first line as label) and copies the
+chosen block through the existing OSC 52 path. Source is the DSH log
+via the existing fold; no new state beyond the transient list.
+Acceptance: renderer test with a recorded log containing two code
+blocks; PTY test for /copy 2; production source under 40 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
-From PARITY.md, to be cut into work items after W-041 in this order:
-/init; /copy N and code-block picker; /tasks management, /bashes,
+From PARITY.md, to be cut into work items in this order (W-042 /init
+and W-043 /copy cut 2026-09-04): /tasks management, /bashes,
 /subtask; /skills list and search; --tools and bare-name
 --disallowedTools; --system-prompt and --append-system-prompt (and
 file variants); /loop; --verbose; richer /usage from token and
