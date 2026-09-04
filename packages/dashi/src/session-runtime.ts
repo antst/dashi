@@ -78,8 +78,12 @@ export interface RootLaunchOptions {
   readonly permission?: string
   readonly prompt?: string
   readonly provider?: string
+  readonly tools?: readonly string[]
+  readonly disallowedTools?: readonly string[]
   readonly resume?: string; readonly sessionId?: string
 }
+
+export class LaunchArgumentError extends Error {}
 
 export interface SessionRuntime {
   readonly initialAttachments: readonly DraftAttachment[]
@@ -241,6 +245,17 @@ export async function createSessionRuntime(
       const resolved = await ctx.sessionController.resolveAgent(sessionId)
       if ('error' in resolved) throw resolved.error
       const agent = resolved.agent
+      let disposeRestriction: (() => void) | undefined
+      if (options.tools !== undefined || options.disallowedTools !== undefined) {
+        try {
+          disposeRestriction = agent.ctx.tools.restrict({
+            ...(options.tools === undefined ? {} : { allow: options.tools }),
+            ...(options.disallowedTools === undefined ? {} : { deny: options.disallowedTools }),
+          })
+        } catch (error) {
+          throw new LaunchArgumentError(detail(error))
+        }
+      }
       let title: string | undefined
       if (name !== undefined) title = (await ctx.sessionController.rename({ sessionId, title: name })).title
       await ctx.sessions.flush(agent.session)
@@ -263,7 +278,7 @@ export async function createSessionRuntime(
         agent,
         controlIterator,
         cursor: opening.cursor,
-        disposers: [],
+        disposers: disposeRestriction === undefined ? [] : [disposeRestriction],
         events: eventsFromRecords(opening.records),
         hasMore: opening.hasMore,
         iterator,

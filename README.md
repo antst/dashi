@@ -39,6 +39,8 @@ dashi --resume session-00000000-0000-0000-0000-000000000000 --fork-session
 dashi --continue
 dashi --model deepseek-v4-flash --effort high
 dashi --permission read-only
+dashi --tools read,bash
+dashi --disallowedTools bash
 dashi --yolo
 dashi --image screenshot.png 'inspect this image'
 ```
@@ -48,6 +50,9 @@ as `/model`; DSH also updates its default, because it does not yet expose a
 session-only selection. `--permission PRESET` applies `/permission` before the
 first prompt. `--yolo` and `--dangerously-skip-permissions` explicitly select
 `danger-full-access` without a launch confirmation.
+`--tools NAMES` allows only the comma-separated registered tool names, while
+`--disallowedTools NAMES` denies them; DSH supports whole names, not command
+patterns or path rules.
 `--version` is DSH's own root flag, so `dashi --version` prints the active DSH
 release; `dashi --help` starts with both dashi and DSH versions.
 

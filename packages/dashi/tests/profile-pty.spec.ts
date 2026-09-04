@@ -2404,6 +2404,51 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         && event.data?.name === 'permission')).toBe(true)
     }, 45_000)
 
+  it('restricts the model tool roster through launch flags and rejects unknown names', async () => {
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`
+    for (const expected of [
+      { args: '--disallowedTools bash', absent: 'bash', present: 'read' },
+      { args: '--tools bash', absent: 'read', present: 'bash' },
+    ]) {
+      const shell = new PtyShell(threeTurnFixture, undefined, root, {
+        DSH_HOME: launchFlagsHome,
+        PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      })
+      let id = ''
+      try {
+        const start = await launch(shell, `${launcher} ${expected.args} 'restricted roster'`)
+        id = sessionId(shell.output, start)
+        await shell.waitFor('First turn complete.', start)
+        await shell.waitFor('idle ·', start)
+        const releasedAt = shell.output.length
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await shell.close()
+      }
+      const header = sessionEvents(id, launchFlagsHome)
+        .find(event => event.type === 'request/header')?.data?.header as {
+          tools?: Array<{ name: string }>
+        } | undefined
+      const roster = header?.tools?.map(tool => tool.name) ?? []
+      expect(roster).toContain(expected.present)
+      expect(roster).not.toContain(expected.absent)
+    }
+
+    const invalid = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const start = invalid.output.length
+      invalid.write(`${launcher} --tools w045_missing; printf '__W045_EXIT__%s\\n' "$?"\n`)
+      await invalid.waitFor('tools.restrict() names unknown global tool "w045_missing"; known global tools:', start)
+      await invalid.waitFor('__W045_EXIT__2', start)
+    } finally {
+      await invalid.close()
+    }
+  }, 45_000)
+
   it('applies read-only at launch and refuses a human-shell write', async () => {
     const cwd = join(testDir, 'launch-read-only')
     const target = join(cwd, 'blocked.txt')
