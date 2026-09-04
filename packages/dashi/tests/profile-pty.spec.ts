@@ -743,6 +743,35 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
+  it('/copy N copies the Nth latest completed response through the launcher', async () => {
+    const shell = new PtyShell(threeTurnFixture, undefined, root, {
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
+      let turnAt = shell.output.length
+      shell.write('first copy turn\r')
+      await shell.waitFor('First turn complete.', turnAt)
+      await shell.waitFor('idle ·', turnAt)
+      turnAt = shell.output.length
+      shell.write('second copy turn\r')
+      await shell.waitFor('Second turn complete.', turnAt)
+      await shell.waitFor('idle ·', turnAt)
+      const copyAt = shell.output.length
+      shell.write('/copy 2\r')
+      const oscAt = await shell.waitFor('\u001B]52;c;', copyAt)
+      const payloadAt = oscAt + '\u001B]52;c;'.length
+      const payloadEnd = shell.output.indexOf('\u0007', payloadAt)
+      expect(Buffer.from(shell.output.slice(payloadAt, payloadEnd), 'base64').toString()).toBe('First turn complete.')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('shows the fixture repository diff and the last turn write metadata', async () => {
     const workspace = join(testDir, 'diff-workspace')
     const tracked = join(workspace, 'tracked.txt')

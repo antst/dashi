@@ -864,13 +864,16 @@ export async function createSessionRuntime(
         },
       },
       {
-        name: 'copy', description: 'Copy the latest completed assistant response',
+        name: 'copy', description: 'Copy an assistant response or code block', input: { hint: '[N|code]' },
         handler: (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
-          const invalid = usage(invocation.rawInput, '/copy')
-          if (invalid !== undefined) return invalid
-          dispatch({ type: 'copy-latest' })
+          const raw = invocation.rawInput.trim()
+          const selection = raw === '' ? 1 : raw === 'code' ? 'code' : Number(raw)
+          if (raw !== '' && selection !== 'code' && (!/^[1-9]\d*$/u.test(raw) || !Number.isSafeInteger(selection))) {
+            return { kind: 'error', text: 'usage: /copy [N|code]' }
+          }
+          dispatch({ selection, type: 'copy-assistant' })
           return { kind: 'success' }
         },
       },

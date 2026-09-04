@@ -134,6 +134,7 @@ export type ToolMode = 'collapsed' | 'expanded' | 'hidden'
 export type OverlayValue =
   | { readonly kind: 'agent-preset'; readonly preset: string }
   | { readonly kind: 'attach'; readonly path: string; readonly source: string; readonly text: string }
+  | { readonly kind: 'copy'; readonly text: string }
   | { readonly kind: 'insert'; readonly text: string }
   | { readonly kind: 'model'; readonly effort?: string; readonly model: string; readonly provider: string }
   | { readonly kind: 'open-file'; readonly path: string }
@@ -158,7 +159,7 @@ export type OverlayValue =
   }
   | { readonly kind: 'search-result'; readonly rootId: string; readonly seq: number; readonly sessionId: string }
 
-export type ActivatableOverlayValue = Exclude<OverlayValue, { kind: 'attach' } | { kind: 'insert' }>
+export type ActivatableOverlayValue = Exclude<OverlayValue, { kind: 'attach' } | { kind: 'copy' } | { kind: 'insert' }>
 
 export interface OverlayOption {
   readonly active?: boolean
@@ -177,7 +178,7 @@ export type Overlay =
     readonly kind: 'list'
     readonly notice?: string
     readonly options: readonly OverlayOption[]
-    readonly purpose: 'agents' | 'completion' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search' | 'skills'
+    readonly purpose: 'agents' | 'completion' | 'copy' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search' | 'skills'
     readonly title: string
   }
   | { readonly cells?: readonly TerminalCell[]; readonly kind: 'info'; readonly lines: readonly string[]; readonly title: string }
@@ -287,7 +288,7 @@ export type UiAction =
   | { readonly type: 'toggle-tool-mode' }
   | { readonly durationMs: number; readonly rootId: string; readonly type: 'turn-ended' }
   | { readonly type: 'transcript-changed'; readonly cells: readonly TerminalCell[]; readonly hasMore?: boolean; readonly rootId?: string }
-  | { readonly type: 'copy-latest' }
+  | { readonly selection: number | 'code'; readonly type: 'copy-assistant' }
 
 export type UiEffect =
   | { readonly type: 'activate-overlay'; readonly value: ActivatableOverlayValue }
@@ -410,11 +411,23 @@ function refreshSearch(search: ViewState['search'], cells: readonly TerminalCell
   return { ...search, cursor: Math.min(search.cursor, Math.max(0, found.length - 1)), matches: found }
 }
 
-function latestCompletedAssistant(cells: readonly TerminalCell[]): TerminalCell | undefined {
+function completedAssistant(cells: readonly TerminalCell[], nth: number): TerminalCell | undefined {
+  let seen = 0
   for (let index = cells.length - 1; index >= 0; index--) {
     const cell = cells[index]
-    if (cell?.kind === 'assistant' && cell.pending !== true) return cell
+    if (cell?.kind === 'assistant' && cell.pending !== true && ++seen === nth) return cell
   }
+}
+
+function codeBlockOptions(text: string): readonly OverlayOption[] {
+  const fence = /(?:^|\r?\n)(`{3,}|~{3,})([^\r\n]*)\r?\n([\s\S]*?)\r?\n\1[ \t]*(?=\r?\n|$)/gu
+  return [...text.matchAll(fence)].map(match => {
+    const code = match[3] ?? ''
+    return {
+      label: `${match[2]?.trim() || 'text'} · ${code.split(/\r?\n/u)[0] ?? ''}`,
+      value: { kind: 'copy', text: code },
+    }
+  })
 }
 
 export function reduce(state: ViewState, action: UiAction): readonly [ViewState, readonly UiEffect[]] {
@@ -696,6 +709,10 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
           type: 'attach', path: option.value.path, source: option.value.source, text: option.value.text,
         }, ...redraw()]]
       }
+      if (option.value.kind === 'copy') {
+        const { overlay: _overlay, ...withoutOverlay } = state
+        return [withoutOverlay, [{ type: 'copy', text: option.value.text }, ...redraw()]]
+      }
       if (option.value.kind === 'permission' && option.danger === true) {
         return [{ ...state, overlay: {
           acceptLabel: 'Enable',
@@ -903,9 +920,13 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
         }),
       }, redraw()]
     }
-    case 'copy-latest': {
-      const cell = latestCompletedAssistant(state.cells)
-      return cell === undefined ? [state, []] : [state, [{ type: 'copy', text: cell.text }]]
+    case 'copy-assistant': {
+      const cell = completedAssistant(state.cells, action.selection === 'code' ? 1 : action.selection)
+      if (cell === undefined) return [state, []]
+      if (action.selection !== 'code') return [state, [{ type: 'copy', text: cell.text }]]
+      return [{ ...state, overlay: {
+        cursor: 0, kind: 'list', options: codeBlockOptions(cell.text), purpose: 'copy', title: 'Copy code block',
+      } }, redraw()]
     }
   }
 }
