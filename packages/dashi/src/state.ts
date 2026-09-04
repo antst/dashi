@@ -177,7 +177,7 @@ export type Overlay =
     readonly kind: 'list'
     readonly notice?: string
     readonly options: readonly OverlayOption[]
-    readonly purpose: 'agents' | 'completion' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search'
+    readonly purpose: 'agents' | 'completion' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search' | 'skills'
     readonly title: string
   }
   | { readonly cells?: readonly TerminalCell[]; readonly kind: 'info'; readonly lines: readonly string[]; readonly title: string }
@@ -365,7 +365,7 @@ function help(): Overlay {
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /context',
-      '/init /memory /config /login /logout /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
+      '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
       ...FLAG_HELP,
     ],
   }

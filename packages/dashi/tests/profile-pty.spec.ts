@@ -564,7 +564,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const helpAt = shell.output.length
       shell.write('/help\r')
-      await shell.waitFor('/memory /config /login /logout /diff /plugins', helpAt)
+      await shell.waitFor('/memory /skills /config /login /logout /diff /plugins', helpAt)
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const readAt = shell.output.length
@@ -2023,13 +2023,23 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const shell = new PtyShell(replayFixture, undefined, workspace, {
       DSH_DASHI_PRE_STEP_EVENTS: preStepEvents,
     })
+    shell.resize(240, 30)
     let id = ''
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
-      shell.write('/workspace-')
+      shell.write('/skills\r')
       await shell.waitFor('/workspace-proof', start)
-      shell.write('\t')
+      await shell.waitFor('user yes · model yes · source project-dsh · provider filesystem · path ', start)
+      await shell.waitFor('workspace-proof/SKILL.md', start)
+      shell.write('\u001B')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const filteredAt = shell.output.length
+      shell.write('/skills project skill discovery\r')
+      await shell.waitFor('/workspace-proof', filteredAt)
+      const filtered = await firstFrame(shell.output.slice(filteredAt))
+      expect(filtered).not.toContain('/dashi-fixture-skill')
+      shell.write('\r')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
       shell.write('use the fixture\r')
       await shell.waitFor('Approval · bash', start)

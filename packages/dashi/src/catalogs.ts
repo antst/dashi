@@ -87,6 +87,26 @@ export async function completionOptions(
   return [...commands, ...skills]
 }
 
+/** Build a filtered view of the skills resolved for one live session. */
+export async function skillOverlay(
+  ctx: Context, agent: Agent, filter: string, signal?: AbortSignal,
+): Promise<Overlay> {
+  const lookup = { cwd: agent.session.header.cwd, scope: agent, signal }
+  const needle = filter.trim().toLocaleLowerCase()
+  const skills = (await ctx.skills.list(lookup)).filter(skill => needle === ''
+    || skill.name.toLocaleLowerCase().includes(needle)
+    || skill.description.toLocaleLowerCase().includes(needle))
+  const definitions = await Promise.all(skills.map(skill => ctx.skills.get(skill.name, lookup)))
+  return {
+    cursor: 0, kind: 'list', purpose: 'skills', title: needle === '' ? 'Skills' : `Skills · ${filter.trim()}`,
+    options: skills.map((skill, index) => ({
+      detail: `${skill.description} · user ${skill.invocation.userInvocable ? 'yes' : 'no'} · model ${skill.invocation.modelInvocable ? 'yes' : 'no'} · source ${skill.source} · provider ${skill.provider} · path ${definitions[index]?.path ?? 'unavailable'}`,
+      label: `/${skill.name}`,
+      value: { kind: 'insert', text: `/${skill.name} ` },
+    })),
+  }
+}
+
 /** Build the cold session picker without adopting any candidate. */
 export function sessionOverlay(items: readonly SessionSummary[], currentId: string, cwd?: string): Overlay {
   return {

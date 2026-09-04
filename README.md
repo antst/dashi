@@ -90,7 +90,7 @@ Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
 `/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`, `/login`, `/logout`,
-`/agents`, `/queue`, `/context`, `/init`, `/memory`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
+`/agents`, `/queue`, `/context`, `/init`, `/memory`, `/skills`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
 `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
@@ -108,6 +108,8 @@ the instruction plugin has no file watcher.
 `/memory` lists the instruction
 files DSH loaded, with their scopes, and opens one in `$EDITOR` (falling back
 to `vi`); DSH applies edits according to its own instruction reload rules.
+`/skills [TEXT]` lists the session's resolved skills and filters their names
+and descriptions; choosing one inserts its human invocation into the composer.
 `/diff` shows the working tree against `HEAD`; `/diff turn` shows write/edit
 hunks recorded by DSH for the last turn. `/tasks` opens the job and subagent
 details view. `/plugins` lists each running profile row's id, module, enabled
