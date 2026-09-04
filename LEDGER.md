@@ -1635,12 +1635,23 @@ via the existing fold; no new state beyond the transient list.
 Acceptance: renderer test with a recorded log containing two code
 blocks; PTY test for /copy 2; production source under 40 lines.
 
+### W-044 /skills — status: open (owner roller-exec, after W-041)
+`/skills` lists the skills DSH resolved for this session from the
+session skill catalog (name, description, invocation policy, source,
+path; PARITY.md row /skills) in the existing list overlay; `/skills
+TEXT` filters by substring on name and description; selecting a row
+inserts `/<skill-name> ` into the composer (DSH human invocation is
+first-class per tool-skill). Read only; no state beyond the transient
+list; DSH's filesystem watcher already reloads skills, so no reload
+command. Acceptance: PTY test with a fixture skill directory showing
+the row and the filter; production source under 40 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
 From PARITY.md, to be cut into work items in this order (W-042 /init
 and W-043 /copy cut 2026-09-04): /tasks management, /bashes,
-/subtask; /skills list and search; --tools and bare-name
+/subtask; --tools and bare-name
 --disallowedTools; --system-prompt and --append-system-prompt (and
 file variants); /loop; --verbose; richer /usage from token and
 session stats; /clear NAME and rename-then-clear; /agents authoring.
