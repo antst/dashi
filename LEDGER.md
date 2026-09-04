@@ -1963,6 +1963,19 @@ Acceptance: rewind tests with the W-058 mixed recorded log proving
 the picker rows and the boundary each maps to; PTY test rewinding to
 a `!` entry; production source under 30 lines.
 
+### W-060 Completion for /plugin arguments — status: open (owner roller-exec)
+Owner request 2026-09-04. `/plugin` forwards to pnpm, so complete
+its vocabulary through the existing live completion trigger: first
+word from the fixed list add, remove, update, outdated, list, why,
+exec, licenses; second word for `exec` from the binaries in the
+running profile's node_modules/.bin, and for remove, update, why from
+the direct dependencies in the profile's package.json (both read
+only, from the profile directory DSH resolved in W-034, no caching,
+read at completion time). Anything after those words stays free
+text. Acceptance: completion tests with a fixture profile dir; PTY
+test that `/plugin ex<Tab>` completes to exec and `/plugin exec
+<Tab>` lists a fixture binary; production source under 40 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
