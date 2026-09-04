@@ -33,7 +33,7 @@ export function historyInputs(events: readonly SessionEvent[]): readonly string[
   return events.flatMap(event => historyInput(event) ?? [])
 }
 
-/** Derive each human prompt and its controller-valid containing-turn cut. */
+/** Derive each recalled input and its controller-valid preceding-turn cut. */
 export function rewindBoundaries(events: readonly SessionEvent[]): readonly RewindBoundary[] {
   const boundaries: RewindBoundary[] = []
   let previousEnd: SessionEvent<'turn/end'> | undefined
@@ -43,21 +43,20 @@ export function rewindBoundaries(events: readonly SessionEvent[]): readonly Rewi
     if (event.type === 'turn/start') {
       openTurn = event.data.turn
       prompted = false
-    } else if (event.type === 'user/message' && openTurn !== undefined) {
-      const prompt = humanPrompt(event)
-      if (prompt !== undefined) {
-        boundaries.push({
-          ...(previousEnd === undefined ? {} : { atSeq: previousEnd.seq }),
-          label: `${prompt.replaceAll(/\s+/gu, ' ')}${prompted ? ' · mid-turn' : ''}`,
-          prompt,
-        })
-        prompted = true
-      }
     } else if (event.type === 'turn/end') {
       previousEnd = event
       openTurn = undefined
       prompted = false
     }
+    const prompt = historyInput(event)
+    if (prompt === undefined) continue
+    const human = humanPrompt(event) !== undefined
+    boundaries.push({
+      ...(previousEnd === undefined ? {} : { atSeq: previousEnd.seq }),
+      label: `${prompt.replaceAll(/\s+/gu, ' ')}${human && prompted ? ' · mid-turn' : ''}`,
+      prompt,
+    })
+    if (human && openTurn !== undefined) prompted = true
   }
   return boundaries
 }

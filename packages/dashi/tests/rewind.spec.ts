@@ -45,6 +45,12 @@ describe('rewind boundaries', () => {
 
   it('folds durable prompts, recorded commands, and shell input in log order', () => {
     expect(historyInputs(inputHistoryEvents)).toEqual(inputHistory)
+    expect(rewindBoundaries(inputHistoryEvents)).toEqual([
+      { label: 'first prompt', prompt: 'first prompt' },
+      { atSeq: 2, label: '/model', prompt: '/model' },
+      { atSeq: 2, label: "!printf 'ok value'", prompt: "!printf 'ok value'" },
+      { atSeq: 7, label: '/permission default', prompt: '/permission default' },
+    ])
   })
 
   it('offers code actions only when roller was present when the picker opened', () => {
