@@ -16,6 +16,7 @@ import { AuthorizationDeclinedError, type AuthorizationPrompt } from '@deepseek-
 import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
+import { JobId } from '@deepseek-ai/dsh-jobs'
 import { createUserMessage, type ContentBlock } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
@@ -597,6 +598,19 @@ export async function createSessionRuntime(
     if (nativePermission === undefined) throw new Error('dashi: DSH supplied no /permission command')
     const ensureCurrent = (invocation: CommandInvocation): CommandResult | undefined =>
       current().agent === invocation.agent ? undefined : { kind: 'error', text: 'this root is no longer current' }
+    const tasks = (invocation: CommandInvocation): CommandResult => {
+      const stale = ensureCurrent(invocation)
+      if (stale !== undefined) return stale
+      const raw = invocation.rawInput.trim()
+      if (raw === '') {
+        dispatch({ type: 'open-details' })
+        return { kind: 'success' }
+      }
+      const match = /^kill\s+(\S+)$/u.exec(raw)
+      if (match?.[1] === undefined) return { kind: 'error', text: 'usage: /tasks [kill ID]' }
+      const result = ctx.jobs.kill(JobId(match[1]), bound.agent, 'stopped by /tasks')
+      return { kind: 'success', text: result === 'requested' ? `stopping ${match[1]}` : `${match[1]} already finished` }
+    }
     const definitions: readonly CommandDefinition[] = [
       {
         name: 'help', description: 'Show keyboard and command help',
@@ -812,14 +826,26 @@ export async function createSessionRuntime(
         },
       },
       {
-        name: 'tasks', description: 'Show jobs and subagents',
-        handler: (invocation) => {
+        name: 'tasks', description: 'Show jobs and subagents, or kill a job', input: { hint: '[kill ID]' },
+        handler: tasks,
+      },
+      {
+        name: 'bashes', description: 'Alias of /tasks', input: { hint: '[kill ID]' },
+        handler: tasks,
+      },
+      {
+        name: 'subtask', description: 'Start a continuable child', input: { hint: 'TEXT' },
+        handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
-          const invalid = usage(invocation.rawInput, '/tasks')
-          if (invalid !== undefined) return invalid
-          dispatch({ type: 'open-details' })
-          return { kind: 'success' }
+          const text = invocation.rawInput.trim()
+          if (text === '') return { kind: 'error', text: 'usage: /subtask TEXT' }
+          const started = await ctx.subagents.startContinuable({
+            label: text, provider: 'spawn',
+            request: { parent: bound.agent, prompt: [{ type: 'text', text }] },
+            signal: invocation.signal,
+          })
+          return { kind: 'success', text: `subtask ${String(started.childId)} started` }
         },
       },
       {
@@ -1093,6 +1119,14 @@ export async function createSessionRuntime(
           } else {
             await runRootOperation({ agentPreset: value.preset, kind: 'new' })
           }
+          break
+        }
+        case 'job-output': {
+          const result = ctx.jobs.read(JobId(value.jobId), bound.agent)
+          dispatch({ type: 'open-overlay', overlay: {
+            cells: [{ key: `job:${value.jobId}`, kind: 'outcome', text: result.text }],
+            kind: 'info', lines: [], title: `Job ${value.jobId} · ${result.snapshot.status}`,
+          } })
           break
         }
         case 'model': {

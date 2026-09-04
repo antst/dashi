@@ -385,10 +385,13 @@ describe('view-state reducer', () => {
     })
     const [opened] = reduce(base, { type: 'open-details' })
     expect(opened.overlay).toEqual({ cursor: 0, expanded: false, kind: 'details' })
+    const [expanded] = reduce(opened, { type: 'overlay-submit' })
+    expect(expanded.overlay).toEqual({ cursor: 0, expanded: true, kind: 'details' })
     const [moved] = reduce(opened, { type: 'overlay-move', offset: 1 })
     expect(moved.overlay).toEqual({ cursor: 1, expanded: false, kind: 'details' })
-    const [expanded] = reduce(moved, { type: 'overlay-submit' })
-    expect(expanded.overlay).toEqual({ cursor: 1, expanded: true, kind: 'details' })
+    const [selected, effects] = reduce(moved, { type: 'overlay-submit' })
+    expect(selected.overlay).toEqual(moved.overlay)
+    expect(effects).toContainEqual({ type: 'activate-overlay', value: { jobId: 'job-1', kind: 'job-output' } })
   })
 
   it('replaces controller presentation facts and can remove unavailable context pressure', () => {
