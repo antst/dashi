@@ -2450,6 +2450,57 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 45_000)
 
+  it('replaces or appends the model system prompt through text and file launch flags', async () => {
+    const replaceFile = join(testDir, 'w047-replace.txt')
+    const appendFile = join(testDir, 'w047-append.txt')
+    writeFileSync(replaceFile, 'W047 replacement from file')
+    writeFileSync(appendFile, 'W047 appended from file')
+    const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`
+    for (const expected of [
+      { args: `--system-prompt ${quote('W047 replacement text')}`, text: 'W047 replacement text', replace: true },
+      { args: `--system-prompt-file ${quote(replaceFile)}`, text: 'W047 replacement from file', replace: true },
+      { args: `--append-system-prompt ${quote('W047 appended text')}`, text: 'W047 appended text', replace: false },
+      { args: `--append-system-prompt-file ${quote(appendFile)}`, text: 'W047 appended from file', replace: false },
+    ]) {
+      const shell = new PtyShell(threeTurnFixture, undefined, root, {
+        DSH_HOME: launchFlagsHome,
+        PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      })
+      let id = ''
+      try {
+        const start = await launch(shell, `${launcher} ${expected.args} 'system prompt fixture'`)
+        id = sessionId(shell.output, start)
+        await shell.waitFor('First turn complete.', start)
+        await shell.waitFor('idle ·', start)
+        const releasedAt = shell.output.length
+        shell.write('\u0004\u0004')
+        await shell.waitFor('\u001B[?1049l', releasedAt)
+      } finally {
+        await shell.close()
+      }
+      const system = (sessionEvents(id, launchFlagsHome)
+        .find(event => event.type === 'request/header')?.data?.header as { system?: string } | undefined)?.system
+      if (expected.replace) expect(system).toBe(expected.text)
+      else {
+        expect(system).not.toBe(expected.text)
+        expect(system?.endsWith(expected.text)).toBe(true)
+      }
+    }
+
+    const invalid = new PtyShell(replayFixture, undefined, root, {
+      DSH_HOME: launchFlagsHome,
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const start = invalid.output.length
+      invalid.write(`${launcher} --system-prompt-file ${quote(join(testDir, 'w047-missing'))}; printf '__W047_EXIT__%s\\n' "$?"\n`)
+      await invalid.waitFor('ENOENT', start)
+      await invalid.waitFor('__W047_EXIT__2', start)
+    } finally {
+      await invalid.close()
+    }
+  }, 60_000)
+
   it('applies read-only at launch and refuses a human-shell write', async () => {
     const cwd = join(testDir, 'launch-read-only')
     const target = join(cwd, 'blocked.txt')

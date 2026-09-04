@@ -19,18 +19,20 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'loader', 'permissionPresets', 'subagents',
-  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'tools',
+  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
 ]
 const validatedVersions = JSON.parse(readFileSync(new URL('../validated-dsh-versions.json', import.meta.url), 'utf8')) as string[]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
   readonly accessible: boolean
+  readonly argumentError?: string
   readonly inline: boolean
   readonly resumeAll: boolean; readonly resumePicker: boolean
 }
 
 function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let accessible = false
+  let argumentError: string | undefined
   let agentPreset: string | undefined, sessionId: string | undefined
   let forkSession = false
   let inline = true
@@ -44,6 +46,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let resume: string | undefined
   let resumeAll = false
   let resumePicker = false
+  let systemPrompt: string | undefined, appendSystemPrompt: string | undefined
   let useContinue = false
   const images: string[] = []
   const prompt: string[] = []
@@ -53,6 +56,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     else if (argument === '--inline') inline = true
     else if (argument === '--fullscreen') inline = false
     else if (['--name', '-n', '--agent', '--image', '--effort', '--model', '--permission', '--provider', '--tools', '--disallowedTools',
+      '--system-prompt', '--system-prompt-file', '--append-system-prompt', '--append-system-prompt-file',
       '--session-id'].includes(argument ?? '')) {
       const value = args[++index]
       if (value === undefined || value === '') return undefined
@@ -68,6 +72,15 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
         if (names.includes('')) return undefined
         if (argument === '--tools') tools = names
         else disallowedTools = names
+      }
+      else if (argument?.includes('system-prompt') === true) {
+        let text = value
+        if (argument.endsWith('-file')) {
+          try { text = readFileSync(value, 'utf8') }
+          catch (error) { argumentError = error instanceof Error ? error.message : String(error) }
+        }
+        if (argument.startsWith('--append')) appendSystemPrompt = text
+        else systemPrompt = text
       }
       else provider = value
     } else if (argument === '--resume' || argument === '-r') {
@@ -93,6 +106,8 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     || forkSession && resume === undefined && !resumePicker && !useContinue) return undefined
   return {
     accessible,
+    ...(argumentError === undefined ? {} : { argumentError }),
+    ...(appendSystemPrompt === undefined ? {} : { appendSystemPrompt }),
     continue: useContinue,
     ...(agentPreset === undefined ? {} : { agentPreset }), forkSession, inline,
     resumeAll,
@@ -107,6 +122,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     ...(tools === undefined ? {} : { tools }),
     ...(disallowedTools === undefined ? {} : { disallowedTools }),
     ...(resume === undefined ? {} : { resume }), ...(sessionId === undefined ? {} : { sessionId }),
+    ...(systemPrompt === undefined ? {} : { systemPrompt }),
   }
 }
 
@@ -202,6 +218,7 @@ export function apply(ctx: Context): void {
   const announce = ready.onReady(() => {
     warnDshVersion()
     boot = (async () => {
+      if (parsed.argumentError !== undefined) throw new LaunchArgumentError(parsed.argumentError)
       const cwd = process.cwd()
       const makeRuntime = (options: RootLaunchOptions): Promise<SessionRuntime> => createSessionRuntime(
         ctx, options, tuiRoot, action => { shell?.dispatch(action) }, {
