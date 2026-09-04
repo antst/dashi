@@ -90,7 +90,7 @@ Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
 `/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`, `/login`, `/logout`,
-`/agents`, `/queue`, `/context`, `/memory`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
+`/agents`, `/queue`, `/context`, `/init`, `/memory`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
 `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
@@ -101,7 +101,11 @@ and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
 through DSH's model selection. `/clear` starts a fresh session. `/agents` selects the current blank session's
 native DSH agent preset; after a conversation starts, choosing a preset starts
 a new session with it. `/context` shows DSH's heuristic system, tool-schema,
-and message estimates for the next request. `/memory` lists the instruction
+and message estimates for the next request. `/init` atomically creates a starter
+`AGENTS.md` without overwriting an existing file. DSH loads it when a new or
+resumed session forms its instruction baseline; it is not injected live because
+the instruction plugin has no file watcher.
+`/memory` lists the instruction
 files DSH loaded, with their scopes, and opens one in `$EDITOR` (falling back
 to `vi`); DSH applies edits according to its own instruction reload rules.
 `/diff` shows the working tree against `HEAD`; `/diff turn` shows write/edit

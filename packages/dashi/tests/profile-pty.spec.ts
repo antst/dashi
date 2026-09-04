@@ -701,6 +701,48 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 60_000)
 
+  it('/init atomically creates a starter AGENTS.md and refuses to overwrite it', async () => {
+    const workspace = join(testDir, 'init-workspace')
+    const instruction = join(workspace, 'AGENTS.md')
+    mkdirSync(workspace)
+    const shell = new PtyShell(replayFixture, undefined, workspace)
+    try {
+      await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const createdAt = shell.output.length
+      shell.write('/init\r')
+      await shell.waitFor(`created ${instruction}`, createdAt)
+      const content = readFileSync(instruction, 'utf8')
+      expect(content).toBe('# init-workspace\n\n## Working agreement\n\n- Add project-specific architecture guidance.\n- Add required build, test, and lint commands.\n- Add repository conventions and constraints.\n')
+
+      const refusedAt = shell.output.length
+      shell.write('/init\r')
+      await shell.waitFor('cannot overwrite existing', refusedAt)
+      await shell.waitFor(`"${instruction}" without reading it first`, refusedAt)
+      expect(readFileSync(instruction, 'utf8')).toBe(content)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const next = new PtyShell(threeTurnFixture, undefined, workspace)
+    try {
+      next.resize(100, 60)
+      await launch(next, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const promptAt = next.output.length
+      next.write('use initialized instructions\r')
+      await next.waitFor('Context · instructions', promptAt)
+      await next.waitFor('First turn complete.', promptAt)
+      await next.waitFor('idle ·', promptAt)
+      const releasedAt = next.output.length
+      next.write('\u0004\u0004')
+      await next.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await next.close()
+    }
+  }, 30_000)
+
   it('shows the fixture repository diff and the last turn write metadata', async () => {
     const workspace = join(testDir, 'diff-workspace')
     const tracked = join(workspace, 'tracked.txt')
