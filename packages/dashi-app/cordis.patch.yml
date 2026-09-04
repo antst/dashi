@@ -85,6 +85,9 @@
     - id: session-controller
       name: '@deepseek-ai/dsh-api-session-controller'
 
+    - id: session-stats
+      name: '@deepseek-ai/dsh-session-stats'
+
     - id: file-reference-local
       name: '@deepseek-ai/dsh-file-reference-local'
 

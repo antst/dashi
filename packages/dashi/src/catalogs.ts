@@ -7,6 +7,7 @@ import type { FileReferenceService } from '@deepseek-ai/dsh-file-reference'
 import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-session-projection'
+import type {} from '@deepseek-ai/dsh-session-stats/types'
 import type { SessionSearchHit } from '@deepseek-ai/dsh-session-query'
 import { isUserInvocable } from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-token-meter'
@@ -178,6 +179,10 @@ function number(value: unknown): string {
   return typeof value === 'number' ? value.toLocaleString('en-US') : 'unavailable'
 }
 
+function milliseconds(value: unknown): string {
+  return typeof value === 'number' ? `${number(value)} ms` : 'unavailable'
+}
+
 /** Read DSH-owned root facts for /status in one projection cut. */
 export function statusOverlay(ctx: Context, agent: Agent, root: RootView): Overlay {
   const values = ctx.sessionProjections.snapshot(agent.session, [
@@ -220,6 +225,28 @@ export function contextOverlay(ctx: Context, agent: Agent): Overlay {
       'These are DSH heuristic estimates for the next request, not a provider-reported total.',
     ],
     title: 'Context',
+  }
+}
+
+/** Read DSH's whole-log token and timing projections without folding session history. */
+export function usageOverlay(ctx: Context, agent: Agent): Overlay {
+  const values = ctx.sessionProjections.snapshot(agent.session, ['tokenUsage', 'sessionStats']).values
+  const tokens = values.tokenUsage
+  const stats = values.sessionStats
+  const measured = stats === undefined ? undefined : stats.llmMs + stats.toolMs
+  return {
+    kind: 'info',
+    lines: [
+      `Input tokens: ${number(tokens?.uncachedInputTokens)}`,
+      `Output tokens: ${number(tokens?.outputTokens)}`,
+      `Cache read: ${number(tokens?.cacheReadTokens)}`,
+      `Cache write: ${number(tokens?.cacheWriteTokens)}`,
+      `Turns: ${number(stats?.turns)} · Steps: ${number(stats?.steps)}`,
+      `Model time: ${milliseconds(stats?.llmMs)}`,
+      `Tool time: ${milliseconds(stats?.toolMs)}`,
+      `Measured wall time: ${milliseconds(measured)}`,
+    ],
+    title: 'Usage',
   }
 }
 
