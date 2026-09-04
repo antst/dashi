@@ -463,7 +463,7 @@ export async function createSessionRuntime(
         ...(model.reasoningEffort === undefined ? {} : { effort: model.reasoningEffort }),
       })
     }
-    const prompt = historyInput(event)
+    const prompt = event.type === 'agent/inbox/spliced' ? undefined : historyInput(event)
     if (prompt !== undefined) dispatch({ type: 'prompt-recorded', rootId: bound.root.id, text: prompt })
     schedule(bound)
   }
@@ -1461,6 +1461,7 @@ export async function createSessionRuntime(
             bound.agent.inject(message)
             await ctx.sessions.flush(bound.agent.session)
           })
+          dispatch({ type: 'prompt-recorded', rootId: bound.root.id, text: `!${command}` })
           publish(bound)
           return
         }
