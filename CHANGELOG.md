@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.9 — 2026-09-04
+
+- Add `/login` and `/logout` over DSH's authorization and credential services.
+- Add `/skills` to list and filter the skills DSH resolved for the session.
+- Add `/init` to create a starter `AGENTS.md`.
+- Extend `/copy` with `/copy N` and a `/copy code` block picker.
+- Add the `/quit`, `/reset`, `/continue`, `/branch`, and `/effort` aliases and the `-n`, `--agent`, `--session-id`, and `--fork-session` flags.
+
 ## 0.1.0-alpha.8 — 2026-09-04
 
 - Load DSH agent instructions, including workspace `AGENTS.md`, in dashi sessions.
