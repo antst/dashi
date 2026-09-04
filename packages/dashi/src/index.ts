@@ -11,7 +11,9 @@ import { FLAG_HELP, VERSION_LINE } from './help.js'
 import {
   formatSessionList, isSessionId, parseSessionListArgs, sessionMatches, sessionNotFound, type SessionListOptions,
 } from './session-list.js'
-import { createSessionRuntime, type RootLaunchOptions, type SessionRuntime } from './session-runtime.js'
+import {
+  createSessionRuntime, LaunchArgumentError, type RootLaunchOptions, type SessionRuntime,
+} from './session-runtime.js'
 import { TuiRoot } from './tui-root.js'
 
 export const name = 'dashi'
@@ -37,6 +39,8 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   let model: string | undefined
   let permission: string | undefined
   let provider: string | undefined
+  let tools: string[] | undefined
+  let disallowedTools: string[] | undefined
   let resume: string | undefined
   let resumeAll = false
   let resumePicker = false
@@ -48,7 +52,7 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     if (argument === '--accessible') accessible = true
     else if (argument === '--inline') inline = true
     else if (argument === '--fullscreen') inline = false
-    else if (['--name', '-n', '--agent', '--image', '--effort', '--model', '--permission', '--provider',
+    else if (['--name', '-n', '--agent', '--image', '--effort', '--model', '--permission', '--provider', '--tools', '--disallowedTools',
       '--session-id'].includes(argument ?? '')) {
       const value = args[++index]
       if (value === undefined || value === '') return undefined
@@ -59,6 +63,12 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
       else if (argument === '--model') model = value
       else if (argument === '--permission') permission = value
       else if (argument === '--session-id') sessionId = value
+      else if (argument === '--tools' || argument === '--disallowedTools') {
+        const names = value.split(',').map(name => name.trim())
+        if (names.includes('')) return undefined
+        if (argument === '--tools') tools = names
+        else disallowedTools = names
+      }
       else provider = value
     } else if (argument === '--resume' || argument === '-r') {
       const value = args[index + 1]
@@ -94,6 +104,8 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
     ...(permission === undefined ? {} : { permission }),
     ...(prompt.length === 0 ? {} : { prompt: prompt.join(' ') }),
     ...(provider === undefined ? {} : { provider }),
+    ...(tools === undefined ? {} : { tools }),
+    ...(disallowedTools === undefined ? {} : { disallowedTools }),
     ...(resume === undefined ? {} : { resume }), ...(sessionId === undefined ? {} : { sessionId }),
   }
 }
@@ -257,7 +269,7 @@ export function apply(ctx: Context): void {
       process.stderr.write(`dashi: startup failed: ${error instanceof Error ? error.message : String(error)}\n`)
       await runtime?.shutdown()
       await shell?.dispose()
-      exit(1)
+      exit(error instanceof LaunchArgumentError ? 2 : 1)
     })
   })
   ctx.effect(() => async () => {
