@@ -38,6 +38,7 @@ import {
   permissionOverlay,
   searchOverlay,
   sessionOverlay,
+  skillOverlay,
   statusOverlay,
 } from './catalogs.js'
 import { diffOverlay } from './diff-view.js'
@@ -636,6 +637,18 @@ export async function createSessionRuntime(
           const invalid = ensureCurrent(invocation) ?? usage(invocation.rawInput, '/memory')
           if (invalid !== undefined) return invalid
           dispatch({ type: 'open-overlay', overlay: memoryOverlay(bound.agent) })
+          return { kind: 'success' }
+        },
+      },
+      {
+        name: 'skills', description: 'List skills resolved for this session', input: { hint: '[TEXT]' },
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          const overlay = await skillOverlay(ctx, bound.agent, invocation.rawInput, invocation.signal)
+          const replaced = ensureCurrent(invocation)
+          if (replaced !== undefined) return replaced
+          dispatch({ type: 'open-overlay', overlay })
           return { kind: 'success' }
         },
       },

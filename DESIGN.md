@@ -471,8 +471,8 @@ terminal operations and orchestration of existing services:
 
 ```text
 /help  /status  /new  /clear  /reset  /resume  /continue  /fork  /branch
-/rewind  /rename  /model  /effort  /permission  /config  /login  /logout  /agents  /queue  /context  /memory  /diff
-/plugins  /plugin  /tasks  /init
+/rewind  /rename  /model  /effort  /permission  /config  /login  /logout  /agents  /queue  /context  /init  /memory  /skills  /diff
+/plugins  /plugin  /tasks
 /history  /export  /copy  /exit  /quit
 ```
 
@@ -484,6 +484,7 @@ agent preset; `/config` reads and updates DSH's settings provider; `/login` and
 `/logout` use DSH's authorization flows and credential records; `/context`
 reads the token-meter estimate; `/init` atomically creates a starter `AGENTS.md`
 through `ctx.fs`; `/memory` opens DSH's loaded instruction files;
+`/skills` lists and filters DSH's session-resolved skill catalog;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native
 job/subagent details;
 `/plugins` reads DSH's plugin inventory; `/plugin` runs the current profile's
