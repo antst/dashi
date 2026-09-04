@@ -1275,6 +1275,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const rewindAt = shell.output.length
       shell.write('/rewind\r')
       await shell.waitFor('Rewind to a prompt', rewindAt)
+      shell.write('\u001B[A')
       shell.write('\r')
       await shell.waitFor('Restore code and conversation', rewindAt)
       await shell.waitFor('Restore code', rewindAt)
@@ -1941,6 +1942,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const rewindAt = shell.output.length
       shell.write('/rewind\r')
       await shell.waitFor('Rewind to a prompt', rewindAt)
+      shell.write('\u001B[A')
       shell.write('\r')
       await shell.waitFor('Restore conversation', rewindAt)
       shell.write('\r')
@@ -3028,6 +3030,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(firstScreen).toContain('first rewind prompt')
       expect(firstScreen).toContain('second rewind prompt')
       expect(firstScreen).toContain('steered rewind prompt · mid-turn')
+      shell.write('\u001B[A')
       shell.write('\r')
       await shell.waitFor('Never mind', rewindAt)
       const secondScreen = await firstFrame(shell.output.slice(start))
@@ -3063,6 +3066,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const restoreAt = shell.output.length
       shell.write('/rewind\r')
       await shell.waitFor('steered rewind prompt · mid-turn', restoreAt)
+      shell.write('\u001B[A\u001B[A')
       shell.write('\r')
       await shell.waitFor('Restore conversation', restoreAt)
       const actionAt = shell.output.length
@@ -3092,6 +3096,44 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(childLog.events.slice(seedEnd + 1).some(event => event.type === 'user/message')).toBe(false)
     await expectResumable(parent, rewindSteerFixture)
   }, 90_000)
+
+  it('rewinds to a durable shell input and prefills its typed form', async () => {
+    const shell = new PtyShell(requestContextFixture)
+    let parent = ''
+    let child = ''
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
+      parent = sessionId(shell.output, start)
+      const shellAt = shell.output.length
+      shell.write('!printf DASHI_SHELL_OUTPUT\r')
+      await shell.waitFor('[exit 0]', shellAt)
+      shell.write('use the rewind shell result\r')
+      const completedAt = await shell.waitFor('Observed injected output: DASHI_SHELL_OUTPUT', shellAt)
+      await shell.waitFor('idle ·', completedAt)
+      const rewindAt = shell.output.length
+      shell.write('/rewind\r')
+      await shell.waitFor('Rewind to a prompt', rewindAt)
+      shell.write('\u001B[A\u001B[A')
+      await shell.waitFor('› 1 !printf DASHI_SHELL_OUTPUT', rewindAt)
+      shell.write('\r')
+      await shell.waitFor('Restore conversation', rewindAt)
+      const actionAt = shell.output.length
+      shell.write('\u001B[B\r')
+      child = await waitForOtherSession(shell, parent, actionAt)
+      await shell.waitFor('\u001B[22;1H\u001B[2K !printf DASHI_SHELL_OUTPUT', actionAt)
+      const frame = await firstFrame(shell.output.slice(start))
+      expect(frame).toContain('!printf DASHI_SHELL_OUTPUT')
+      const clearAt = shell.output.length
+      shell.write('\u0003')
+      await shell.waitFor('\u001B[22;1H\u001B[2K', clearAt)
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', clearAt)
+    } finally {
+      await shell.close()
+    }
+    expect(sessionLog(child).header.parentSession).toBeUndefined()
+  }, 60_000)
 
   it('restores conversation and code at both session start and a turn boundary', async () => {
     const scenarios = [
@@ -3125,6 +3167,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         const rewindAt = shell.output.length
         shell.write('/rewind\r')
         await shell.waitFor('Rewind to a prompt', rewindAt)
+        shell.write('\u001B[A')
         if (!scenario.first) shell.write('\u001B[A')
         shell.write('\r')
         await shell.waitFor('Restore code and conversation', rewindAt)

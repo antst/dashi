@@ -629,7 +629,7 @@ export async function createSessionRuntime(
         const roller = ctx.commands.list(bound.agent).some(command => command.name === 'roller-restore')
         const overlay = rewindOverlay(bound.agent.session.snapshotEvents(), roller)
         if (overlay.kind !== 'list' || overlay.options.length === 0) {
-          throw new Error('the current session has no human prompt to rewind')
+          throw new Error('the current session has no input to rewind')
         }
         dispatch({ type: 'open-overlay', overlay })
         return
