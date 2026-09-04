@@ -449,6 +449,17 @@ now: W-039 /config and W-041 /login and /logout to roller-exec;
 W-037, W-038, W-040 stay with dsh-exec. Later items are assigned at
 acceptance time.
 
+### D-038 (2026-09-04) macOS builder peer
+Owner decision: macOS is a primary target and mac behavior cannot be
+fixed blind from Linux. A Codex peer on the owner's mac
+(`mac-dashi`, host mbp-lan, checkout /Users/antst/work/ai/dashi)
+joins as a builder under the same protocol as dsh-exec and
+roller-exec: branches from develop, PRs against develop, hosted gate,
+squash-merge by the operations peer. It owns mac items; W-066's
+hosted macos-latest job stays the durable regression gate. Its first
+job is the host gate on the mac plus a real-terminal check, reported
+as a classified list before any code.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
