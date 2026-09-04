@@ -1792,7 +1792,12 @@ own command/run and command/done pair (DSH logs every command; use
 recordInput false) and no turn/start, user/message, assistant/*,
 tool/*, or turn/end, and the fork exists with the title; production source under 50 lines.
 
-### W-053 /plugin fails under the sandbox — status: open (owner roller-exec, before W-052)
+### W-053 /plugin fails under the sandbox — status: accepted 2026-09-04 (PR #72 squash-merged; owner roller-exec)
+runHumanShell takes a defaulted useSessionSandbox flag; /plugin
+passes false and resolves a per-call danger-full-access policy
+(ShellExecRequest.sandboxPolicy is the resolved per-call policy,
+rc.1 shell/types.ts:77-78); `!` unchanged. Default-preset PTY case
+added. 6 production lines; 244 tests. Ships in alpha.11.
 Defect, owner report 2026-09-04: `/plugin add <pkg>` in a normal
 session fails with `EROFS: read-only file system` on
 `~/.dsh/profiles/dashi/_tmp_...` because the nested `dsh plugin`
