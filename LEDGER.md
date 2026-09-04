@@ -2182,6 +2182,20 @@ skipped on Darwin only with the reason beside the skip. Acceptance:
 `pnpm gate` green on the mac and the hosted Linux gate green; the
 hosted macos-latest job (W-066) reported on after the change.
 
+### W-068 Ctrl+D exits immediately during a turn — status: open (owner dsh-exec)
+Defect, owner report 2026-09-04 on alpha.16, Linux and mac: pressing
+Ctrl+D while a turn is running exits at once, no arm, no second
+press; between turns it arms correctly. Cause: state.ts:501 routes
+ctrl-d straight to exit when the root is not idle or attachments are
+present. Fix: Ctrl+D always uses the shared arm (first press arms
+with the hint, second press within the window exits) regardless of
+root status or attachments; a running turn is not interrupted by
+Ctrl+D (Ctrl+C keeps that role). Acceptance: reducer tests for
+running root and for pending attachments; PTY test pressing Ctrl+D
+once mid-turn and seeing the arm hint with the process still alive,
+then a second press exiting; production source under 10 lines.
+Ships in alpha.17.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
