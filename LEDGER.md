@@ -1831,6 +1831,44 @@ PTY test that /model on a small terminal shows the markers and that
 the last row is reachable and selectable; production source under
 50 lines. Ships in alpha.11.
 
+### W-055 Markdown rendering of assistant text — status: open (owner dsh-exec, after W-054)
+Survey 2026-09-04 (dsh-tui/dsh-tui, ccch1mneyyy/dsh-TUI; ideas only,
+the second repo admits leaked-source ports, never adapt its code).
+dashi renders assistant text plain; Claude Code renders markdown.
+Render completed assistant cells through pi-tui's own Markdown
+component (headings, emphasis, code spans, fenced blocks, lists), no
+new dependency; streaming chunks stay plain until the cell completes;
+/copy and /copy code keep the raw text. Accessible mode stays plain.
+Acceptance: renderer tests with a recorded log containing each
+construct at 80 columns in inline and full-screen modes; production
+source under 40 lines.
+
+### W-056 Persistent status line — status: open (owner roller-exec, after W-052)
+One always-visible line above the composer (Claude Code has one):
+model, permission preset, context tokens used with the model's
+limit when the projection exposes it, cache-hit rate from
+tokenUsage, and the git branch of the session cwd read once at
+launch and on each turn end through ctx.shell (read only). Built
+only from projections dashi already reads for /status and /usage;
+no new state beyond the last shell result; hidden in accessible
+mode; the existing exit-arm text keeps priority. Acceptance: renderer
+tests at 80 and 120 columns; PTY test that the branch and model
+appear; production source under 50 lines.
+
+### W-057 MCP server stderr corrupts the terminal — status: open (owner dsh-exec, after W-055)
+Bounded lookup, then report. Third-party TUIs document that
+@deepseek-ai/dsh-mcp-client spawns stdio servers with stderr
+inherited, so server logs write to fd 2 and corrupt rendering. (1)
+Confirm in the pinned rc.1 tree (mcp-client transport options) and
+with a fixture MCP server under the shipped profile whether the
+terminal guard already absorbs it; cite file:line. (2) If DSH
+inherits stderr: no dashi workaround (no spawn patching, no idle
+repaint timer); README names the gap and the upstream lane posts the
+report. (3) Search deepseek-harness issues and discussions for an
+existing report first and link it instead of duplicating.
+Acceptance: the handoff is the cited finding and, if a gap, the
+ledger upstream entry with the search result; production source 0.
+
 ### W-052 /clear NAME and /agents authoring — status: open (owner roller-exec, after W-050)
 Last two PARITY.md doable rows. (a) `/clear NAME` (and `/reset NAME`,
 `/new NAME`): rename the current root to NAME through the title
