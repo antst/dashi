@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.12 — 2026-09-04
+
+- Window list and info overlays to the viewport with hidden-row markers; PageUp/PageDown scroll info overlays.
+- Render completed assistant responses as markdown.
+- Add a persistent status line with model, permission preset, context use, cache-hit rate, and git branch.
+- Document that stdio MCP server logs inherit the terminal (a DSH gap) with a regression fixture.
+
 ## 0.1.0-alpha.11 — 2026-09-04
 
 - Add `/btw` and `/recap`: ask a side question in a fork of the session without touching the conversation.
