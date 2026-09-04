@@ -1,10 +1,19 @@
+import { readFileSync } from 'node:fs'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
+import { decodeStorageRecord, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
 import { VERSION_LINE } from '../src/help.js'
 import { createRenderer, type Renderer } from '../src/renderer.js'
+import { foldCells } from '../src/transcript.js'
 import { testCeiling } from './test-budget.js'
+
+function codeBlockCells() {
+  const lines = readFileSync(new URL('./fixtures/code-block-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
+  const events = lines.flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+  return foldCells(events as SessionEvent[])
+}
 
 function percentile95(samples: readonly number[]): number {
   return [...samples].sort((left, right) => left - right)[Math.floor(samples.length * 0.95)] ?? Infinity
@@ -490,7 +499,7 @@ describe('terminal renderer', () => {
     })
     shell.start()
     const first = terminal.output.length
-    shell.dispatch({ type: 'copy-latest' })
+    shell.dispatch({ selection: 1, type: 'copy-assistant' })
     await shell.whenIdle()
     const firstOutput = terminal.output.slice(first)
     const copied = firstOutput.slice(firstOutput.indexOf('\u001B]52;c;') + 7, firstOutput.indexOf('\u0007'))
@@ -531,10 +540,35 @@ describe('terminal renderer', () => {
     })
     shell.start()
     const before = terminal.output.length
-    shell.dispatch({ type: 'copy-latest' })
+    shell.dispatch({ selection: 1, type: 'copy-assistant' })
     await shell.whenIdle()
     expect(terminal.output.slice(before)).not.toContain('\u001B]52;c;')
     expect(shell.readState().cells.at(-1)?.text).toBe('This terminal does not support OSC 52 copy.')
+    await shell.dispose()
+  })
+
+  it('offers fenced code blocks from a recorded assistant message and copies the selection', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal, terminalType: 'xterm-256color' }),
+      cwd: '/work', exit: () => {}, inline: false, initialCells: codeBlockCells(),
+    })
+    shell.start()
+    shell.dispatch({ selection: 'code', type: 'copy-assistant' })
+    await shell.whenIdle(); await terminal.flush()
+    const screen = terminal.lines().join('\n')
+    expect(screen).toContain('Copy code block')
+    expect(screen).toContain('typescript · const first = 1')
+    expect(screen).toContain('bash · echo second')
+    terminal.send('\u001B[B')
+    await shell.whenIdle()
+    expect(shell.readState().overlay).toMatchObject({ cursor: 1, purpose: 'copy' })
+    const before = terminal.output.length
+    terminal.send('\r')
+    await shell.whenIdle()
+    const output = terminal.output.slice(before)
+    const encoded = output.slice(output.indexOf('\u001B]52;c;') + 7, output.indexOf('\u0007'))
+    expect(Buffer.from(encoded, 'base64').toString()).toBe('echo second\nprintf done')
     await shell.dispose()
   })
 

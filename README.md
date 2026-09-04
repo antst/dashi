@@ -154,7 +154,8 @@ scrollback. Older pages are requested from DSH in the history browser or the
 full-screen viewport. Ctrl+F searches loaded cells without changing the draft.
 `/history` opens a selectable cell browser; `y` copies its selected cell through
 OSC 52. `/copy` copies the latest completed assistant response. Copy payloads
-are limited to 64 KiB.
+are limited to 64 KiB. `/copy N` selects the Nth latest completed response;
+`/copy code` opens a picker for the latest response's fenced code blocks.
 
 On an idle root, `!command` runs the human's command through DSH's current
 sandbox policy without a tool approval. Stdin is closed; stdout and stderr are

@@ -489,6 +489,8 @@ through `ctx.fs`; `/memory` opens DSH's loaded instruction files;
 job/subagent details;
 `/plugins` reads DSH's plugin inventory; `/plugin` runs the current profile's
 DSH CLI; `/export` writes controller history as Markdown.
+`/copy N` selects a completed assistant cell from the existing fold, while
+`/copy code` exposes its fenced blocks through the transient list overlay.
 
 Phase B adds `!command` as a deliberately small human shell escape:
 

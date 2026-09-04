@@ -367,9 +367,10 @@ describe('view-state reducer', () => {
       { key: 'live', kind: 'assistant' as const, pending: true, text: 'still streaming' },
     ]
     const base = { ...initialViewState('/work', false), cells }
-    expect(reduce(base, { type: 'copy-latest' })[1]).toEqual([
+    expect(reduce(base, { selection: 1, type: 'copy-assistant' })[1]).toEqual([
       { type: 'copy', text: 'completed answer' },
     ])
+    expect(reduce(base, { selection: 2, type: 'copy-assistant' })[1]).toEqual([])
     const [history] = reduce(base, { type: 'open-history' })
     expect(reduce(history, { type: 'history-copy' })[1]).toEqual([
       { type: 'copy', text: 'still streaming' },
