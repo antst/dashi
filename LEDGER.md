@@ -1753,7 +1753,13 @@ mode. Acceptance: PTY test that a resumed session shows an expanded
 tool card on the first screen with --verbose and collapsed without;
 production source under 15 lines.
 
-### W-050 /usage — status: open (owner roller-exec, after W-047)
+### W-050 /usage — status: accepted 2026-09-04 (PR #67 squash-merged; owner roller-exec)
+One snapshot of DSH's tokenUsage and sessionStats projections into
+the info overlay (four token buckets, turns, steps, model, tool, and
+measured wall time); dashi-app mounts dsh-session-stats like the web
+app; per-model breakdown, tool-call count, plan limits and cost are
+DSH gaps in README. 38 production lines; 242 tests. Ships in
+alpha.11.
 `/usage` shows session totals from DSH's token usage projection and
 session stats (PARITY.md rows /usage, /cost, /stats): input, output,
 cached tokens, turns, tool calls, wall time, per-model breakdown when
@@ -1786,12 +1792,24 @@ own command/run and command/done pair (DSH logs every command; use
 recordInput false) and no turn/start, user/message, assistant/*,
 tool/*, or turn/end, and the fork exists with the title; production source under 50 lines.
 
+### W-052 /clear NAME and /agents authoring — status: open (owner roller-exec, after W-050)
+Last two PARITY.md doable rows. (a) `/clear NAME` (and `/reset NAME`,
+`/new NAME`): rename the current root to NAME through the title
+service, then create the fresh root as today, so the old
+conversation is findable by name. (b) `/agents` gains `new NAME`,
+`copy SRC DEST`, `delete NAME` over the DSH agent-presets authoring
+API (read, copy, delete cited in PARITY.md); `new` opens the created
+preset file in $EDITOR through the W-037 editor path. DSH owns the
+files; dashi writes nothing itself. Acceptance: PTY tests for
+/clear NAME (old session listed by name) and for copy and delete;
+production source under 50 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
 From PARITY.md, to be cut into work items in this order (W-042, W-043,
-W-047, W-048, W-049, W-050 cut 2026-09-04): /clear NAME and
-rename-then-clear; /agents authoring.
+W-047..W-052 cut 2026-09-04): none left. Remaining parity rows are
+DSH gaps; see PARITY.md and the upstream report queue.
 
 ### B-001 Workspace restore plugin (Claude Code style file rewind) — status: backlog
 A separate DSH plugin, not part of the dashi TUI: e.g. `@antst/dsh-checkpoint`
