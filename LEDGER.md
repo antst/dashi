@@ -1976,6 +1976,25 @@ text. Acceptance: completion tests with a fixture profile dir; PTY
 test that `/plugin ex<Tab>` completes to exec and `/plugin exec
 <Tab>` lists a fixture binary; production source under 40 lines.
 
+### W-061 Live plugin activation after /plugin add — status: open (owner: first free builder, after W-059/W-060)
+Owner question 2026-09-04: must dashi restart after `/plugin add`?
+Bounded lookup first, reported before any code: (1) in the pinned
+rc.1 tree and the vendored Cordis loader, does the running loader
+(ctx.loader, the tree DSH boots from) expose a supported operation
+to insert or enable an entry at runtime (cite the API, and how the
+web app or the disabled `hmr` row uses it, if they do); (2) after
+`dsh plugin --profile <p> add <pkg>` succeeds, can the running
+process resolve the freshly installed package from the profile
+node_modules (module resolution from the profile root, pnpm hoisted
+linker) without restart; (3) what `dsh plugin add` writes
+(package.json, dsh.profile.bundles, cordis.patch.yml) and whether a
+runtime insert would diverge from what the next boot composes. If
+all three hold: propose the smallest follow-up so `/plugin add`
+ends with a live activation through the loader (no dashi-owned
+registry, no reconciliation loop) and the next-launch notice only
+when activation fails. If any fails: name the DSH gap, README
+sentence, upstream queue entry; production source 0.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
