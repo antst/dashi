@@ -41,6 +41,8 @@ dashi --model deepseek-v4-flash --effort high
 dashi --permission read-only
 dashi --tools read,bash
 dashi --disallowedTools bash
+dashi --system-prompt 'You are a careful reviewer.'
+dashi --append-system-prompt-file ./project-guidance.md
 dashi --yolo
 dashi --image screenshot.png 'inspect this image'
 ```
@@ -53,6 +55,10 @@ first prompt. `--yolo` and `--dangerously-skip-permissions` explicitly select
 `--tools NAMES` allows only the comma-separated registered tool names, while
 `--disallowedTools NAMES` denies them; DSH supports whole names, not command
 patterns or path rules.
+`--system-prompt TEXT` replaces the root agent's system prompt, while
+`--append-system-prompt TEXT` adds a final section. Their `-file PATH` variants
+read the text once when dashi launches. All four also apply to resumed,
+continued, and forked roots without changing session state.
 `--version` is DSH's own root flag, so `dashi --version` prints the active DSH
 release; `dashi --help` starts with both dashi and DSH versions.
 

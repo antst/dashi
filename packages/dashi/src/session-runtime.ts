@@ -30,6 +30,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-shell'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-subagent'
+import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-token-meter'
 import type { ApprovalOutcome as DshApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
 import type { AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions'
@@ -74,6 +75,7 @@ import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
   readonly agentPreset?: string; readonly continue: boolean
+  readonly appendSystemPrompt?: string
   readonly cwd: string
   readonly effort?: string; readonly forkSession: boolean
   readonly name?: string
@@ -85,6 +87,7 @@ export interface RootLaunchOptions {
   readonly tools?: readonly string[]
   readonly disallowedTools?: readonly string[]
   readonly resume?: string; readonly sessionId?: string
+  readonly systemPrompt?: string
 }
 
 export class LaunchArgumentError extends Error {}
@@ -260,17 +263,23 @@ export async function createSessionRuntime(
       const resolved = await ctx.sessionController.resolveAgent(sessionId)
       if ('error' in resolved) throw resolved.error
       const agent = resolved.agent
-      let disposeRestriction: (() => void) | undefined
+      const disposers: Array<() => void> = []
       if (options.tools !== undefined || options.disallowedTools !== undefined) {
         try {
-          disposeRestriction = agent.ctx.tools.restrict({
+          disposers.push(agent.ctx.tools.restrict({
             ...(options.tools === undefined ? {} : { allow: options.tools }),
             ...(options.disallowedTools === undefined ? {} : { deny: options.disallowedTools }),
-          })
+          }))
         } catch (error) {
           throw new LaunchArgumentError(detail(error))
         }
       }
+      if (options.systemPrompt !== undefined) disposers.push(agent.ctx.systemPrompt.section({
+        complete: true, name: 'dashi:system-prompt', order: Number.MAX_SAFE_INTEGER, text: options.systemPrompt,
+      }))
+      if (options.appendSystemPrompt !== undefined) disposers.push(agent.ctx.systemPrompt.section({
+        name: 'dashi:append-system-prompt', order: Number.MAX_SAFE_INTEGER, text: options.appendSystemPrompt,
+      }))
       let title: string | undefined
       if (name !== undefined) title = (await ctx.sessionController.rename({ sessionId, title: name })).title
       await ctx.sessions.flush(agent.session)
@@ -293,7 +302,7 @@ export async function createSessionRuntime(
         agent,
         controlIterator,
         cursor: opening.cursor,
-        disposers: disposeRestriction === undefined ? [] : [disposeRestriction],
+        disposers,
         events: eventsFromRecords(opening.records),
         hasMore: opening.hasMore,
         iterator,
