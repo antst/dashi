@@ -220,9 +220,16 @@ read `.claude/skills`.
 
 ## Terminals
 
-The automated PTY matrix is verified on Linux with xterm, tmux, GNU screen,
-the Linux console, and dumb-terminal capabilities. macOS is supported by
-design but was not available for this release's automated PTY run.
+The automated PTY matrix runs on Linux and macOS with xterm, tmux, GNU screen,
+the Linux console where available, and dumb-terminal capabilities. The macOS
+host gate requires Homebrew tmux and GNU screen 4.1 or newer:
+
+```sh
+brew install tmux screen
+```
+
+Ensure `command -v screen` resolves the Homebrew binary; macOS's
+`/usr/bin/screen` 4.0 is too old for the test harness.
 
 ### Terminal modes
 

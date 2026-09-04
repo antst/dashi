@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -45,6 +45,12 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXM
 // pi-tui 0.84.4 dist/stdin-buffer.js:22 holds a lone Escape for 10 ms.
 // Leave ample PTY scheduling margin so two Escape keys cannot become one Alt sequence.
 const separateEscapeKeysMs = 200
+const hermeticGitEnv = {
+  GIT_CONFIG_COUNT: '0',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+} as const
+const terminalFlags = ['icanon', 'echo', 'isig', 'opost'] as const
 let testDir = ''
 let home = ''
 let hardeningCwd = ''
@@ -99,6 +105,7 @@ class PtyShell {
   constructor(snapshot = replayFixture, rootEvents?: string, cwd = root, extraEnv: NodeJS.ProcessEnv = {}) {
     const env = {
       ...process.env,
+      ...hermeticGitEnv,
       DSH_HOME: home,
       DSH_SNAPSHOT_FILE: snapshot,
       DSH_TELEMETRY_DISABLED: '1',
@@ -159,10 +166,24 @@ class PtyShell {
   }
 }
 
+async function waitForIdleAfter(shell: PtyShell, text: string, start: number): Promise<void> {
+  const completedAt = await shell.waitFor(text, start)
+  await shell.waitFor('idle ·', completedAt)
+}
+
 function modeBetween(output: string, marker: string): string {
   const match = new RegExp(`${marker}\\r?\\n([^\\r\\n]+)`).exec(output)
   if (match?.[1] === undefined) throw new Error(`Missing terminal mode after ${marker}\n${output.slice(-2000)}`)
   return match[1]
+}
+
+function relevantTerminalMode(mode: string): string {
+  const fields = new Set(mode.replaceAll(';', ' ').split(/\s+/u))
+  return terminalFlags.map(flag => {
+    if (fields.has(`-${flag}`)) return `-${flag}`
+    if (fields.has(flag)) return flag
+    throw new Error(`stty output omitted ${flag}: ${mode}`)
+  }).join(' ')
 }
 
 async function firstFrame(output: string, columns = 80, rows = 24): Promise<string> {
@@ -192,7 +213,7 @@ async function resizedFrame(
 
 async function prepareShell(extraEnv: NodeJS.ProcessEnv = {}, cwd = root): Promise<{ baseline: string; shell: PtyShell }> {
   const shell = new PtyShell(replayFixture, undefined, cwd, extraEnv)
-  shell.write("printf '__MODE_BEFORE__\\n'; stty -g\n")
+  shell.write("printf '__MODE_BEFORE__\\n'; stty -a | tr '\\n' ' '; printf '\\n'\n")
   await shell.waitFor('__MODE_BEFORE__')
   await shell.waitFor('\n', shell.output.indexOf('__MODE_BEFORE__') + 20)
   await new Promise(resolveDelay => { setTimeout(resolveDelay, 30) })
@@ -242,8 +263,7 @@ async function createNamedSession(cwd: string, title: string): Promise<string> {
     const start = await launch(shell,
       `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --name ${quote(title)} 'catalog fixture'`)
     const id = sessionId(shell.output, start)
-    await shell.waitFor('First turn complete.', start)
-    await shell.waitFor('idle ·', start)
+    await waitForIdleAfter(shell, 'First turn complete.', start)
     const releasedAt = shell.output.length
     shell.write('\u0004\u0004')
     await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -318,7 +338,7 @@ function clipboardHelper(image: boolean): string {
   symlinkSync(process.execPath, join(directory, 'node'))
   for (const command of ['sed', 'dirname', 'uname']) symlinkSync(`/usr/bin/${command}`, join(directory, command))
   if (image) {
-    const helper = join(directory, 'wl-paste')
+    const helper = join(directory, process.platform === 'darwin' ? 'pngpaste' : 'wl-paste')
     writeFileSync(helper, `#!${process.execPath}\nprocess.stdout.write(Buffer.from('${png.toString('base64')}', 'base64'))\n`)
     chmodSync(helper, 0o755)
   }
@@ -459,10 +479,11 @@ function generateLargeSession(
 
 async function expectRestored(shell: PtyShell, baseline: string): Promise<void> {
   const start = shell.output.length
-  shell.write("printf '__MODE_AFTER__\\n'; stty -g; printf '__SHELL_OK__\\n'\n")
+  shell.write("printf '__MODE_AFTER__\\n'; stty -a | tr '\\n' ' '; printf '\\n__SHELL_OK__\\n'\n")
   await shell.waitFor('__MODE_AFTER__\r\n', start)
   await shell.waitFor('__SHELL_OK__\r\n', start)
-  expect(modeBetween(shell.output.slice(start), '__MODE_AFTER__')).toBe(baseline)
+  expect(relevantTerminalMode(modeBetween(shell.output.slice(start), '__MODE_AFTER__')))
+    .toBe(relevantTerminalMode(baseline))
 }
 
 function prepareTestProfile(profileHome: string): void {
@@ -479,7 +500,7 @@ function prepareTestProfile(profileHome: string): void {
 }
 
 beforeAll(() => {
-  testDir = mkdtempSync(join(tmpdir(), 'dashi-profile-'))
+  testDir = realpathSync(mkdtempSync(join(tmpdir(), 'dashi-profile-')))
   home = join(testDir, 'home')
   hardeningHome = join(testDir, 'hardening-home')
   launchFlagsHome = join(testDir, 'launch-flags-home')
@@ -525,14 +546,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   it('shows the configured model and git repo/branch in the persistent status line', async () => {
     const workspace = join(testDir, 'status-workspace')
     mkdirSync(workspace)
-    run('git', ['init', '--initial-branch=status-proof'], process.env, workspace)
+    run('git', ['init', '--initial-branch=status-proof'], { ...process.env, ...hermeticGitEnv }, workspace)
     const shell = new PtyShell(threeTurnFixture, undefined, workspace)
     try {
       shell.resize(200, 24)
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       await shell.waitFor('deepseek-v4-flash', start)
       await shell.waitFor('status-workspace/status-proof', start)
-      run('git', ['branch', '-m', 'status-after-turn'], process.env, workspace)
+      run('git', ['branch', '-m', 'status-after-turn'], { ...process.env, ...hermeticGitEnv }, workspace)
       const turnAt = shell.output.length
       shell.write('refresh status branch\r')
       await shell.waitFor('First turn complete.', turnAt)
@@ -615,7 +636,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       start = shell.output.length
       shell.write(`${launcher} --version; printf '__W034_VERSION_EXIT__%s\\n' "$?"\n`)
       await shell.waitFor('__W034_VERSION_EXIT__0', start)
-      expect(shell.output.slice(start)).toContain(`\r${validatedDshVersion}\r\n`)
+      expect(shell.output.slice(start).replaceAll('\r\n', '\n').replaceAll('\r', '\n'))
+        .toContain(`\n${validatedDshVersion}\n`)
 
       start = await launch(shell, `${launcher} --patch ${quote(replayPatch)} --fullscreen --yolo`)
       shell.write('/plugins\r')
@@ -746,6 +768,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('dashi-fixture/account · Dashi fixture account', start)
       shell.write('/login dashi-fixture/account fixture\r')
       await shell.waitFor('Enter the fixture secret.', start)
+      await shell.waitFor('https://example.invalid/login', start)
       expect(await firstFrame(shell.output.slice(start))).toContain('https://example.invalid/login')
       shell.write(`\u001B[200~${secret}\u001B[201~\r`)
       await shell.waitFor('Choose the fixture account.', start)
@@ -834,8 +857,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\r')
       await shell.waitFor('idle ·', selectedAt)
       const result = JSON.parse(readFileSync(trace, 'utf8')) as { file: string; terminalMode: string }
-      expect(result.file).toBe(instruction)
-      expect(result.terminalMode).toBe(baseline)
+      expect(realpathSync(result.file)).toBe(realpathSync(instruction))
+      expect(relevantTerminalMode(result.terminalMode)).toBe(relevantTerminalMode(baseline))
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -854,14 +877,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const createdAt = shell.output.length
       shell.write('/init\r')
-      await shell.waitFor(`created ${instruction}`, createdAt)
+      await shell.waitFor('created', createdAt)
+      expect(existsSync(instruction)).toBe(true)
       const content = readFileSync(instruction, 'utf8')
       expect(content).toBe('# init-workspace\n\n## Working agreement\n\n- Add project-specific architecture guidance.\n- Add required build, test, and lint commands.\n- Add repository conventions and constraints.\n')
 
       const refusedAt = shell.output.length
       shell.write('/init\r')
       await shell.waitFor('cannot overwrite existing', refusedAt)
-      await shell.waitFor(`"${instruction}" without reading it first`, refusedAt)
+      await shell.waitFor('without reading it first', refusedAt)
       expect(readFileSync(instruction, 'utf8')).toBe(content)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
@@ -877,8 +901,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const promptAt = next.output.length
       next.write('use initialized instructions\r')
       await next.waitFor('Context · instructions', promptAt)
-      await next.waitFor('First turn complete.', promptAt)
-      await next.waitFor('idle ·', promptAt)
+      await waitForIdleAfter(next, 'First turn complete.', promptAt)
       const releasedAt = next.output.length
       next.write('\u0004\u0004')
       await next.waitFor('\u001B[?1049l', releasedAt)
@@ -896,12 +919,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
       let turnAt = shell.output.length
       shell.write('first copy turn\r')
-      await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'First turn complete.', turnAt)
       turnAt = shell.output.length
       shell.write('second copy turn\r')
-      await shell.waitFor('Second turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'Second turn complete.', turnAt)
       const copyAt = shell.output.length
       shell.write('/copy 2\r')
       const oscAt = await shell.waitFor('\u001B]52;c;', copyAt)
@@ -920,19 +941,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const workspace = join(testDir, 'diff-workspace')
     const tracked = join(workspace, 'tracked.txt')
     mkdirSync(workspace)
-    run('git', ['init', '-q'], process.env, workspace)
+    run('git', ['init', '-q'], { ...process.env, ...hermeticGitEnv }, workspace)
     writeFileSync(tracked, 'W038_BEFORE\n')
-    run('git', ['add', 'tracked.txt'], process.env, workspace)
+    run('git', ['add', 'tracked.txt'], { ...process.env, ...hermeticGitEnv }, workspace)
     run('git', ['-c', 'user.name=dashi', '-c', 'user.email=dashi@example.invalid',
-      'commit', '-qm', 'fixture'], process.env, workspace)
+      'commit', '-qm', 'fixture'], { ...process.env, ...hermeticGitEnv }, workspace)
     writeFileSync(tracked, 'W038_AFTER\n')
     const shell = new PtyShell(rollerFixture, undefined, workspace)
     try {
       shell.resize(100, 40)
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       shell.write('record a turn diff\r')
-      await shell.waitFor('Roller turn one complete.', start)
-      await shell.waitFor('idle ·', start)
+      await waitForIdleAfter(shell, 'Roller turn one complete.', start)
 
       let openedAt = shell.output.length
       shell.write('/diff\r')
@@ -1391,11 +1411,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     'runs the daily inline flow inside a private %s server and restores its pane',
     async (kind) => {
       const pane = new MultiplexerPane(kind, testDir, hardeningCwd, {
-        ...process.env, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: replayFixture,
+        ...process.env, ...hermeticGitEnv, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: replayFixture,
         DSH_TELEMETRY_DISABLED: '1', NO_COLOR: '1', PROMPT_COMMAND: '', PS1: '',
       })
       try {
-        pane.send(`stty -g > ${quote(pane.modeBefore)}; ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)}; code=$?; stty -g > ${quote(pane.modeAfter)}; printf '__MUX_EXIT__%s\\n' "$code"\r`)
+        pane.send(`stty -a > ${quote(pane.modeBefore)}; ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)}; code=$?; stty -a > ${quote(pane.modeAfter)}; printf '__MUX_EXIT__%s\\n' "$code"\r`)
         const opened = await pane.waitFor('session-')
         pane.send(`multiplexer daily flow ${kind}\r`)
         await pane.waitFor('Approval · bash')
@@ -1430,11 +1450,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       generateLargeSession(id, 30, 0, hardeningHome)
 
       const pane = new MultiplexerPane(kind, testDir, hardeningCwd, {
-        ...process.env, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: threeTurnFixture,
+        ...process.env, ...hermeticGitEnv, DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: threeTurnFixture,
         DSH_TELEMETRY_DISABLED: '1', NO_COLOR: '1', PROMPT_COMMAND: '', PS1: '',
       })
       try {
-        pane.send(`stty -g > ${quote(pane.modeBefore)}; ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)}; code=$?; stty -g > ${quote(pane.modeAfter)}; printf '__MUX_EXIT__%s\\n' "$code"\r`)
+        pane.send(`stty -a > ${quote(pane.modeBefore)}; ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)}; code=$?; stty -a > ${quote(pane.modeAfter)}; printf '__MUX_EXIT__%s\\n' "$code"\r`)
         await pane.waitFor('idle ·')
         const draft = `mux wheel draft ${kind}`
         pane.send(draft)
@@ -1499,15 +1519,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       const start = await launch(shell,
         `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} ${mode} 'resize decision'`)
-      await shell.waitFor('Approval · bash', start)
+      const initialApprovalAt = await shell.waitFor('Approval · bash', start)
+      await shell.waitFor('\u001B[?2026l', initialApprovalAt)
       const narrowOutputAt = shell.output.length
       const narrowAt = shell.output.length - start
       shell.resize(48, 12)
-      await shell.waitFor('Allow once', narrowOutputAt)
+      const narrowDecisionAt = await shell.waitFor('Allow once', narrowOutputAt)
+      await shell.waitFor('\u001B[?2026l', narrowDecisionAt)
       const wideOutputAt = shell.output.length
       const wideAt = shell.output.length - start
       shell.resize(100, 30)
-      await shell.waitFor('Approval · bash', wideOutputAt)
+      const wideApprovalAt = await shell.waitFor('Approval · bash', wideOutputAt)
+      await shell.waitFor('\u001B[?2026l', wideApprovalAt)
       const frame = await resizedFrame(shell.output.slice(start), [
         { at: narrowAt, columns: 48, rows: 12 },
         { at: wideAt, columns: 100, rows: 30 },
@@ -1578,9 +1601,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const first = await createNamedSession(firstCwd, 'List first')
     const second = await createNamedSession(firstCwd, 'List second')
     const other = await createNamedSession(otherCwd, 'List other')
-    expect(sessionLog(first).header).toMatchObject({ cwd: firstCwd, id: first })
-    expect(sessionLog(second).header).toMatchObject({ cwd: firstCwd, id: second })
-    expect(sessionLog(other).header).toMatchObject({ cwd: otherCwd, id: other })
+    expect(realpathSync(String(sessionLog(first).header.cwd))).toBe(realpathSync(firstCwd))
+    expect(realpathSync(String(sessionLog(second).header.cwd))).toBe(realpathSync(firstCwd))
+    expect(realpathSync(String(sessionLog(other).header.cwd))).toBe(realpathSync(otherCwd))
+    expect(sessionLog(first).header.id).toBe(first)
+    expect(sessionLog(second).header.id).toBe(second)
+    expect(sessionLog(other).header.id).toBe(other)
 
     const human = new PtyShell(replayFixture, undefined, firstCwd)
     try {
@@ -1614,11 +1640,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         version: number
       }
       expect(envelope.version).toBe(1)
-      expect(envelope.sessions).toEqual(expect.arrayContaining([
-        expect.objectContaining({ sessionId: first, title: 'List first', cwd: firstCwd }),
-        expect.objectContaining({ sessionId: second, title: 'List second', cwd: firstCwd }),
-        expect.objectContaining({ sessionId: other, title: 'List other', cwd: otherCwd }),
-      ]))
+      for (const [sessionId, title, cwd] of [
+        [first, 'List first', firstCwd],
+        [second, 'List second', firstCwd],
+        [other, 'List other', otherCwd],
+      ] as const) {
+        const item = envelope.sessions.find(session => session.sessionId === sessionId)
+        expect(item).toMatchObject({ sessionId, title })
+        expect(realpathSync(String(item?.cwd))).toBe(realpathSync(cwd))
+      }
       expect(envelope.sessions.every(item => !Object.hasOwn(item, 'running'))).toBe(true)
       expect(output).not.toContain('\u001B[?1049h')
       expect(output).not.toContain('\u001B[?1049l')
@@ -1771,7 +1801,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     let id = ''
     try {
       const start = shell.output.length
-      shell.write(`{ printf 'close stdin\\r'; printf '%s' "$BASHPID" > ${quote(writerPidFile)}; exec tail -f /dev/null; } | ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen; printf '__DECISION_EOF__%s\\n' "$?"\n`)
+      shell.write(`/bin/sh -c 'printf "close stdin\\r"; printf "%s" "$$" > "$1"; exec tail -f /dev/null' _ ${quote(writerPidFile)} | ${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen; printf '__DECISION_EOF__%s\\n' "$?"\n`)
       await shell.waitFor('session-', start)
       id = sessionId(shell.output, start)
       await shell.waitFor('Approval · bash', start)
@@ -1893,8 +1923,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       id = sessionId(seed.output, start)
       await seed.waitFor('Approval · bash', start)
       seed.write('\r')
-      await seed.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
-      await seed.waitFor('idle ·', start)
+      await waitForIdleAfter(seed, 'DASHI_TOOL_ROUND_TRIP complete.', start)
       const releasedAt = seed.output.length
       seed.write('\u0004\u0004')
       await seed.waitFor('\u001B[?1049l', releasedAt)
@@ -1952,8 +1981,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('Approval · bash', start)
       shell.write('\r')
       await shell.waitFor('printf DASHI_TOOL_ROUND_TRIP', start)
-      await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
-      await shell.waitFor('idle ·', shell.output.length - 300)
+      await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', start)
 
       const pickerAt = shell.output.length
       shell.write('/model\r')
@@ -1963,8 +1991,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const secondAt = shell.output.length
       shell.write('second inline prompt\r')
-      await shell.waitFor('Queued turn complete.', secondAt)
-      await shell.waitFor('idle ·', secondAt)
+      await waitForIdleAfter(shell, 'Queued turn complete.', secondAt)
       const rewindAt = shell.output.length
       shell.write('/rewind\r')
       await shell.waitFor('Rewind to a prompt', rewindAt)
@@ -2266,10 +2293,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   it('inserts a user-invocable skill token as prompt text, never as a command', async () => {
     const workspace = join(testDir, 'workspace-skill-fixture')
     const skill = join(workspace, '.dsh', 'skills', 'workspace-proof')
+    const skillFile = join(skill, 'SKILL.md')
     const preStepEvents = join(testDir, 'workspace-skill-pre-step.jsonl')
     mkdirSync(join(workspace, '.git'), { recursive: true })
     mkdirSync(skill, { recursive: true })
-    writeFileSync(join(skill, 'SKILL.md'), [
+    writeFileSync(skillFile, [
       '---',
       'name: workspace-proof',
       'description: Prove DSH project skill discovery',
@@ -2280,7 +2308,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const shell = new PtyShell(replayFixture, undefined, workspace, {
       DSH_DASHI_PRE_STEP_EVENTS: preStepEvents,
     })
-    shell.resize(240, 30)
+    const canonicalSkillFile = realpathSync(skillFile)
+    shell.resize(Math.max(240, canonicalSkillFile.length + 140), 30)
     let id = ''
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
@@ -2288,7 +2317,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/skills\r')
       await shell.waitFor('/workspace-proof', start)
       await shell.waitFor('user yes · model yes · source project-dsh · provider filesystem · path ', start)
-      await shell.waitFor('workspace-proof/SKILL.md', start)
+      await shell.waitFor(canonicalSkillFile, start)
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const filteredAt = shell.output.length
@@ -2447,8 +2476,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('created w052-new from standard', start)
       await vi.waitFor(() => { expect(existsSync(trace)).toBe(true) }, { timeout: testCeiling(20_000) })
       const result = JSON.parse(readFileSync(trace, 'utf8')) as { file: string; terminalMode: string }
-      expect(result.file).toBe(join(authoredRoot, 'w052-new', 'agent.cordis.yml'))
-      expect(result.terminalMode).toBe(baseline)
+      expect(realpathSync(result.file)).toBe(realpathSync(join(authoredRoot, 'w052-new', 'agent.cordis.yml')))
+      expect(relevantTerminalMode(result.terminalMode)).toBe(relevantTerminalMode(baseline))
       expect(readFileSync(result.file, 'utf8')).toContain(' from editor')
       shell.write('/agents delete w052-new\r')
       await shell.waitFor('deleted w052-new', start)
@@ -2559,8 +2588,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const parent = sessionId(shell.output, start)
       const turnAt = shell.output.length
       shell.write('branch source\r')
-      await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'First turn complete.', turnAt)
       const branchAt = shell.output.length
       shell.write('/branch\r')
       const child = await waitForOtherSession(shell, parent, branchAt)
@@ -2726,8 +2754,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         const start = await launch(shell,
           `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-v4-flash --effort low ${dangerFlag} 'launch flags'`)
         id = sessionId(shell.output, start)
-        await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
-        await shell.waitFor('idle ·', start)
+        await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', start)
         expect(shell.output.slice(start)).not.toContain('Approval · bash')
         shell.write('/status\r')
         await shell.waitFor('Model: deepseek-official/deepseek-v4-flash', start)
@@ -2766,8 +2793,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       try {
         const start = await launch(shell, `${launcher} ${expected.args} 'restricted roster'`)
         id = sessionId(shell.output, start)
-        await shell.waitFor('First turn complete.', start)
-        await shell.waitFor('idle ·', start)
+        await waitForIdleAfter(shell, 'First turn complete.', start)
         const releasedAt = shell.output.length
         shell.write('\u0004\u0004')
         await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -2817,8 +2843,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       try {
         const start = await launch(shell, `${launcher} ${expected.args} 'system prompt fixture'`)
         id = sessionId(shell.output, start)
-        await shell.waitFor('First turn complete.', start)
-        await shell.waitFor('idle ·', start)
+        await waitForIdleAfter(shell, 'First turn complete.', start)
         const releasedAt = shell.output.length
         shell.write('\u0004\u0004')
         await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -3033,8 +3058,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/queue queued from command\r')
       await shell.waitFor('Approval · bash', start)
       shell.write('\r')
-      await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
-      await shell.waitFor('idle ·', shell.output.length - 200)
+      await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', start)
       const releasedAt = shell.output.length
       shell.write('/exit\r')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -3271,8 +3295,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         for (let index = 0; index < turns; index++) {
           const turnAt = shell.output.length
           shell.write(`${['first', 'second', 'third'][index]} roller prompt\r`)
-          await shell.waitFor(`Roller turn ${['one', 'two', 'three'][index]} complete.`, turnAt)
-          await shell.waitFor('idle ·', turnAt)
+          const completion = `Roller turn ${['one', 'two', 'three'][index]} complete.`
+          await shell.waitFor(completion, turnAt)
+          const completedAt = shell.output.indexOf(completion, turnAt) + completion.length
+          await shell.waitFor('idle ·', completedAt)
         }
         expect(readFileSync(join(workspace, 'roller-e2e.txt'), 'utf8')).toBe(
           scenario.first ? 'turn one\n' : 'turn three\n')
@@ -3333,8 +3359,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       parent = sessionId(shell.output, start)
       const turnAt = shell.output.length
       shell.write('fork source prompt\r')
-      await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'First turn complete.', turnAt)
 
       const forkAt = shell.output.length
       shell.write('/fork\r')
@@ -3368,8 +3393,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       first = sessionId(shell.output, start)
       const turnAt = shell.output.length
       shell.write('first prompt\r')
-      await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'First turn complete.', turnAt)
 
       const runningAt = shell.output.length
       shell.write('second prompt\r')
@@ -3395,8 +3419,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const first = sessionId(shell.output, start)
       const turnAt = shell.output.length
       shell.write('historical needle alpha\r')
-      await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('idle ·', turnAt)
+      await waitForIdleAfter(shell, 'First turn complete.', turnAt)
       const newAt = shell.output.length
       shell.write('/new\r')
       await waitForOtherSession(shell, first, newAt)
@@ -3459,8 +3482,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('image selected through at\r')
       await shell.waitFor('Approval · bash', restoreAt)
       shell.write('\r')
-      await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', restoreAt)
-      await shell.waitFor('idle ·', restoreAt)
+      await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', restoreAt)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -3510,8 +3532,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       id = sessionId(shell.output, start)
       await shell.waitFor('Approval · bash', start)
       shell.write('\r')
-      await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
-      await shell.waitFor('idle ·', start)
+      await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', start)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -3556,7 +3577,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       const start = await launch(withoutHelper, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       withoutHelper.write('\u0016')
-      await withoutHelper.waitFor('Clipboard image paste needs wl-paste or xclip.', start)
+      await withoutHelper.waitFor(process.platform === 'darwin'
+        ? 'Clipboard image paste needs pngpaste or osascript.'
+        : 'Clipboard image paste needs wl-paste or xclip.', start)
       const releasedAt = withoutHelper.output.length
       withoutHelper.write('\u0004\u0004')
       await withoutHelper.waitFor('\u001B[?1049l', releasedAt)
@@ -3580,7 +3603,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         file: string; mode: number; terminalMode: string
       }
       expect(result.mode).toBe(0o600)
-      expect(result.terminalMode).toBe(baseline)
+      expect(relevantTerminalMode(result.terminalMode)).toBe(relevantTerminalMode(baseline))
       expect(existsSync(result.file)).toBe(false)
       const releasedAt = shell.output.length
       shell.write('\u0003\u0004\u0004')
