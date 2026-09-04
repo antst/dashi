@@ -1930,6 +1930,23 @@ files; dashi writes nothing itself. Acceptance: PTY tests for
 /clear NAME (old session listed by name) and for copy and delete;
 production source under 50 lines.
 
+### W-058 Command and shell history recall — status: open (owner dsh-exec)
+Owner report 2026-09-04: in Claude Code, up/down recall cycles through
+everything typed, including /commands and !shell lines; in dashi they
+are invisible to history, which recalls human prompts only. Both are
+already durable DSH facts: every resolved command appends command/run
+with its recorded input (unless the definition set recordInput false),
+and `!` lines are dashi's durable shell notices. Scope: the history
+fold that feeds up/down and /history includes, in log order, (a)
+`/<name> <args>` reconstructed from command/run events that carry
+input, and (b) `!<command>` from shell notices; commands that record
+no input (/login, /btw, /recap) stay absent by design and README says
+so; /history search covers the same set. No new state; the fold stays
+pure. Acceptance: renderer/state tests with a recorded log mixing
+prompts, two commands, and a shell line proving the recall order and
+that a recordInput-false command is skipped; PTY test that up recalls
+the last `/model` line; production source under 30 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
