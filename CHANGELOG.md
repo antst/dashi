@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.8 — 2026-09-04
+
+- Load DSH agent instructions, including workspace `AGENTS.md`, in dashi sessions.
+- Add `/memory` for inspecting and editing the instruction files DSH loaded.
+- Add `/config` for reading and updating native DSH settings.
+- Add `/diff` and `/diff turn` for working-tree and last-turn changes.
+- Add `/plugins`, `/plugin`, and launcher help through `--help` and `-h`.
+
 ## 0.1.0-alpha.7 — 2026-09-03
 
 - Add launch flags for model, provider, effort, and permission selection.
