@@ -2045,6 +2045,18 @@ composer; fixture shapes corrected to match the live event if they
 differed (the W-037 lesson); production source under 15 lines.
 Ships in alpha.14.
 
+### W-063 Model shown twice — status: open (owner roller-exec)
+Owner report 2026-09-04 on alpha.13: the W-056 status row shows
+`model <provider/model> · permission <preset>` above the composer
+and the pre-existing hint line below it still shows `idle ·
+<model> · Enter send · cards collapsed`. Remove the model from the
+hint line (it keeps state, send mode, card mode, and the exit-arm
+text); the status row is the single place for model and preset.
+Accessible mode, where the status row is hidden, keeps the model in
+the hint line so the fact stays visible there. Acceptance: renderer
+tests for both modes; production source under 10 lines. Ships in
+alpha.14.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
