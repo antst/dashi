@@ -1,0 +1,10 @@
+- insert:
+    - id: w057-mcp-client
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: w057
+        transport: stdio
+        command: !!js process.execPath
+        args:
+          - !!js process.getBuiltinModule('node:path').join(process.cwd(), 'packages', 'dashi', 'tests', 'fixtures', 'mcp-stderr-server.mjs')
+        cwd: !!js process.cwd()

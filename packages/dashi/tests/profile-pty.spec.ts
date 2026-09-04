@@ -36,6 +36,7 @@ const cleanReplayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'c
 const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'dsh-version-mismatch.yaml')
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
 const fakeEditor = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'fake-editor.mjs')
+const mcpStderrPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'mcp-stderr.patch.yml')
 const [validatedDshVersion] = JSON.parse(readFileSync(
   join(root, 'packages', 'dashi', 'validated-dsh-versions.json'), 'utf8',
 )) as [string]
@@ -51,6 +52,7 @@ let launchFlagsHome = ''
 let overlayHome = ''
 let pluginHome = ''
 let pluginSandboxHome = ''
+let mcpHome = ''
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -482,6 +484,7 @@ beforeAll(() => {
   overlayHome = join(testDir, 'overlay-home')
   pluginHome = join(testDir, 'plugin-home')
   pluginSandboxHome = join(testDir, 'plugin-sandbox-home')
+  mcpHome = join(testDir, 'mcp-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
@@ -490,6 +493,9 @@ beforeAll(() => {
   prepareTestProfile(overlayHome)
   prepareTestProfile(pluginHome)
   prepareTestProfile(pluginSandboxHome)
+  prepareTestProfile(mcpHome)
+  run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${validatedDshVersion}`],
+    { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
 }, 120_000)
 
 afterAll(() => {
@@ -497,6 +503,21 @@ afterAll(() => {
 })
 
 describe.sequential('shipped profile terminal lifecycle', () => {
+  it('shows inherited MCP server stderr in the active terminal', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: mcpHome })
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --patch ${quote(mcpStderrPatch)} --fullscreen`)
+      await shell.waitFor('W057_MCP_STDERR_LIVE', start)
+      expect(await firstFrame(shell.output.slice(start))).toContain('W057_MCP_STDERR_LIVE')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('renders the first profile frame within the large-resume budget', async () => {
     const shell = new PtyShell()
     try {

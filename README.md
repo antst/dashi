@@ -252,7 +252,9 @@ The Session Controller has no root-release operation, so roots left by
 DSH's plugin CLI exposes no enable/disable verb, so dashi cannot toggle profile
 rows in-session. The MCP client exposes configured server names but no live
 connection-status API, so `/plugins` reports ordinary plugin fiber state, not
-connection health. Hooks, add-dir, and
+connection health. Stdio MCP servers also inherit DSH's stderr, so server logs
+can overwrite an active terminal; dashi does not patch the DSH transport.
+Hooks, add-dir, and
 autocompact tuning also have no native dashi command surface.
 
 An optional shell alias provides the shorter spelling:
