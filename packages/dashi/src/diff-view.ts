@@ -3,6 +3,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-shell'
 import type { Overlay, TerminalCell } from './state.js'
+import { HUMAN_SHELL_STREAM_BYTES } from './shell-command.js'
 import { boundedBody, type ToolPresenter } from './tool-presentation.js'
 import { foldCells } from './transcript.js'
 
@@ -19,7 +20,7 @@ export async function diffOverlay(
   const command = 'git diff --no-ext-diff --no-color HEAD --'
   const result = await ctx.shell.run(ctx.shell.resolve({
     command, sandboxPolicy: ctx.sandboxPolicy.resolve({ session: agent.session }), signal,
-    stdoutMaxBytes: 64 * 1024, timeoutMs: 30_000, workdir: agent.session.header.cwd,
+    stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES, timeoutMs: 30_000, workdir: agent.session.header.cwd,
   }))
   const output = [result.stdout.text, result.stderr.text].filter(Boolean).join('\n')
   const cell: TerminalCell = {

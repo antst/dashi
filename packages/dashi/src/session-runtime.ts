@@ -65,16 +65,16 @@ import { foldCells, pendingShellCells } from './transcript.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
-  readonly continue: boolean
+  readonly agentPreset?: string; readonly continue: boolean
   readonly cwd: string
-  readonly effort?: string
+  readonly effort?: string; readonly forkSession: boolean
   readonly name?: string
   readonly images?: readonly string[]
   readonly model?: string
   readonly permission?: string
   readonly prompt?: string
   readonly provider?: string
-  readonly resume?: string
+  readonly resume?: string; readonly sessionId?: string
 }
 
 export interface SessionRuntime {
@@ -220,11 +220,12 @@ export async function createSessionRuntime(
   let shutdown: Promise<void> | undefined
   let decisionSequence = 0
 
-  const initialId = options.resume === undefined
+  let initialId = options.resume === undefined
     ? options.continue
       ? continuation((await ctx.sessionController.list({}, lifetime.signal)).items, options.cwd)
-      : (await ctx.sessionController.create({ cwd: options.cwd })).sessionId
+      : (await ctx.sessionController.create({ cwd: options.cwd, ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }), ...(options.sessionId === undefined ? {} : { sessionId: SessionId(options.sessionId) }) })).sessionId
     : SessionId(options.resume)
+  if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId })).sessionId
 
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
     const abort = new AbortController()
@@ -579,7 +580,7 @@ export async function createSessionRuntime(
     if (nativePermission === undefined) throw new Error('dashi: DSH supplied no /permission command')
     const ensureCurrent = (invocation: CommandInvocation): CommandResult | undefined =>
       current().agent === invocation.agent ? undefined : { kind: 'error', text: 'this root is no longer current' }
-    return [
+    const definitions: readonly CommandDefinition[] = [
       {
         name: 'help', description: 'Show keyboard and command help',
         handler: (invocation) => {
@@ -840,6 +841,17 @@ export async function createSessionRuntime(
         },
       },
       {
+        name: 'effort', description: 'Select the reasoning effort', input: { hint: 'LEVEL' },
+        handler: async (invocation) => {
+          const invalid = ensureCurrent(invocation)
+          const effort = invocation.rawInput.trim()
+          if (invalid !== undefined || effort === '') return invalid ?? { kind: 'error', text: 'usage: /effort LEVEL' }
+          const selected = currentModel(ctx, bound.agent) ?? (await ctx.sessionController.modelCatalog()).default
+          await activate({ kind: 'model', effort, model: selected.model, provider: selected.provider })
+          return { kind: 'success' }
+        },
+      },
+      {
         ...nativePermission,
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
@@ -874,6 +886,8 @@ export async function createSessionRuntime(
         },
       },
     ]
+    return [...definitions, ...([['quit', 'exit'], ['reset', 'clear'], ['continue', 'resume'], ['branch', 'fork']] as const)
+      .map(([name, target]) => ({ ...definitions.find(definition => definition.name === target)!, name }))]
   }
 
   async function install(bound: Binding): Promise<void> {

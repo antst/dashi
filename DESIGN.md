@@ -220,10 +220,13 @@ Without `@antst/dashi-launcher`, `dsh --profile dashi` or the shell alias
 
 ```text
 dashi [PROMPT]
-  --name TITLE
+  -n, --name TITLE
+  --agent PRESET
+  --session-id UUID
   -r, --resume [NAME|UUID]
   --all                    # include every cwd in the resume picker
   -c, --continue
+  --fork-session           # branch the resume/continue target
   -C, --cwd PATH
   --provider ID
   --model ID
@@ -240,7 +243,9 @@ Fresh start, `--resume`, and `--continue` are mutually
 exclusive. Bare `--resume` opens the current-cwd session picker (`--all`
 widens it to every cwd); `-r` and `-c` are aliases for `--resume` and
 `--continue`. These flags affect startup; DSH remains the owner of any durable
-effect. Launch model and effort flags apply DSH's native selection before
+effect. `--agent` and `--session-id` belong to fresh creation; `--fork-session`
+passes the resolved resume/continue target through DSH's native fork first.
+Launch model and effort flags apply DSH's native selection before
 the first prompt; like `/model`, DSH also saves that selection as its default
 because it does not expose session-only selection. dashi stores no setting and
 does not restore the prior default. A `PROMPT` starts or resumes an interactive
@@ -465,14 +470,16 @@ Reuse a native command when one exists. TUI-specific commands are limited to
 terminal operations and orchestration of existing services:
 
 ```text
-/help  /status  /new  /clear  /resume  /fork  /rewind  /rename
-/model  /permission  /config  /agents  /queue  /context  /memory  /diff
+/help  /status  /new  /clear  /reset  /resume  /continue  /fork  /branch
+/rewind  /rename  /model  /effort  /permission  /config  /agents  /queue  /context  /memory  /diff
 /plugins  /plugin  /tasks
-/history  /export  /copy  /exit
+/history  /export  /copy  /exit  /quit
 ```
 
 Command registration, collision, execution, and logging remain
-`ctx.commands` behavior. `/clear` aliases `/new`; `/agents` selects a native
+`ctx.commands` behavior. `/clear` aliases `/new`; `/reset`, `/continue`,
+`/branch`, and `/quit` reuse `/clear`, `/resume`, `/fork`, and `/exit`;
+`/effort` reuses native model selection; `/agents` selects a native
 agent preset; `/config` reads and updates DSH's settings provider; `/context`
 reads the token-meter estimate; `/memory` opens DSH's loaded instruction files;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native

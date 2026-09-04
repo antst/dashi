@@ -31,9 +31,11 @@ root:
 
 ```sh
 dashi 'inspect this repository'
-dashi --name 'Parser cleanup'
+dashi -n 'Parser cleanup' --agent standard
+dashi --session-id session-00000000-0000-0000-0000-000000000000
 dashi --resume
 dashi --resume session-00000000-0000-0000-0000-000000000000
+dashi --resume session-00000000-0000-0000-0000-000000000000 --fork-session
 dashi --continue
 dashi --model deepseek-v4-flash --effort high
 dashi --permission read-only
@@ -51,14 +53,16 @@ release; `dashi --help` starts with both dashi and DSH versions.
 
 ## Sessions
 
-`--name TITLE` assigns DSH's native session title at launch; `/rename TITLE`
+`--name TITLE` (or `-n`) assigns DSH's native session title at launch; `/rename TITLE`
 changes that same title. Bare `--resume` (or `-r`) opens the current directory's
 session picker. `--resume VALUE` accepts a complete DSH session UUID or a native
 title, matching the title exactly before a case-insensitive substring fallback.
 Names need not be unique: duplicate matches open the picker restricted to those
 sessions. Add `--all` to search every directory. A following prompt is submitted
 after resume. `--continue` (or `-c`) selects the most recently updated root in
-the current directory.
+the current directory. `--agent PRESET` and `--session-id UUID` feed DSH's
+fresh-session creation; `--fork-session` branches the `--resume` or `--continue`
+target before binding it.
 
 ## Daily-use walkthrough
 
@@ -85,14 +89,16 @@ After installation:
 Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
 inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
-`/clear`, `/fork`, `/rewind`, `/rename`, `/model`, `/permission`, `/config`,
+`/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`,
 `/agents`, `/queue`, `/context`, `/memory`, `/diff`, `/plugins`, `/plugin`, `/tasks`,
 `/history`, `/export`, `/copy`, and `/exit`;
 every other slash
 submission is handled by DSH's command service or sent as ordinary prompt
 text when no command matches.
 
-`/clear` starts a fresh session. `/agents` selects the current blank session's
+`/reset`, `/continue`, `/branch`, and `/quit` alias `/clear`, `/resume`, `/fork`,
+and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
+through DSH's model selection. `/clear` starts a fresh session. `/agents` selects the current blank session's
 native DSH agent preset; after a conversation starts, choosing a preset starts
 a new session with it. `/context` shows DSH's heuristic system, tool-schema,
 and message estimates for the next request. `/memory` lists the instruction

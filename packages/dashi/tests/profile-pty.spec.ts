@@ -2104,6 +2104,133 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     ])
   }, 45_000)
 
+  it('/quit aliases /exit', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('/quit\r')
+      await shell.waitFor('\u001B[?1049l', start)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('/reset aliases /clear', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const first = sessionId(shell.output, start)
+      shell.write('/reset\r')
+      await waitForOtherSession(shell, first, start)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('/continue aliases /resume', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('/continue\r')
+      await shell.waitFor('Resume session', start)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('/branch aliases /fork', async () => {
+    const shell = new PtyShell(threeTurnFixture)
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const parent = sessionId(shell.output, start)
+      const turnAt = shell.output.length
+      shell.write('branch source\r')
+      await shell.waitFor('First turn complete.', turnAt)
+      await shell.waitFor('idle ·', turnAt)
+      const branchAt = shell.output.length
+      shell.write('/branch\r')
+      const child = await waitForOtherSession(shell, parent, branchAt)
+      expect(sessionLog(child).header.parentSession).toBe(parent)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('/effort selects reasoning effort for the current model', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-v4-flash`)
+      shell.write('/effort low\r')
+      await shell.waitFor('◆ /effort low', start)
+      shell.write('/status\r')
+      await shell.waitFor('Effort: low', start)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
+  it('applies -n, --agent, and --session-id to DSH fresh creation', async () => {
+    const id = 'session-00000000-0000-0000-0000-000000000040'
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen -n 'W040 named' --agent standard --session-id ${id}`,
+        'idle ·')
+      await shell.waitFor('W040 named', start)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+    expect(sessionLog(id).header).toMatchObject({ agentPreset: 'standard', id })
+  }, 30_000)
+
+  it.each(['--resume', '--continue'])('forks the %s target for --fork-session', async (targetFlag) => {
+    const cwd = join(testDir, `fork-session-${targetFlag.slice(2)}`)
+    mkdirSync(cwd)
+    const source = await createNamedSession(cwd, `W040 ${targetFlag}`)
+    const shell = new PtyShell(replayFixture, undefined, cwd, {
+      PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+    })
+    try {
+      const argument = targetFlag === '--resume' ? `${targetFlag} ${source}` : targetFlag
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen ${argument} --fork-session`,
+        'idle ·')
+      const child = await waitForOtherSession(shell, source, start)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+      expect(sessionLog(child).header.parentSession).toBe(source)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
+
   it('selects a model through the controller and records the durable selection', async () => {
     const shell = new PtyShell()
     let id = ''
