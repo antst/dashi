@@ -1,8 +1,9 @@
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import {
-  humanPrompts, inheritedTurn, rewindActionOverlay, rewindBoundaries, rewindOverlay,
+  historyInputs, inheritedTurn, rewindActionOverlay, rewindBoundaries, rewindOverlay,
 } from '../src/rewind.js'
+import { inputHistory, inputHistoryEvents } from './fixtures/input-history.js'
 
 function events(): SessionEvent[] {
   return [
@@ -38,8 +39,12 @@ describe('rewind boundaries', () => {
       { atSeq: 2, label: 'steered prompt · mid-turn', prompt: 'steered prompt' },
       { atSeq: 7, label: 'third prompt', prompt: 'third prompt' },
     ])
-    expect(humanPrompts(events())).toEqual(['first prompt', 'second prompt', 'steered prompt', 'third prompt'])
+    expect(historyInputs(events())).toEqual(['first prompt', 'second prompt', 'steered prompt', 'third prompt'])
     expect(inheritedTurn(events(), 8)).toBe(2)
+  })
+
+  it('folds durable prompts, recorded commands, and shell input in log order', () => {
+    expect(historyInputs(inputHistoryEvents)).toEqual(inputHistory)
   })
 
   it('offers code actions only when roller was present when the picker opened', () => {

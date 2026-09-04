@@ -53,7 +53,7 @@ import { eventsFromRecords } from './history-records.js'
 import { admitDraftImages, encodeDraftImages, readDraftImages } from './image-input.js'
 import { contextPercent, jobViews, subagentViews } from './presentation.js'
 import {
-  humanPrompt, humanPrompts, inheritedTurn, rewindActionOverlay, rewindOverlay,
+  historyInput, historyInputs, humanPrompt, inheritedTurn, rewindActionOverlay, rewindOverlay,
 } from './rewind.js'
 import type {
   ActivatableOverlayValue,
@@ -463,7 +463,7 @@ export async function createSessionRuntime(
         ...(model.reasoningEffort === undefined ? {} : { effort: model.reasoningEffort }),
       })
     }
-    const prompt = humanPrompt(event)
+    const prompt = historyInput(event)
     if (prompt !== undefined) dispatch({ type: 'prompt-recorded', rootId: bound.root.id, text: prompt })
     schedule(bound)
   }
@@ -532,7 +532,7 @@ export async function createSessionRuntime(
     tuiRoot.bind(candidate.agent)
     dispatch({
       type: 'root-bound', cells: transcriptCells(candidate),
-      hasMore: candidate.hasMore, prompts: humanPrompts(candidate.events), root: candidate.root,
+      hasMore: candidate.hasMore, prompts: historyInputs(candidate.events), root: candidate.root,
     })
     if (started) {
       candidate.pump = follow(candidate)
@@ -1334,7 +1334,7 @@ export async function createSessionRuntime(
     initialAttachments,
     get initialCells() { return transcriptCells(current()) },
     get initialHasMore() { return current().hasMore },
-    get initialPrompts() { return humanPrompts(current().events) },
+    get initialPrompts() { return historyInputs(current().events) },
     get root() { return current().root },
     get statusLine() { const bound = current(); return sessionStatusLine(ctx, bound.agent, bound.root, bound.branch) },
     get summary() { return `Resume with: dsh --profile dashi --resume ${current().root.id}` },

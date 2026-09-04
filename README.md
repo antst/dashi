@@ -163,6 +163,8 @@ and Ctrl+B opens job and subagent details.
 On an idle empty composer, Ctrl+C or Ctrl+D arms exit; press either key again
 within 1.5 seconds to exit. Any other key cancels the arm. On an idle nonempty
 composer, Escape twice clears the draft into prompt history, where Up recalls it.
+Up/Down recall follows durable input order, including slash commands and
+`!command`; commands with `recordInput: false` stay absent.
 Permission presets that disable approvals require confirmation when selected
 interactively; a danger flag is itself explicit launch consent.
 `?` always remains ordinary prompt input.
