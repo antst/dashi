@@ -867,25 +867,32 @@ export async function createSessionRuntime(
         },
       },
       {
-        name: 'new', description: 'Start a new session', input: { hint: '[--name TITLE]' },
+        name: 'new', description: 'Start a new session', input: { hint: '[NAME | --name TITLE]' },
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
           const raw = invocation.rawInput.trim()
           const match = /^--name\s+(.+)$/su.exec(raw)
-          if (raw !== '' && match === null) return { kind: 'error', text: 'usage: /new [--name TITLE]' }
+          if (raw.startsWith('--') && match === null) return { kind: 'error', text: 'usage: /new [NAME | --name TITLE]' }
           const title = match?.[1]?.trim()
+          if (raw !== '' && match === null) {
+            await ctx.sessionController.rename({ sessionId: bound.agent.id, title: raw })
+            await ctx.sessions.flush(bound.agent.session)
+          }
           await runRootOperation({ kind: 'new', ...(title === undefined ? {} : { title }) })
           return { kind: 'success' }
         },
       },
       {
-        name: 'clear', description: 'Start a new session',
+        name: 'clear', description: 'Start a new session', input: { hint: '[NAME]' },
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
-          const invalid = usage(invocation.rawInput, '/clear')
-          if (invalid !== undefined) return invalid
+          const title = invocation.rawInput.trim()
+          if (title !== '') {
+            await ctx.sessionController.rename({ sessionId: bound.agent.id, title })
+            await ctx.sessions.flush(bound.agent.session)
+          }
           await runRootOperation({ kind: 'new' })
           return { kind: 'success' }
         },
@@ -973,15 +980,32 @@ export async function createSessionRuntime(
         handler: invocation => usage(invocation.rawInput, '/recap') ?? askAside(invocation, RECAP_PROMPT),
       },
       {
-        name: 'agents', description: 'Choose the native DSH agent preset',
+        name: 'agents', description: 'Choose or author a native DSH agent preset',
+        input: { hint: '[new NAME | copy SRC DEST | delete NAME]' },
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
-          const invalid = usage(invocation.rawInput, '/agents')
-          if (invalid !== undefined) return invalid
+          const raw = invocation.rawInput.trim()
           const blank = !bound.agent.session.snapshotEvents().some(event => event.type === 'turn/start')
           const selected = ctx.sessionProjections.stateOf(bound.agent.session, 'agentPreset')
             ?? ctx.agentPresets.defaultId
+          const create = /^new\s+(\S+)$/u.exec(raw)
+          const copy = /^copy\s+(\S+)\s+(\S+)$/u.exec(raw)
+          const remove = /^delete\s+(\S+)$/u.exec(raw)
+          if (create?.[1] !== undefined) {
+            await ctx.agentPresets.copy(selected, create[1])
+            dispatch({ type: 'open-file', path: (await ctx.agentPresets.resolve(create[1])).path })
+            return { kind: 'success', text: `created ${create[1]} from ${selected}` }
+          }
+          if (copy?.[1] !== undefined && copy[2] !== undefined) {
+            await ctx.agentPresets.copy(copy[1], copy[2])
+            return { kind: 'success', text: `copied ${copy[1]} to ${copy[2]}` }
+          }
+          if (remove?.[1] !== undefined) {
+            await ctx.agentPresets.remove(remove[1])
+            return { kind: 'success', text: `deleted ${remove[1]}` }
+          }
+          if (raw !== '') return { kind: 'error', text: 'usage: /agents [new NAME | copy SRC DEST | delete NAME]' }
           dispatch({
             type: 'open-overlay',
             overlay: agentPresetOverlay(await ctx.agentPresets.list(), selected, blank),

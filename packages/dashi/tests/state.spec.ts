@@ -284,6 +284,13 @@ describe('view-state reducer', () => {
     expect(recalled.composer).toBe('draft')
   })
 
+  it('routes a requested file through the existing overlay activation effect', () => {
+    const base = initialViewState('/work', false)
+    expect(reduce(base, { type: 'open-file', path: '/presets/mine/agent.cordis.yml' })).toEqual([
+      base, [{ type: 'activate-overlay', value: { kind: 'open-file', path: '/presets/mine/agent.cordis.yml' } }],
+    ])
+  })
+
   it('requests same-cwd search without changing or submitting the composer', () => {
     const base = {
       ...initialViewState('/work', false, {

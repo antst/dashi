@@ -251,6 +251,7 @@ export type UiAction =
   | { readonly type: 'history-toggle' }
   | { readonly type: 'open-history' }
   | { readonly type: 'open-details' }
+  | { readonly path: string; readonly type: 'open-file' }
   | { readonly type: 'completion-ready'; readonly options: readonly OverlayOption[]; readonly query: string }
   | { readonly type: 'open-overlay'; readonly overlay: Overlay }
   | { readonly type: 'overlay-close' }
@@ -665,6 +666,7 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
       return head === undefined
         ? [{ ...state, overlay: action.overlay, exitArmed: false, rewindArmed: false }, redraw()]
         : [state, []]
+    case 'open-file': return [state, [{ type: 'activate-overlay', value: { kind: 'open-file', path: action.path } }]]
     case 'overlay-close': {
       if (state.overlay === undefined) return [state, []]
       const { overlay: _overlay, ...withoutOverlay } = state

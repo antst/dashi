@@ -119,9 +119,13 @@ text when no command matches.
 
 `/reset`, `/continue`, `/branch`, and `/quit` alias `/clear`, `/resume`, `/fork`,
 and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
-through DSH's model selection. `/clear` starts a fresh session. `/agents` selects the current blank session's
-native DSH agent preset; after a conversation starts, choosing a preset starts
-a new session with it. `/usage` shows DSH's whole-session token buckets,
+through DSH's model selection. `/clear [NAME]` starts a fresh session, naming
+the previous one when NAME is supplied. `/agents` selects the current blank
+session's native DSH agent preset; after a conversation starts, choosing a
+preset starts a new session with it. `/agents new NAME` copies the selected
+preset and opens its composition in `$EDITOR`, because DSH preset authoring is
+copy-only; `/agents copy SRC DEST` and `/agents delete NAME` use the same native
+roster service. `/usage` shows DSH's whole-session token buckets,
 turns, steps, and measured model/tool time; plan limits and cost, per-model
 breakdown, and tool-call count are DSH gaps. `/context` shows DSH's heuristic system, tool-schema,
 and message estimates for the next request. `/init` atomically creates a starter

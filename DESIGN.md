@@ -486,8 +486,9 @@ terminal operations and orchestration of existing services:
 Command registration, collision, execution, and logging remain
 `ctx.commands` behavior. `/clear` aliases `/new`; `/reset`, `/continue`,
 `/branch`, and `/quit` reuse `/clear`, `/resume`, `/fork`, and `/exit`;
-`/effort` reuses native model selection; `/agents` selects a native
-agent preset; `/config` reads and updates DSH's settings provider; `/login` and
+`/clear NAME` names the old root before creating the fresh one; `/effort`
+reuses native model selection; `/agents` selects or copy-authors a native
+agent preset through DSH's roster service; `/config` reads and updates DSH's settings provider; `/login` and
 `/logout` use DSH's authorization flows and credential records; `/usage` reads
 DSH's token and whole-log session-stats projections; `/context` reads the
 token-meter estimate; `/init` atomically creates a starter `AGENTS.md`
