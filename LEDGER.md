@@ -1690,7 +1690,13 @@ matching. Acceptance: PTY test that a denied tool is absent from the
 model's tool list (replay fixture records the tool roster) and that an
 allowed-only list hides the rest; production source under 40 lines.
 
-### W-046 /tasks management and /subtask — status: open (owner dsh-exec, after W-043)
+### W-046 /tasks management and /subtask — status: accepted 2026-09-04 (PR #55 squash-merged)
+One handler for /tasks and /bashes: no argument opens the existing
+details overlay, Enter on a job row opens JobRegistry.read output as
+an info-overlay cell, `kill ID` calls JobRegistry.kill; /subtask TEXT
+calls SubagentRuntime.startContinuable with the base profile's spawn
+provider. jobs and subagents injected; dsh-jobs exact peer. 48
+production lines; 237 tests. Ships in alpha.10.
 `/tasks` (existing list) gains selection: Enter opens the job's
 output through JobRegistry.read in the info overlay with cells;
 `/tasks kill ID` calls JobRegistry.kill; `/bashes` is an alias of
