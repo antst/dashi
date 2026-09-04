@@ -1564,7 +1564,15 @@ fixture cwd and that selecting it runs $EDITOR (a recording script)
 on that exact path, terminal restored after; production source under
 50 lines.
 
-### W-038 /diff — status: open (after W-037)
+### W-038 /diff — status: accepted 2026-09-03 (PR #38 squash-merged)
+/diff runs `git diff --no-ext-diff --no-color HEAD --` in the session
+header cwd through ctx.shell under the session sandbox, read only,
+stderr relayed verbatim; /diff turn slices DSH's log snapshot at the
+last turn/start and renders DSH's recorded write/edit hunks through
+the existing fold and presenters; the info overlay gained an optional
+cells field and Ctrl+O inside overlays reuses toggle-tool-mode. 49
+production lines; 224 tests. Note for W-040: the 64 KiB stdout cap in
+diff-view.ts is a separate literal; share the human-shell constant.
 Show the current git diff of the session cwd (via ctx.shell, read
 only) and, with an argument `turn`, the write/edit hunks DSH recorded
 in tool-result metadata for the last turn (PARITY.md row /diff),
