@@ -2613,6 +2613,30 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
+  it('/usage shows nonzero DSH token and session-stat projections after a replayed turn', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --yolo 'usage fixture'`)
+      const answeredAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+      await shell.waitFor('idle ·', answeredAt)
+      const usageAt = shell.output.length
+      shell.write('/usage\r')
+      for (const line of [
+        'Input tokens: 18', 'Output tokens: 8', 'Cache read: 2', 'Cache write: 0',
+        'Turns: 1 · Steps: 2', 'Model time:', 'Tool time:', 'Measured wall time:',
+      ]) await shell.waitFor(line, usageAt)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
+
   it('requires explicit confirmation before switching to a never-approval preset', async () => {
     const shell = new PtyShell()
     let id = ''

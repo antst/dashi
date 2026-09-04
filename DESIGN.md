@@ -470,7 +470,7 @@ Reuse a native command when one exists. TUI-specific commands are limited to
 terminal operations and orchestration of existing services:
 
 ```text
-/help  /status  /new  /clear  /reset  /resume  /continue  /fork  /branch
+/help  /status  /usage  /new  /clear  /reset  /resume  /continue  /fork  /branch
 /rewind  /rename  /model  /effort  /permission  /config  /login  /logout  /agents  /queue  /context  /init  /memory  /skills  /diff
 /plugins  /plugin  /tasks  /bashes  /subtask  /loop
 /history  /export  /copy  /exit  /quit
@@ -481,8 +481,9 @@ Command registration, collision, execution, and logging remain
 `/branch`, and `/quit` reuse `/clear`, `/resume`, `/fork`, and `/exit`;
 `/effort` reuses native model selection; `/agents` selects a native
 agent preset; `/config` reads and updates DSH's settings provider; `/login` and
-`/logout` use DSH's authorization flows and credential records; `/context`
-reads the token-meter estimate; `/init` atomically creates a starter `AGENTS.md`
+`/logout` use DSH's authorization flows and credential records; `/usage` reads
+DSH's token and whole-log session-stats projections; `/context` reads the
+token-meter estimate; `/init` atomically creates a starter `AGENTS.md`
 through `ctx.fs`; `/memory` opens DSH's loaded instruction files;
 `/skills` lists and filters DSH's session-resolved skill catalog;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native

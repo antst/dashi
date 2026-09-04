@@ -99,7 +99,7 @@ After installation:
 
 Type `/` at line start to open live completion for native commands, dashi
 commands, and user-invocable skills; Enter accepts a complete command and Tab
-inserts the selection. dashi provides `/help`, `/status`, `/new`, `/resume`,
+inserts the selection. dashi provides `/help`, `/status`, `/usage`, `/new`, `/resume`,
 `/clear`, `/reset`, `/continue`, `/fork`, `/branch`, `/rewind`, `/rename`, `/model`, `/effort`, `/permission`, `/config`, `/login`, `/logout`,
 `/agents`, `/queue`, `/context`, `/init`, `/memory`, `/skills`, `/diff`, `/plugins`, `/plugin`, `/tasks`, `/bashes`, `/subtask`, `/loop`,
 `/history`, `/export`, `/copy`, and `/exit`;
@@ -111,7 +111,9 @@ text when no command matches.
 and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
 through DSH's model selection. `/clear` starts a fresh session. `/agents` selects the current blank session's
 native DSH agent preset; after a conversation starts, choosing a preset starts
-a new session with it. `/context` shows DSH's heuristic system, tool-schema,
+a new session with it. `/usage` shows DSH's whole-session token buckets,
+turns, steps, and measured model/tool time; plan limits and cost, per-model
+breakdown, and tool-call count are DSH gaps. `/context` shows DSH's heuristic system, tool-schema,
 and message estimates for the next request. `/init` atomically creates a starter
 `AGENTS.md` without overwriting an existing file. DSH loads it when a new or
 resumed session forms its instruction baseline; it is not injected live because

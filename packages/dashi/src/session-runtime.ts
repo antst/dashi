@@ -45,6 +45,7 @@ import {
   sessionOverlay,
   skillOverlay,
   statusOverlay,
+  usageOverlay,
 } from './catalogs.js'
 import { diffOverlay } from './diff-view.js'
 import { eventsFromRecords } from './history-records.js'
@@ -705,6 +706,15 @@ export async function createSessionRuntime(
           const invalid = usage(invocation.rawInput, '/context')
           if (invalid !== undefined) return invalid
           dispatch({ type: 'open-overlay', overlay: contextOverlay(ctx, bound.agent) })
+          return { kind: 'success' }
+        },
+      },
+      {
+        name: 'usage', description: 'Show session token and timing totals',
+        handler: (invocation) => {
+          const invalid = ensureCurrent(invocation) ?? usage(invocation.rawInput, '/usage')
+          if (invalid !== undefined) return invalid
+          dispatch({ type: 'open-overlay', overlay: usageOverlay(ctx, bound.agent) })
           return { kind: 'success' }
         },
       },
