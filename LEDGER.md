@@ -1663,13 +1663,34 @@ list; DSH's filesystem watcher already reloads skills, so no reload
 command. Acceptance: PTY test with a fixture skill directory showing
 the row and the filter; production source under 40 lines.
 
+### W-045 --tools and --disallowedTools — status: open (owner roller-exec, after W-044)
+Launch flags `--tools a,b` (allow only these tool names) and
+`--disallowedTools a,b` (deny these names) applied to the root agent
+through ToolRuntime.restrict (agent-scoped allow/deny masks by whole
+registered name; PARITY.md row --tools). Both flags also apply on
+--resume/--continue. Unknown tool names: relay DSH's error if
+restrict validates, otherwise list the unknown names against the
+registered roster in one dashi error and exit 2. Pattern rules
+(Bash(git *), paths) are a DSH gap: one README sentence; no dashi
+matching. Acceptance: PTY test that a denied tool is absent from the
+model's tool list (replay fixture records the tool roster) and that an
+allowed-only list hides the rest; production source under 40 lines.
+
+### W-046 /tasks management and /subtask — status: open (owner dsh-exec, after W-043)
+`/tasks` (existing list) gains selection: Enter opens the job's
+output through JobRegistry.read in the info overlay with cells;
+`/tasks kill ID` calls JobRegistry.kill; `/bashes` is an alias of
+/tasks. `/subtask TEXT` starts a continuable child through
+SubagentRuntime with the text as its first prompt and reports the
+child id; the existing subagent surface shows it. All owners are DSH
+(PARITY.md rows). Acceptance: PTY tests for read, kill, and subtask
+creation with the replay provider; production source under 50 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
 From PARITY.md, to be cut into work items in this order (W-042 /init
-and W-043 /copy cut 2026-09-04): /tasks management, /bashes,
-/subtask; --tools and bare-name
---disallowedTools; --system-prompt and --append-system-prompt (and
+and W-043 /copy cut 2026-09-04): --system-prompt and --append-system-prompt (and
 file variants); /loop; --verbose; richer /usage from token and
 session stats; /clear NAME and rename-then-clear; /agents authoring.
 
