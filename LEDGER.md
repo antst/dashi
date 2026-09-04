@@ -2113,7 +2113,15 @@ sites). Acceptance: PTY test in the shipped profile: start without
 and with "code and conversation", both succeed; production source
 under 15 lines. Ships in alpha.15.
 
-### W-065 Drag-and-drop files into the composer — status: open (owner roller-exec)
+### W-065 Drag-and-drop files into the composer — status: accepted 2026-09-04 (PR #123 squash-merged; owner roller-exec)
+A complete bracketed paste whose shell-decoded tokens (bare,
+single-quoted, backslash-escaped) all exist becomes attachments for
+image paths through the existing attach effect and `@` mentions for
+the rest through DSH's file-reference grammar, relative inside the
+bound root's cwd and absolute outside; any other paste is inserted
+unchanged; one stat per token; insert at the editor cursor. Review
+fix: resolve against the bound session's cwd, not the launch cwd.
+39 production lines; 280 tests. Ships in alpha.16.
 Owner request 2026-09-04. In a terminal a drop arrives as a paste of
 one or more file paths, shell-escaped (single quotes, backslash
 spaces, or bare). Claude Code turns them into references. Scope: when
