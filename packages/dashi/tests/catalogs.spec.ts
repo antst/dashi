@@ -188,19 +188,26 @@ describe('terminal catalogs', () => {
     })
   })
 
-  it('builds the status line from current DSH projections', () => {
-    const ctx = {
-      sessionProjections: { snapshot: () => ({ values: {
-        contextPressure: { contextWindow: 200_000, projectedTokens: 12_345 },
-        modelSelection: { next: { model: 'recorded', provider: 'replay' } },
-        permissions: { currentValue: 'workspace-write', options: [] },
-        tokenUsage: { cacheReadTokens: 90, cacheWriteTokens: 0, outputTokens: 5, uncachedInputTokens: 10 },
-      } }) },
-    } as unknown as Context
-    expect(sessionStatusLine(ctx, agent(), {
-      cwd: '/work', id: 'session', model: 'fallback', status: 'idle',
-    }, 'feature/status')).toBe(
-      'model replay/recorded · permission workspace-write · context 12,345/200,000 · cache 90% · branch feature/status',
-    )
+  it('builds the HUD from DSH projections with optional effort and activity', () => {
+    for (const effort of [undefined, 'high']) {
+      const ctx = {
+        sessionProjections: { snapshot: () => ({ values: {
+          contextPressure: { contextWindow: 200_000, projectedTokens: 42_000 },
+          modelSelection: { next: { model: 'gpt-5.6-terra', provider: 'openai', reasoningEffort: effort } },
+          permissions: { currentValue: 'workspace-write', options: [] },
+          tokenUsage: { cacheReadTokens: 34_080, cacheWriteTokens: 0, outputTokens: 0, uncachedInputTokens: 13_920 },
+        } }) },
+      } as unknown as Context
+      expect(sessionStatusLine(ctx, agent(), {
+        cwd: '/work', id: 'session', model: 'fallback', status: 'idle',
+        ...(effort === undefined ? {} : {
+          jobs: [{ id: 'job', kind: 'bash', label: 'build', startedAt: 0, status: 'running' as const }],
+          subagents: [{ id: 'child', label: 'research', mode: 'one-shot' as const, state: 'running' as const }],
+          title: 'dashi',
+        }),
+      }, 'dtui/develop')).toBe(
+        `gpt-5.6-terra${effort === undefined ? '' : ` · ${effort}`} · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok${effort === undefined ? '' : ' · 1 agents · 1 jobs · dashi'} · dtui/develop`,
+      )
+    }
   })
 })

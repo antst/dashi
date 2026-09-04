@@ -207,18 +207,33 @@ function milliseconds(value: unknown): string {
   return typeof value === 'number' ? `${number(value)} ms` : 'unavailable'
 }
 
-export function sessionStatusLine(ctx: Context, agent: Agent, root: RootView, branch?: string): string {
+function compactTokens(value: number): string {
+  return Intl.NumberFormat('en-US', { maximumFractionDigits: 1, notation: 'compact' }).format(value).replace('K', 'k')
+}
+
+export function sessionStatusLine(ctx: Context, agent: Agent, root: RootView, repo?: string): string {
   const { modelSelection, permissions, tokenUsage, contextPressure } = ctx.sessionProjections
     .snapshot(agent.session, ['modelSelection', 'permissions', 'tokenUsage', 'contextPressure']).values
   const model = modelSelection?.next ?? modelSelection?.lastUsed
   const input = tokenUsage === undefined ? 0 : tokenUsage.uncachedInputTokens + tokenUsage.cacheReadTokens + tokenUsage.cacheWriteTokens
+  const total = input + (tokenUsage?.outputTokens ?? 0)
   const used = contextPressure?.projectedTokens ?? contextPressure?.pressureTokens
+  const context = used === undefined ? undefined
+    : contextPressure?.contextWindow === undefined ? `ctx ${compactTokens(used)}`
+      : `ctx ${compactTokens(used)}/${compactTokens(contextPressure.contextWindow)} ${String(Math.min(100, Math.round(used / contextPressure.contextWindow * 100)))}%`
+  const agents = root.subagents?.filter(item => item.state === 'running').length ?? 0
+  const jobs = root.jobs?.filter(item => item.status === 'running' || item.status === 'stopping').length ?? 0
   return [
-    `model ${model == null ? `${root.provider === undefined ? '' : `${root.provider}/`}${root.model}` : `${model.provider}/${model.model}`}`,
-    `permission ${permissions?.currentValue ?? root.permission ?? 'unknown'}`,
-    ...(used === undefined || contextPressure?.contextWindow === undefined ? [] : [`context ${number(used)}/${number(contextPressure.contextWindow)}`]),
+    model?.model ?? root.model,
+    ...(model?.reasoningEffort === undefined ? [] : [model.reasoningEffort]),
+    permissions?.currentValue ?? root.permission ?? 'unknown',
+    ...(context === undefined ? [] : [context]),
     ...(input === 0 ? [] : [`cache ${String(Math.min(tokenUsage?.cacheReadTokens === input ? 100 : 99, Math.round((tokenUsage?.cacheReadTokens ?? 0) / input * 100)))}%`]),
-    ...(branch === undefined ? [] : [`branch ${branch}`]),
+    ...(tokenUsage === undefined ? [] : [`${compactTokens(total)} tok`]),
+    ...(agents === 0 ? [] : [`${String(agents)} agents`]),
+    ...(jobs === 0 ? [] : [`${String(jobs)} jobs`]),
+    ...(root.title === undefined ? [] : [root.title]),
+    ...(repo === undefined ? [] : [repo]),
   ].join(' · ')
 }
 /** Read DSH-owned root facts for /status in one projection cut. */

@@ -454,8 +454,8 @@ export function createRenderer(options: RendererOptions): Renderer {
         : root === undefined
           ? `${DIM}no session · cards ${state.toolMode} · Ctrl+J newline · Ctrl+L redraw${RESET}`
           : root.status === 'running'
-            ? `${DIM}running · ${plain(root.model)} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T toggle · cards ${state.toolMode} · Esc interrupt${RESET}`
-            : `${DIM}idle · ${plain(root.model)} · Enter send · cards ${state.toolMode}${RESET}`
+            ? `${DIM}running${accessible ? ` · ${plain(root.model)}` : ''} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T toggle · cards ${state.toolMode} · Esc interrupt${RESET}`
+            : `${DIM}idle${accessible ? ` · ${plain(root.model)}` : ''} · Enter send · cards ${state.toolMode}${RESET}`
       const activityCount = activities(state).length
       const baseStatus = `${baseStatusText}${root?.contextPercent === undefined ? '' : ` · ${String(root.contextPercent)}% context`}${activityCount === 0 ? '' : ' · Ctrl+B activity'}`
       const status = state.newOutput === 0 ? baseStatus
