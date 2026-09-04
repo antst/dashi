@@ -1652,7 +1652,11 @@ via the existing fold; no new state beyond the transient list.
 Acceptance: renderer test with a recorded log containing two code
 blocks; PTY test for /copy 2; production source under 40 lines.
 
-### W-044 /skills — status: open (owner roller-exec, after W-041)
+### W-044 /skills — status: accepted 2026-09-04 (PR #47 squash-merged; owner roller-exec)
+Existing list overlay over ctx.skills.list/get for the agent scope
+and cwd; substring filter on name and description; selection inserts
+`/<name> ` into the composer; no cache. 35 production lines; 234
+tests.
 `/skills` lists the skills DSH resolved for this session from the
 session skill catalog (name, description, invocation policy, source,
 path; PARITY.md row /skills) in the existing list overlay; `/skills
