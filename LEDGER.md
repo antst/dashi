@@ -1740,7 +1740,11 @@ firing submits TEXT as a prompt; `/loop` lists active schedules;
 (PARITY.md row /loop). Acceptance: PTY test with a short interval
 showing two firings and a stop; production source under 50 lines.
 
-### W-049 --verbose — status: open (owner dsh-exec, after W-048)
+### W-049 --verbose — status: accepted 2026-09-04 (PR #66 squash-merged)
+Launch parser accepts --verbose and initializes the existing
+toolMode to expanded; Ctrl+O cycle unchanged. PTY contrast test on a
+resumed recorded Bash turn. 10 production lines; 242 tests. Ships in
+alpha.11.
 Launch flag `--verbose`: the initial presentation opens with every
 tool card and context row expanded (the existing card mode set to
 expanded at start) and stays a launch-scoped presentation choice;
