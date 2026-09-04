@@ -2182,7 +2182,14 @@ skipped on Darwin only with the reason beside the skip. Acceptance:
 `pnpm gate` green on the mac and the hosted Linux gate green; the
 hosted macos-latest job (W-066) reported on after the change.
 
-### W-068 Ctrl+D exits immediately during a turn — status: open (owner dsh-exec)
+### W-068 Ctrl+D exits immediately during a turn — status: accepted 2026-09-04 (PR #131 squash-merged)
+One shared exitChord (arm on first press, exit on the second within
+the window); Ctrl+C keeps its interrupt and draft-clear steps before
+it, Ctrl+D enters it after the nonempty-composer check regardless of
+root status or attachments. Reducer tests for running root and
+pending attachments; PTY test arms mid-turn with the child alive,
+then exits on the second press. 9 production lines; 281 tests. Ships
+in alpha.17.
 Defect, owner report 2026-09-04 on alpha.16, Linux and mac: pressing
 Ctrl+D while a turn is running exits at once, no arm, no second
 press; between turns it arms correctly. Cause: state.ts:501 routes
