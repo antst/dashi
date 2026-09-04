@@ -48,12 +48,13 @@ export async function runHumanShell(
   ctx: Context,
   agent: Agent,
   command: string,
-  signal: AbortSignal, success?: string,
+  signal: AbortSignal, success?: string, useSessionSandbox = true,
 ): Promise<readonly [UserMessage, ShellRunResult]> {
   const result = await ctx.shell.run(ctx.shell.resolve({
     command,
     env: { DSH_HOME: resolveDshHome() },
-    sandboxPolicy: ctx.sandboxPolicy.resolve({ session: agent.session }),
+    sandboxPolicy: ctx.sandboxPolicy.resolve(useSessionSandbox
+      ? { session: agent.session } : { mode: 'danger-full-access' }),
     signal,
     stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES,
     timeoutMs: HUMAN_SHELL_TIMEOUT_MS,
