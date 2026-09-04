@@ -1,4 +1,5 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
+import { basename } from 'node:path'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-presets'
@@ -119,6 +120,10 @@ interface Binding {
   presentationTimer: ReturnType<typeof setTimeout> | undefined
   root: RootView
   timer: ReturnType<typeof setTimeout> | undefined
+}
+
+function starterAgents(cwd: string): string {
+  return `# ${basename(cwd)}\n\n## Working agreement\n\n- Add project-specific architecture guidance.\n- Add required build, test, and lint commands.\n- Add repository conventions and constraints.\n`
 }
 
 type RootOperation = Extract<OverlayValue, {
@@ -879,6 +884,19 @@ export async function createSessionRuntime(
           if (invalid !== undefined) return invalid
           await openModel(bound)
           return { kind: 'success' }
+        },
+      },
+      {
+        name: 'init', description: 'Create a starter AGENTS.md',
+        handler: async (invocation) => {
+          const stale = ensureCurrent(invocation)
+          if (stale !== undefined) return stale
+          const invalid = usage(invocation.rawInput, '/init')
+          if (invalid !== undefined) return invalid
+          const target = await ctx.fs.resolve('AGENTS.md', { cwd: bound.root.cwd, signal: lifetime.signal })
+          await ctx.fs.writeText(target, starterAgents(bound.root.cwd), { kind: 'createIfAbsent' }, lifetime.signal,
+            ctx.sandboxPolicy.resolve({ session: bound.agent.session }))
+          return { kind: 'success', text: `created ${ctx.fs.processPath(target)}` }
         },
       },
       {
