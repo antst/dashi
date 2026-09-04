@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { testCeiling } from './test-budget.js'
 
@@ -39,21 +40,22 @@ export class MultiplexerPane {
   private readonly captureFile: string
   private readonly env: NodeJS.ProcessEnv
   private readonly name: string
+  private readonly screenDirectory?: string
   private readonly socket: string
 
   constructor(kind: MultiplexerKind, directory: string, cwd: string, env: NodeJS.ProcessEnv) {
     requireMultiplexer(kind)
     this.kind = kind
     // Keep SCREENDIR + screen's socket filename below the Unix socket path limit.
-    this.name = `dashi-${String(process.pid)}-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`
+    this.name = `d-${process.pid.toString(36)}-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`
     this.socket = this.name.slice(0, 80)
     this.captureFile = join(directory, `${this.name}.screen`)
     this.modeBefore = join(directory, `${this.name}.before`)
     this.modeAfter = join(directory, `${this.name}.after`)
     if (kind === 'screen') {
-      const sockets = join(directory, `${this.name}.sockets`)
-      mkdirSync(sockets)
+      const sockets = mkdtempSync(join(tmpdir(), 'dsh-s-'))
       chmodSync(sockets, 0o700)
+      this.screenDirectory = sockets
       this.env = { ...env, SCREENDIR: sockets }
       run('screen', [
         '-U', '-c', '/dev/null', '-dmS', this.name, '-L', '-Logfile', join(directory, `${this.name}.log`),
@@ -107,6 +109,7 @@ export class MultiplexerPane {
       spawnSync('tmux', ['-L', this.socket, 'kill-server'], { env: this.env })
     } else {
       spawnSync('screen', ['-S', this.name, '-X', 'quit'], { env: this.env })
+      if (this.screenDirectory !== undefined) rmSync(this.screenDirectory, { recursive: true, force: true })
     }
   }
 }
