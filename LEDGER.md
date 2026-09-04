@@ -1626,7 +1626,13 @@ provider's credential record (PARITY.md rows). Acceptance: PTY test
 with a fake flow from the replay provider or a fixture flow;
 production source under 60 lines. Never print secrets.
 
-### W-042 /init — status: open (owner dsh-exec, after W-040)
+### W-042 /init — status: accepted 2026-09-04 (PR #45 squash-merged)
+Fixed template through ctx.fs.writeText createIfAbsent under the
+session sandbox; DSH's existing-file error verbatim; README states
+DSH reads the file in a new or resumed session (agent-instructions
+composes its baseline at first request, no watcher). PTY test: create,
+refusal on second run, fresh session shows the Context row. 19
+production lines; 234 tests.
 `/init` writes a starter AGENTS.md in the session cwd through ctx.fs
 (atomic create, refuses to overwrite an existing file, DSH error
 verbatim) with a short fixed template: project name from the cwd
