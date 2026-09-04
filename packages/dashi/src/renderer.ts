@@ -172,6 +172,20 @@ function line(text: string, width: number): string {
   return truncateToWidth(text, Math.max(1, width), '…')
 }
 
+function windowRows(values: readonly string[], size: number, position: number, follow: boolean): string[] {
+  if (values.length <= size) return [...values]
+  if (size < 3) return [values[Math.max(0, Math.min(values.length - 1, position))] ?? '']
+  const start = Math.max(0, Math.min(values.length - Math.max(1, size - 1), follow ? position - Math.floor((size - 2) / 2) : position))
+  const above = start > 0
+  let end = Math.min(values.length, start + size - Number(above))
+  if (end < values.length) end--
+  return [
+    ...(above ? [`${DIM}↑ ${String(start)} more${RESET}`] : []),
+    ...values.slice(start, end),
+    ...(end < values.length ? [`${DIM}↓ ${String(values.length - end)} more${RESET}`] : []),
+  ]
+}
+
 function theme(): EditorTheme {
   const identity = (text: string): string => text
   return {
@@ -195,7 +209,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   const osc52 = supportsOsc52(terminalType)
   const tui: TUI = options.inline
     ? new TuiMainScreen(terminal, true)
-    : new TuiAltScreen(terminal, true, undefined, { mouse: true })
+    : new class extends TuiAltScreen {
+      protected override isOverlayFocused(): boolean { return options.readState().overlay !== undefined || super.isOverlayFocused() }
+    }(terminal, true, undefined, { mouse: true })
   let editor = new Editor(tui, theme(), { paddingX: 1 })
   editor.disableSubmit = true
   editor.onChange = text => {
@@ -322,17 +338,19 @@ export function createRenderer(options: RendererOptions): Renderer {
     return result.slice(0, Math.max(2, rows - 3))
   }
 
+  const infoRows = (overlay: Extract<Overlay, { kind: 'info' }>, state: ViewState, width: number): string[] =>
+    overlay.lines.flatMap(value => wrapTextWithAnsi(plain(value, true), width)).concat(overlay.cells?.flatMap(cell => wrapTextWithAnsi(cellText(cell, state.toolMode, accessible), width)) ?? [])
+
   const overlayPanel = (overlay: Overlay, state: ViewState, width: number, rows: number): string[] => {
     if (overlay.kind === 'history') return historyPanel(overlay, state, width, rows)
     if (overlay.kind === 'details') return detailsPanel(overlay, state, width, rows)
     if (overlay.kind === 'info') {
-      const cards = overlay.cells?.flatMap(cell => wrapTextWithAnsi(cellText(cell, state.toolMode, accessible), width)) ?? []
+      const body = infoRows(overlay, state, width)
       return [
         `${BOLD_CYAN}${announcement(plain(overlay.title), overlay.lines.length + (overlay.cells?.length ?? 0))}${RESET}`,
-        ...overlay.lines.flatMap(value => wrapTextWithAnsi(plain(value, true), width)),
-        ...cards,
-        `${DIM}Enter or Esc to close${RESET}`,
-      ].slice(0, Math.max(2, rows - 3))
+        ...windowRows(body, Math.max(1, rows - 5), overlay.scrollOffset ?? 0, false),
+        `${DIM}↑↓ scroll · PageUp/PageDown · Enter or Esc close${RESET}`,
+      ]
     }
     if (overlay.kind === 'confirm') {
       const choices = [overlay.acceptLabel, 'Cancel']
@@ -353,18 +371,22 @@ export function createRenderer(options: RendererOptions): Renderer {
       )}${RESET}`, width),
       ...(overlay.notice === undefined ? [] : [`${DIM}${plain(overlay.notice)}${RESET}`]),
     ]
+    const body: string[] = []
+    let selectedRow = 0
     let group: string | undefined
     for (const [index, option] of overlay.options.entries()) {
       if (option.group !== undefined && option.group !== group) {
         group = option.group
-        result.push(`${DIM}${plain(group)}${RESET}`)
+        body.push(`${DIM}${plain(group)}${RESET}`)
       }
       const detail = option.detail === undefined ? '' : ` — ${plain(option.detail)}`
       const active = option.active === true ? accessible ? ' [active]' : ' ●' : ''
       const danger = option.danger === true ? ` ${YELLOW}${accessible ? '[danger]' : '!'}${RESET}` : ''
-      result.push(line(`${index === overlay.cursor ? BOLD_CYAN : DIM}${index === overlay.cursor ? accessible ? '>' : '›' : ' '} ${String(index + 1)} ${plain(option.label)}${active}${detail}${RESET}${danger}`, width))
+      if (index === overlay.cursor) selectedRow = body.length
+      body.push(line(`${index === overlay.cursor ? BOLD_CYAN : DIM}${index === overlay.cursor ? accessible ? '>' : '›' : ' '} ${String(index + 1)} ${plain(option.label)}${active}${detail}${RESET}${danger}`, width))
     }
-    return result.slice(0, Math.max(2, rows - (overlay.purpose === 'completion' ? 6 : 3)))
+    const limit = Math.max(2, rows - (overlay.purpose === 'completion' ? 6 : 3))
+    return [...result, ...windowRows(body, Math.max(1, limit - result.length), selectedRow, true)]
   }
 
   const document = {
@@ -464,6 +486,13 @@ export function createRenderer(options: RendererOptions): Renderer {
   tui.setFocus(editor)
   installInput(tui, {
     ...options,
+    dispatch: action => {
+      const overlay = options.readState().overlay
+      const size = Math.max(1, terminal.rows - 5)
+      options.dispatch(action.type === 'overlay-move' && overlay?.kind === 'info'
+        ? { ...action, limit: Math.max(0, infoRows(overlay, options.readState(), terminal.columns).length - Math.max(1, size - 1)) }
+        : action)
+    },
     insertNewline: () => { editor.insertTextAtCursor('\n') },
     readComposerCursor: () => editor.getCursor(),
   })

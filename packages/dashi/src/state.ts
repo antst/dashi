@@ -182,7 +182,7 @@ export type Overlay =
     readonly purpose: 'agents' | 'completion' | 'copy' | 'memory' | 'model' | 'permission' | 'resume' | 'rewind' | 'rewind-action' | 'search' | 'skills'
     readonly title: string
   }
-  | { readonly cells?: readonly TerminalCell[]; readonly kind: 'info'; readonly lines: readonly string[]; readonly title: string }
+  | { readonly cells?: readonly TerminalCell[]; readonly kind: 'info'; readonly lines: readonly string[]; readonly scrollOffset?: number; readonly title: string }
   | { readonly cursor: number; readonly expanded: boolean; readonly kind: 'details' }
   | { readonly cursor: number; readonly expanded: boolean; readonly kind: 'history' }
   | {
@@ -255,7 +255,7 @@ export type UiAction =
   | { readonly type: 'completion-ready'; readonly options: readonly OverlayOption[]; readonly query: string }
   | { readonly type: 'open-overlay'; readonly overlay: Overlay }
   | { readonly type: 'overlay-close' }
-  | { readonly type: 'overlay-move'; readonly offset: number }
+  | { readonly limit?: number; readonly type: 'overlay-move'; readonly offset: number }
   | { readonly type: 'overlay-number'; readonly number: number }
   | { readonly execute?: boolean; readonly type: 'overlay-submit' }
   | { readonly type: 'redraw' }
@@ -674,8 +674,14 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
     }
     case 'overlay-move': {
       if (state.overlay === undefined) return [state, []]
+      if (state.overlay.kind === 'info') {
+        const current = state.overlay.scrollOffset ?? 0
+        const scrollOffset = Math.max(0, Math.min(action.limit ?? current, current + action.offset))
+        return scrollOffset === current ? [state, []]
+          : [{ ...state, overlay: { ...state.overlay, scrollOffset } }, redraw()]
+      }
       const count = (state.root?.jobs?.length ?? 0) + (state.root?.subagents?.length ?? 0)
-      const overlay = moveOverlay(state.overlay, state.overlay.kind === 'info' ? 0 : state.overlay.cursor + action.offset, count)
+      const overlay = moveOverlay(state.overlay, state.overlay.cursor + action.offset, count)
       return overlay === state.overlay ? [state, []] : [{ ...state, overlay }, redraw()]
     }
     case 'overlay-number': {

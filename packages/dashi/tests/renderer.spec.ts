@@ -284,7 +284,10 @@ describe('terminal renderer', () => {
     expect(help).toContain(VERSION_LINE)
     expect(help).toContain('Shift+Tab permission')
     expect(help).toContain('/plugins /plugin')
-    expect(help).toContain('--permission PRESET')
+    expect(help).toContain('↓ 4 more')
+    terminal.send('\u001B[6~')
+    await shell.whenIdle(); await terminal.flush()
+    expect(terminal.lines().join('\n')).toContain('--permission PRESET')
     await shell.dispose()
   })
 
@@ -310,6 +313,56 @@ describe('terminal renderer', () => {
     expect(screen).not.toContain('ROW_TAIL')
     await shell.dispose()
   })
+
+  for (const inline of [false, true]) {
+    it(`windows tall overlays at 24 rows in ${inline ? 'inline' : 'alternate'} mode`, async () => {
+      const terminal = new ScreenTerminal(80, 24)
+      const shell = createTerminalShell({
+        createView: bindings => createRenderer({ ...bindings, inline, terminal }),
+        cwd: '/work', exit: () => {}, inline,
+      })
+      shell.start()
+      const options = Array.from({ length: 60 }, (_, index) => ({
+        label: `List row ${String(index)}`,
+        value: { kind: 'model' as const, model: String(index), provider: 'fixture' },
+      }))
+      for (const [cursor, above, below] of [[0, undefined, 41], [30, 21, 21], [59, 41, undefined]] as const) {
+        shell.dispatch({ type: 'open-overlay', overlay: {
+          cursor, kind: 'list', options, purpose: 'model', title: 'Tall list',
+        } })
+        await shell.whenIdle(); await terminal.flush()
+        const screen = terminal.lines().join('\n')
+        expect(screen).toContain(`List row ${String(cursor)}`)
+        if (above === undefined) expect(screen).not.toMatch(/↑ \d+ more/u)
+        else expect(screen).toContain(`↑ ${String(above)} more`)
+        if (below === undefined) expect(screen).not.toMatch(/↓ \d+ more/u)
+        else expect(screen).toContain(`↓ ${String(below)} more`)
+      }
+
+      shell.dispatch({ type: 'open-overlay', overlay: {
+        kind: 'info', lines: Array.from({ length: 60 }, (_, index) => `Info row ${String(index)}`), title: 'Tall info',
+      } })
+      await shell.whenIdle(); await terminal.flush()
+      expect(terminal.lines().join('\n')).toContain('↓ 42 more')
+      terminal.send('\u001B[6~')
+      await shell.whenIdle(); await terminal.flush()
+      expect(shell.readState().overlay).toMatchObject({ kind: 'info', scrollOffset: 8 })
+      for (let row = 0; row < 60; row++) terminal.send('\u001B[B')
+      await shell.whenIdle(); await terminal.flush()
+      const end = terminal.lines().join('\n')
+      expect(shell.readState().overlay).toMatchObject({ kind: 'info', scrollOffset: 42 })
+      expect(end).toContain('↑ 42 more')
+      expect(end).toContain('Info row 59')
+      expect(end).toContain('PageUp/PageDown')
+      terminal.send('\u001B[5~')
+      await shell.whenIdle()
+      expect(shell.readState().overlay).toMatchObject({ kind: 'info', scrollOffset: 34 })
+      terminal.send('\u001B[6~')
+      await shell.whenIdle()
+      expect(shell.readState().overlay).toMatchObject({ kind: 'info', scrollOffset: 42 })
+      await shell.dispose()
+    })
+  }
 
   it('cycles presenter-backed cards through collapsed, expanded, and hidden modes', async () => {
     const terminal = new ScreenTerminal(80, 24)
