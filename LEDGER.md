@@ -1878,7 +1878,14 @@ existing report first and link it instead of duplicating.
 Acceptance: the handoff is the cited finding and, if a gap, the
 ledger upstream entry with the search result; production source 0.
 
-### W-052 /clear NAME and /agents authoring — status: open (owner roller-exec, after W-050)
+### W-052 /clear NAME and /agents authoring — status: accepted 2026-09-04 (PR #77 squash-merged; owner roller-exec)
+/clear NAME, /reset NAME, /new NAME rename the current root through
+SessionController.rename, await the store flush, then create the
+fresh root as before; /agents new (copy of the selected preset or
+defaultId, then the W-037 editor path on the DSH-resolved
+composition path), copy, and delete call agentPresets copy/remove;
+one new action forwards to the existing open-file effect. DSH errors
+verbatim. 34 production lines; 247 tests. Ships in alpha.11.
 Last two PARITY.md doable rows. (a) `/clear NAME` (and `/reset NAME`,
 `/new NAME`): rename the current root to NAME through the title
 service, then create the fresh root as today, so the old
