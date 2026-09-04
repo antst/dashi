@@ -1848,7 +1848,13 @@ PTY test that /model on a small terminal shows the markers and that
 the last row is reachable and selectable; production source under
 50 lines. Ships in alpha.11.
 
-### W-055 Markdown rendering of assistant text — status: open (owner dsh-exec, after W-054)
+### W-055 Markdown rendering of assistant text — status: accepted 2026-09-04 (PR #86 squash-merged)
+Completed, non-accessible assistant cells render through pi-tui's
+Markdown component with one dashi theme (headings, emphasis, code
+spans, fenced blocks, lists, quotes) inside the existing cell cache;
+streaming cells and accessible mode stay plain; /copy keeps the raw
+text. PAGE_CELLS exported and reused for info paging. 28 production
+lines; 256 tests. Ships in alpha.12.
 Survey 2026-09-04 (dsh-tui/dsh-tui, ccch1mneyyy/dsh-TUI; ideas only,
 the second repo admits leaked-source ports, never adapt its code).
 dashi renders assistant text plain; Claude Code renders markdown.
