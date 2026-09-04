@@ -54,6 +54,7 @@ import { admitDraftImages, encodeDraftImages, readDraftImages } from './image-in
 import { contextPercent, jobViews, subagentViews } from './presentation.js'
 import {
   historyInput, historyInputs, humanPrompt, inheritedTurn, rewindActionOverlay, rewindOverlay,
+  rewindModelSelection,
 } from './rewind.js'
 import type {
   ActivatableOverlayValue,
@@ -576,12 +577,11 @@ export async function createSessionRuntime(
       ?? ctx.agentPresets.defaultId
     const modelProjection = ctx.sessionProjections.snapshot(bound.agent.session, ['modelSelection'])
       .values.modelSelection
-    const selection = modelProjection?.next ?? modelProjection?.lastUsed ?? undefined
+    const selection = rewindModelSelection(modelProjection)
     const created = await ctx.sessionController.create({ cwd: bound.root.cwd, agentPreset })
     let selectionFailure: unknown
     try {
-      if (selection === undefined) throw new Error('the current session has no durable model selection')
-      await ctx.sessionController.selectModel({ sessionId: created.sessionId, ...selection })
+      if (selection !== undefined) await ctx.sessionController.selectModel({ sessionId: created.sessionId, ...selection })
     } catch (error) {
       selectionFailure = error
     }

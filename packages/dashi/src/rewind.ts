@@ -1,3 +1,4 @@
+import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { Overlay, OverlayOption, OverlayValue } from './state.js'
@@ -6,6 +7,16 @@ export interface RewindBoundary {
   readonly atSeq?: number
   readonly label: string
   readonly prompt: string
+}
+
+/** Return only a selection that DSH recorded for the source session. */
+export function rewindModelSelection(
+  projection: {
+    readonly lastUsed: ModelSelection | null
+    readonly next: ModelSelection | null
+  } | undefined,
+): ModelSelection | undefined {
+  return projection?.next ?? projection?.lastUsed ?? undefined
 }
 
 /** Return the text of a direct human message, excluding injected context. */

@@ -1,7 +1,7 @@
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import {
-  historyInputs, inheritedTurn, rewindActionOverlay, rewindBoundaries, rewindOverlay,
+  historyInputs, inheritedTurn, rewindActionOverlay, rewindBoundaries, rewindModelSelection, rewindOverlay,
 } from '../src/rewind.js'
 import { inputHistory, inputHistoryEvents } from './fixtures/input-history.js'
 
@@ -32,6 +32,11 @@ function events(): SessionEvent[] {
 }
 
 describe('rewind boundaries', () => {
+  it('does not invent a model selection for a headerless source', () => {
+    expect(rewindModelSelection(undefined)).toBeUndefined()
+    expect(rewindModelSelection({ lastUsed: null, next: null })).toBeUndefined()
+  })
+
   it('lists every human prompt against its containing-turn cut', () => {
     expect(rewindBoundaries(events())).toEqual([
       { label: 'first prompt', prompt: 'first prompt' },
