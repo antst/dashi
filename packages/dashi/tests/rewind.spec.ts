@@ -43,13 +43,13 @@ describe('rewind boundaries', () => {
     expect(inheritedTurn(events(), 8)).toBe(2)
   })
 
-  it('folds durable prompts, recorded commands, and shell input in log order', () => {
+  it('folds durable prompts, recorded commands, and injected shell input once in log order', () => {
     expect(historyInputs(inputHistoryEvents)).toEqual(inputHistory)
     expect(rewindBoundaries(inputHistoryEvents)).toEqual([
       { label: 'first prompt', prompt: 'first prompt' },
       { atSeq: 2, label: '/model', prompt: '/model' },
       { atSeq: 2, label: "!printf 'ok value'", prompt: "!printf 'ok value'" },
-      { atSeq: 7, label: '/permission default', prompt: '/permission default' },
+      { atSeq: 9, label: '/permission default', prompt: '/permission default' },
     ])
   })
 

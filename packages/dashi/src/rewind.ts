@@ -1,3 +1,4 @@
+import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { Overlay, OverlayOption, OverlayValue } from './state.js'
 
@@ -16,6 +17,13 @@ export function humanPrompt(event: SessionEvent): string | undefined {
   return text === '' ? undefined : text
 }
 
+function shellInput(message: UserMessage): string | undefined {
+  if (message.source.kind !== 'plugin' || message.source.plugin !== 'dashi'
+    || message.source.form !== 'notice') return undefined
+  const first = message.content.find(block => block.type === 'text')?.text.split(/\r?\n/u)[0]
+  return first?.startsWith('$ ') === true ? `!${first.slice(2)}` : undefined
+}
+
 /** Recover one composer input from DSH's durable log. */
 export function historyInput(event: SessionEvent): string | undefined {
   const prompt = humanPrompt(event)
@@ -23,10 +31,8 @@ export function historyInput(event: SessionEvent): string | undefined {
   if (event.type === 'command/run' && event.data.args !== undefined) {
     return `/${event.data.name}${event.data.args}`
   }
-  if (event.type !== 'user/message' || event.data.source.kind !== 'plugin'
-    || event.data.source.plugin !== 'dashi' || event.data.source.form !== 'notice') return undefined
-  const first = event.data.content.find(block => block.type === 'text')?.text.split(/\r?\n/u)[0]
-  return first?.startsWith('$ ') === true ? `!${first.slice(2)}` : undefined
+  if (event.type !== 'agent/inbox/spliced') return undefined
+  return event.data.inserted.map(shellInput).find(input => input !== undefined)
 }
 
 export function historyInputs(events: readonly SessionEvent[]): readonly string[] {

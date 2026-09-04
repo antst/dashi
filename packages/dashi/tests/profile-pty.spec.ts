@@ -1967,6 +1967,25 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 90_000)
 
+  it('recalls an injected shell command immediately in the shipped profile', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell,
+        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen`)
+      const commandAt = shell.output.length
+      shell.write('!printf hi\r')
+      await shell.waitFor('[exit 0]', commandAt)
+      const recallAt = shell.output.length
+      shell.write('\u001B[A')
+      await shell.waitFor('\u001B[22;1H\u001B[2K !printf hi', recallAt)
+      expect(await firstFrame(shell.output.slice(start))).toContain('!printf hi')
+      shell.write('\u0003\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', recallAt)
+    } finally {
+      await shell.close()
+    }
+  }, 60_000)
+
   it('injects one shell result without waking a turn and exposes it to the next request', async () => {
     const shell = new PtyShell(requestContextFixture)
     let id = ''
