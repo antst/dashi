@@ -2130,7 +2130,15 @@ three escape forms and a mixed non-path paste; PTY test dropping one
 image and one text file (pasted with bracketed paste) shows an
 attachment row and an @ reference; production source under 40 lines.
 
-### W-066 macOS gate on hosted runners — status: open (owner dsh-exec)
+### W-066 macOS gate on hosted runners — status: accepted 2026-09-04 (PR #121 squash-merged; production source 0)
+Non-blocking macos-latest host-gate job in ci.yml. First two hosted
+runs: setup, typecheck, build, lint, and all unit files pass; the
+runner then receives an external shutdown about 200 s into the
+clean-install PTY test (profile-pty.spec.ts:1191), both times at the
+same point. Audit: no test signals a process group or kills by name.
+Zero dashi assertions, Linux-only assumptions, or DSH gaps observed
+before the cut. Follow-up decided by the mac peer's local host-gate
+result (D-038). The job stays non-blocking until green.
 Owner decision 2026-09-04: macOS is a primary target and nothing has
 run there. Scope: a `macos-latest` job in ci.yml running the host
 gate (`pnpm gate`, not the container; brew-installed tmux and screen)
