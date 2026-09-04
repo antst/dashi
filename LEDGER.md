@@ -1878,7 +1878,13 @@ mode; the existing exit-arm text keeps priority. Acceptance: renderer
 tests at 80 and 120 columns; PTY test that the branch and model
 appear; production source under 50 lines.
 
-### W-057 MCP server stderr corrupts the terminal — status: open (owner dsh-exec, after W-055)
+### W-057 MCP server stderr corrupts the terminal — status: accepted 2026-09-04 (PR #88 squash-merged; production source 0)
+Confirmed DSH gap: mcp-client builds StdioClientTransport without a
+stderr option (rc.1 packages/mcp/mcp-client/src/transport.ts:31-39)
+and the MCP SDK spawns with stderr inherited (stdio.js:48-75); the
+terminal guard wraps only pi-tui's terminal, not fd 2. A
+shipped-profile PTY fixture asserts today's broken behavior so a DSH
+fix flips it. README names the gap; no dashi workaround.
 Bounded lookup, then report. Third-party TUIs document that
 @deepseek-ai/dsh-mcp-client spawns stdio servers with stderr
 inherited, so server logs write to fd 2 and corrupt rendering. (1)
@@ -1964,3 +1970,4 @@ side is expected to be documentation and a fixture test of the host
 contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted): DSH Discussion (Ideas): session-scoped model/effort selection. rc.1 selectModel always calls agentDefaultModel.saveSelection (packages/api/session-controller/src/commands.ts:119-145) and neither SessionCreateRequest, resolveAgent, nor AgentPreset carries a model or effort, so a launch flag like `--model` cannot avoid moving the deployment default (W-025). Release to the lane with the install-hazards report.
 - Queued (not yet posted): DSH Discussion: cold session list never shows a title for a seeded (forked) session whose inherited log exceeds coldBlankProbeMaxBytes; ApiSessionList refuses projection-cache rows for cold seeded sessions (packages/api/session-controller/src/list.ts:327-336) and probes the log only under the size bound (list.ts:164-205), so a durable session/title event is ignored in the picker until the session is opened (W-051). Suggest honoring a projection-cache title row, or probing the tail of the log for the latest title event.
+- Queued (not yet posted): DSH Discussion: @deepseek-ai/dsh-mcp-client spawns stdio MCP servers with stderr inherited (transport.ts:31-39 passes no stderr option; the MCP SDK defaults to 'inherit', stdio.js:48-75), so server logs write straight to the host terminal and corrupt any TUI frame; suggest piping stderr into DSH's logger or a diagnostics channel. Nearest existing thread: Discussion 4465 (silent stdio spawn failures); related 1241, 5129; third-party reproduction ccch1mneyyy/dsh-TUI issue 17 (W-057).
