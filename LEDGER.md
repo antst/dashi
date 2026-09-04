@@ -2029,6 +2029,22 @@ registry, no reconciliation loop) and the next-launch notice only
 when activation fails. If any fails: name the DSH gap, README
 sentence, upstream queue entry; production source 0.
 
+### W-062 Live `!` lines missing from recall — status: open (owner dsh-exec)
+Defect, owner report 2026-09-04 on alpha.13: `/command` lines typed
+in a running session are recalled with Up, `!command` lines are not,
+although the recorded-log tests of W-058/W-059 pass. Find the live
+cause (candidates: the reducer appends the composer text to the
+recall list only on the prompt submit path and not on the `!` path;
+or the live shell notice event's first line differs from the
+fixture's `$ command` form; or the live per-event projection does
+not see the notice because it is injected through maintenance after
+the fold ran) and fix it within the W-058 mechanism, no new state.
+Acceptance: a shipped-profile PTY test that types `!printf hi`,
+waits for the output cell, presses Up, and sees `!printf hi` in the
+composer; fixture shapes corrected to match the live event if they
+differed (the W-037 lesson); production source under 15 lines.
+Ships in alpha.14.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
