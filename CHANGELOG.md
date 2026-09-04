@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.17 — 2026-09-04
+
+- Fix Ctrl+D during a running turn: it now arms like Ctrl+D between turns instead of exiting at once.
+- Make the test suite pass on macOS (harness fixes only); the macOS CI gate is green.
+
 ## 0.1.0-alpha.16 — 2026-09-04
 
 - Drop files into the composer: pasted paths become image attachments or `@` references.
