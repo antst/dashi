@@ -2029,7 +2029,17 @@ registry, no reconciliation loop) and the next-launch notice only
 when activation fails. If any fails: name the DSH gap, README
 sentence, upstream queue entry; production source 0.
 
-### W-062 Live `!` lines missing from recall — status: open (owner dsh-exec)
+### W-062 Live `!` lines missing from recall — status: accepted 2026-09-04 (PR #107 squash-merged)
+Cause: DSH records an injected shell notice durably first as an
+agent/inbox/spliced event (rc.1 core/agent/src/inbox.ts:176-187) and
+promotes it to user/message only at a later step (agent-loop
+agent.ts:291-293), so the live projection never saw a message.
+Fix: historyInput reads the splice event (type-level exclusion of
+the promoted message, so no duplicates on cold bind); the live `!`
+submit records through the existing prompt-recorded action and the
+follower skips the splice with one condition. PTY test types
+`!printf hi` and recalls it. 12 production lines; 270 tests. Ships in
+alpha.14.
 Defect, owner report 2026-09-04 on alpha.13: `/command` lines typed
 in a running session are recalled with Up, `!command` lines are not,
 although the recorded-log tests of W-058/W-059 pass. Find the live
