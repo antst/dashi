@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.10 — 2026-09-04
+
+- Add `--tools` and `--disallowedTools` launch flags over DSH's tool restriction.
+- Add job output and `kill` to `/tasks`, the `/bashes` alias, and `/subtask`.
+- Expire the shared Ctrl+C/Ctrl+D exit arm after 1.5 seconds.
+
 ## 0.1.0-alpha.9 — 2026-09-04
 
 - Add `/login` and `/logout` over DSH's authorization and credential services.
