@@ -1758,6 +1758,25 @@ Plan limits and cost are a DSH gap (one README sentence). Acceptance:
 PTY test after a replayed turn showing nonzero totals; production
 source under 40 lines.
 
+### W-051 /btw and /recap — status: open (owner dsh-exec, after W-049)
+Owner request 2026-09-04. Claude Code's /btw asks a side question
+without touching the conversation; PARITY.md marks it a DSH gap
+(no no-history model call). DSH-native shape instead: `/btw TEXT`
+forks the current session at its latest completed turn
+(SessionController.fork, cold-readable), titles the fork
+`btw · <first words>`, submits TEXT as the fork's next prompt, waits
+for its turn/end, and shows the assistant text in the info overlay
+with cells (Ctrl+O expands). The main root is untouched; the fork
+stays a normal DSH session (resumable from the sessions list; DSH
+has no root-release, README says so). If the root is running, refuse
+with "finish or interrupt the turn first" (DSH forks only at
+turn/end). `/recap` is `/btw` with the fixed prompt "Summarize this
+conversation so far in ten lines: goal, decisions, open items." No
+new state; the wait reuses the existing turn-end follow used by
+executeAccepted. Acceptance: PTY test with the replay provider
+proving the answer appears, the root's event log has no new events,
+and the fork exists with the title; production source under 50 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
