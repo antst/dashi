@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.16 — 2026-09-04
+
+- Drop files into the composer: pasted paths become image attachments or `@` references.
+- Add a non-blocking macOS gate job to CI.
+
 ## 0.1.0-alpha.15 — 2026-09-04
 
 - Fix rewinding to the first prompt in a session that never reached the model, which failed with "no durable model selection".
