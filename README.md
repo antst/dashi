@@ -135,7 +135,7 @@ F1 opens help, Shift+Tab cycles permission presets, Ctrl+T switches a running
 root between steer and next-turn input, Ctrl+O cycles the global tool-card mode,
 and Ctrl+B opens job and subagent details.
 On an idle empty composer, Ctrl+C or Ctrl+D arms exit; press either key again
-within two seconds to exit. Any other key cancels the arm. On an idle nonempty
+within 1.5 seconds to exit. Any other key cancels the arm. On an idle nonempty
 composer, Escape twice clears the draft into prompt history, where Up recalls it.
 Permission presets that disable approvals require confirmation when selected
 interactively; a danger flag is itself explicit launch consent.
