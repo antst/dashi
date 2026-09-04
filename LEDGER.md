@@ -1642,7 +1642,12 @@ picks it up per its own rules; say which in README (next session or
 live). Acceptance: PTY test in an empty fixture cwd, then a second
 /init refused; production source under 30 lines.
 
-### W-043 /copy N and code-block picker — status: open (owner dsh-exec, after W-042)
+### W-043 /copy N and code-block picker — status: accepted 2026-09-04 (PR #50 squash-merged)
+One reducer action (copy-assistant) replaces copy-latest; /copy N
+picks the Nth latest completed assistant cell; /copy code opens the
+existing list overlay with fenced blocks (language and first line)
+and selection reuses the OSC 52 copy effect. 36 production lines;
+236 tests.
 `/copy N` copies the Nth latest assistant message (1 = latest, the
 existing /copy behavior); `/copy` with argument `code` opens the
 existing list overlay with the fenced code blocks of the latest
