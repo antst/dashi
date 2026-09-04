@@ -1,10 +1,24 @@
 import { appendFileSync } from 'node:fs'
+import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agents', 'commands', 'skills', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agents', 'authorization', 'commands', 'credentials', 'skills', 'tools', 'tuiRoot', 'userQuestions']
 
 export function apply(ctx) {
+  const fixtureCredential = credentialKey('dashi-fixture', 'account')
+  ctx.effect(() => ctx.authorization.registerFlow({
+    key: fixtureCredential,
+    label: 'Dashi fixture account',
+    methods: [{ id: 'fixture', label: 'Fixture sign-in' }],
+    async run(session) {
+      session.notify({ message: 'Continue with the fixture sign-in.', url: 'https://example.invalid/login', code: 'DASHI-FIXTURE' })
+      const secret = await session.prompt({ kind: 'secret', message: 'Enter the fixture secret.' })
+      if (secret.startsWith('[paste #')) throw new Error('fixture received an unexpanded paste marker')
+      const account = await session.prompt({ kind: 'select', message: 'Choose the fixture account.', options: [{ id: 'primary', label: 'Primary' }] })
+      await ctx.credentials.modifyRecord(fixtureCredential, async () => ({ kind: 'grant', payload: { account, secret } }))
+    },
+  }))
   let stdoutBroken = false
   ctx.on('session/event', (_session, event) => {
     if (process.env.DSH_DASHI_BREAK_STDOUT !== '1' || stdoutBroken

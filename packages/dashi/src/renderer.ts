@@ -28,12 +28,14 @@ const OVERSCAN_CELLS = 8
 const THEME_GENERATION = 1
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
 const SPINNER_INTERVAL_MS = 80
+const MASK_TOKEN = new RegExp(String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|[_P^X][^\u0007]*(?:\u0007|\u001B\\))|[^\s]`, 'gu')
 
 export type CopyResult = 'ok' | 'too-large' | 'unsupported'
 
 export interface Renderer extends TerminalSession {
   bell(): void
   copy(text: string): CopyResult
+  discardSecretComposer(): void
   materializedCells(): number
   setComposer(text: string, cursor?: ComposerCursor): void
 }
@@ -194,13 +196,21 @@ export function createRenderer(options: RendererOptions): Renderer {
   const tui: TUI = options.inline
     ? new TuiMainScreen(terminal, true)
     : new TuiAltScreen(terminal, true, undefined, { mouse: true })
-  const editor = new Editor(tui, theme(), { paddingX: 1 })
+  let editor = new Editor(tui, theme(), { paddingX: 1 })
   editor.disableSubmit = true
   editor.onChange = text => {
+    const decision = options.readState().decisions[0]
     const caret = caretOffset(text, editor.getCursor())
     options.dispatch({
-      type: 'composer-changed', text, caret, completion: hasCompletionTrigger(text, caret),
+      type: 'composer-changed', text: decision?.kind === 'question' && decision.questions[decision.index]?.secret === true ? editor.getExpandedText() : text, caret, completion: hasCompletionTrigger(text, caret),
     })
+  }
+  const replaceEditor = (): void => {
+    const discarded = editor
+    editor = new Editor(tui, theme(), { paddingX: 1 })
+    editor.disableSubmit = true
+    editor.onChange = discarded.onChange!
+    tui.setFocus(editor)
   }
   const lineCache = new Map<string, string[]>()
   let animationTimer: ReturnType<typeof setTimeout> | undefined
@@ -240,20 +250,23 @@ export function createRenderer(options: RendererOptions): Renderer {
     if (question === undefined) return [`${RED}Invalid empty question batch${RESET}`]
     const planReview = question.intent?.kind === 'plan-review'
     const heading = planReview ? 'Plan review' : question.header ?? `Question ${String(decision.index + 1)}/${String(decision.questions.length)}`
+    const customAllowed = question.allowCustom !== false
     const selected = question.options[decision.cursor]?.label ?? 'Other (type an answer)'
-    const announced = announcement(plain(heading), question.options.length + 1, selected, decision.cursor)
+    const announced = announcement(plain(heading), question.options.length + Number(customAllowed), selected, decision.cursor)
     const prompt = wrapTextWithAnsi(`${BOLD_CYAN}${announced}${RESET}\n${plain(question.question, true)}`, width)
     const choiceRows = question.options.map((option, index) => optionLine(
       option.description === undefined ? option.label : `${option.label} — ${option.description}`,
       index + 1, decision.cursor === index, decision.selected.includes(option.label),
     ))
-    choiceRows.push(optionLine(
+    if (customAllowed) choiceRows.push(optionLine(
       'Other (type an answer)', question.options.length + 1,
       decision.cursor === question.options.length, false,
     ))
     const detailLimit = planReview ? Math.max(3, rows - prompt.length - choiceRows.length - 5) : 3
     const detail = question.detail === undefined ? [] : wrapTextWithAnsi(`${DIM}${plain(question.detail, true)}${RESET}`, width).slice(0, detailLimit)
-    const custom = decision.cursor === question.options.length ? editor.render(width) : []
+    const editorLines = decision.cursor === question.options.length ? editor.render(width) : []
+    const custom = question.secret === true
+      ? editorLines.map((value, index) => index === 0 || index === editorLines.length - 1 ? value : value.replace(MASK_TOKEN, token => token.startsWith('\u001B') ? token : '•')) : editorLines
     const rendered = [...prompt, ...detail, ...choiceRows, ...custom]
     return rows < 12 ? rendered.slice(0, Math.max(2, rows - 4)) : rendered
   }
@@ -464,6 +477,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       terminal.write(`\u001B]52;c;${Buffer.from(safe).toString('base64')}\u0007`)
       return 'ok'
     },
+    discardSecretComposer: replaceEditor,
     drainInput: () => terminal.drainInput(),
     materializedCells: () => materializedCount,
     render: force => { tui.renderNow(force) },

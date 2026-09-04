@@ -224,6 +224,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
     if (failed) return
     failed = true
     accepting = false
+    renderer.discardSecretComposer()
     const detail = error instanceof Error ? error.stack ?? error.message : String(error)
     writeError(`dashi: terminal failure\n${detail}\n`)
     try {
@@ -246,6 +247,8 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
 
   function dispatch(action: UiAction): void {
     if (!accepting) return
+    const question = state.decisions[0]?.kind === 'question' ? state.decisions[0].questions[state.decisions[0].index] : undefined
+    if (question?.secret === true && ['decision-submit', 'decision-cancel', 'decision-withdrawn', 'escape', 'terminal-lost'].includes(action.type)) renderer.discardSecretComposer()
     const [next, effects] = reduce(state, action)
     state = next
     if (effects.length === 0) return
@@ -268,6 +271,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
     },
     dispatch,
     async dispose() {
+      renderer.discardSecretComposer()
       const [next, effects] = reduce(state, { type: 'terminal-lost' })
       state = next
       for (const effect of effects) await run(effect)

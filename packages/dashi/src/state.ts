@@ -96,6 +96,7 @@ export interface QuestionOption {
 }
 
 export interface QuestionItem {
+  readonly allowCustom?: boolean
   readonly detail?: string
   readonly header?: string
   readonly id: string
@@ -103,6 +104,7 @@ export interface QuestionItem {
   readonly multiSelect: boolean
   readonly options: readonly QuestionOption[]
   readonly question: string
+  readonly secret?: boolean
 }
 
 export interface QuestionAnswer {
@@ -345,7 +347,7 @@ function moveCursor(decision: PendingDecision, cursor: number): PendingDecision 
   if (decision.kind === 'approval') return { ...decision, cursor: Math.max(0, Math.min(2, cursor)) }
   const question = decision.questions[decision.index]
   if (question === undefined) return decision
-  return { ...decision, cursor: Math.max(0, Math.min(question.options.length, cursor)) }
+  return { ...decision, cursor: Math.max(0, Math.min(question.options.length - (question.allowCustom === false ? 1 : 0), cursor)) }
 }
 
 function help(): Overlay {
@@ -363,7 +365,7 @@ function help(): Overlay {
       '@ paths require DSH file-reference · Ctrl+V pastes an image · Backspace removes it',
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /context',
-      '/memory /config /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
+      '/memory /config /login /logout /diff /plugins /plugin /tasks /history /export /copy /exit /quit',
       ...FLAG_HELP,
     ],
   }
@@ -524,7 +526,7 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
       }
       const question = head.questions[head.index]
       if (question === undefined) return [state, []]
-      const custom = head.cursor === question.options.length ? head.custom.trim() : undefined
+      const custom = question.allowCustom !== false && head.cursor === question.options.length ? question.secret === true ? head.custom : head.custom.trim() : undefined
       if (custom !== undefined && custom === '') return [state, []]
       const option = question.options[head.cursor]
       const selected = question.multiSelect

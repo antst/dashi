@@ -7,6 +7,7 @@ function fakeRenderer(log: string[], failRedraw = false): Renderer {
   return {
     bell: () => { log.push('bell') },
     copy: () => 'ok',
+    discardSecretComposer: () => { log.push('discard') },
     drainInput: async () => { log.push('drain') },
     materializedCells: () => 0,
     render: force => {
@@ -33,7 +34,7 @@ describe('terminal application', () => {
     await shell.whenIdle()
     expect(exits).toEqual([0])
     await shell.dispose()
-    expect(log).toEqual(['start', 'render:true', 'render:false', 'drain', 'stop:true'])
+    expect(log).toEqual(['start', 'render:true', 'render:false', 'drain', 'stop:true', 'discard'])
   })
 
   it('prints a diagnostic before releasing the terminal when an effect throws', async () => {
@@ -48,7 +49,7 @@ describe('terminal application', () => {
     await shell.whenIdle()
     expect(exits).toEqual([1])
     expect(log).toEqual([
-      'start', 'render:true', 'render:true', 'error:true', 'drain', 'stop:true',
+      'start', 'render:true', 'render:true', 'discard', 'error:true', 'drain', 'stop:true',
     ])
   })
 
@@ -62,7 +63,7 @@ describe('terminal application', () => {
     shell.start()
     await shell.fail(Object.assign(new Error('broken pipe'), { code: 'EPIPE' }))
     expect(exits).toEqual([1])
-    expect(log).toEqual(['start', 'render:true', 'error:true', 'drain', 'stop:true'])
+    expect(log).toEqual(['start', 'render:true', 'discard', 'error:true', 'drain', 'stop:true'])
   })
 
   it('releases the terminal when backend cleanup also fails', async () => {
@@ -81,7 +82,7 @@ describe('terminal application', () => {
     await shell.whenIdle()
     expect(exits).toEqual([1])
     expect(log).toEqual([
-      'start', 'render:true', 'render:true', 'effect-error', 'cleanup-error', 'drain', 'stop:true',
+      'start', 'render:true', 'render:true', 'discard', 'effect-error', 'cleanup-error', 'drain', 'stop:true',
     ])
   })
 

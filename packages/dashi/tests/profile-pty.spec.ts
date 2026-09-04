@@ -564,7 +564,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const helpAt = shell.output.length
       shell.write('/help\r')
-      await shell.waitFor('/memory /config /diff /plugins', helpAt)
+      await shell.waitFor('/memory /config /login /logout /diff /plugins', helpAt)
       shell.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const readAt = shell.output.length
@@ -587,6 +587,41 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await shell.close()
     }
+  }, 30_000)
+
+  it('signs in and out through a fixture authorization flow without exposing its secret', async () => {
+    const shell = new PtyShell()
+    const secretPrefix = 'W041-secret-never-visible'
+    const secret = `${secretPrefix}-${'x'.repeat(1000)}`
+    let id = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      id = sessionId(shell.output, start)
+      await shell.waitFor('idle ·', start)
+      shell.write('/login\r')
+      await shell.waitFor('dashi-fixture/account · Dashi fixture account', start)
+      shell.write('/login dashi-fixture/account fixture\r')
+      await shell.waitFor('Enter the fixture secret.', start)
+      expect(await firstFrame(shell.output.slice(start))).toContain('https://example.invalid/login')
+      shell.write(`\u001B[200~${secret}\u001B[201~\r`)
+      await shell.waitFor('Choose the fixture account.', start)
+      shell.write('1\r')
+      await shell.waitFor('signed in to Dashi fixture account', start)
+      shell.write('\u001F')
+      await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
+      expect(shell.output.slice(start)).not.toContain(secretPrefix)
+      shell.write('/logout\r')
+      await shell.waitFor('dashi-fixture/account · grant', start)
+      shell.write('/logout dashi-fixture/account\r')
+      await shell.waitFor('signed out dashi-fixture/account', start)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+      expect(shell.output.slice(start)).not.toContain(secretPrefix)
+    } finally {
+      await shell.close()
+    }
+    expect(JSON.stringify(sessionEvents(id))).not.toContain(secretPrefix)
   }, 30_000)
 
   it('resumes with injected instructions collapsed above the visible prompt', async () => {

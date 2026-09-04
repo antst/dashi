@@ -471,7 +471,7 @@ terminal operations and orchestration of existing services:
 
 ```text
 /help  /status  /new  /clear  /reset  /resume  /continue  /fork  /branch
-/rewind  /rename  /model  /effort  /permission  /config  /agents  /queue  /context  /memory  /diff
+/rewind  /rename  /model  /effort  /permission  /config  /login  /logout  /agents  /queue  /context  /memory  /diff
 /plugins  /plugin  /tasks
 /history  /export  /copy  /exit  /quit
 ```
@@ -480,7 +480,8 @@ Command registration, collision, execution, and logging remain
 `ctx.commands` behavior. `/clear` aliases `/new`; `/reset`, `/continue`,
 `/branch`, and `/quit` reuse `/clear`, `/resume`, `/fork`, and `/exit`;
 `/effort` reuses native model selection; `/agents` selects a native
-agent preset; `/config` reads and updates DSH's settings provider; `/context`
+agent preset; `/config` reads and updates DSH's settings provider; `/login` and
+`/logout` use DSH's authorization flows and credential records; `/context`
 reads the token-meter estimate; `/memory` opens DSH's loaded instruction files;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native
 job/subagent details;

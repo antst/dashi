@@ -5,6 +5,8 @@
   "type": "module",
   "main": "index.mjs",
   "dependencies": {
+    "@deepseek-ai/dsh-authorization": "0.1.2-rc.1",
+    "@deepseek-ai/dsh-credentials": "0.1.2-rc.1",
     "@deepseek-ai/dsh-tools": "0.1.2-rc.1"
   },
   "peerDependencies": {
