@@ -1947,6 +1947,22 @@ prompts, two commands, and a shell line proving the recall order and
 that a recordInput-false command is skipped; PTY test that up recalls
 the last `/model` line; production source under 30 lines.
 
+### W-059 Rewind picker lists the same entries as recall — status: open (owner dsh-exec, after W-058)
+Owner correction 2026-09-04: in Claude Code the rewind picker
+("Rewind to a prompt") lists the same entries as Up/Down recall,
+commands and shell lines included; dashi's picker lists human
+prompts only. Scope: the rewind picker uses W-058's historyInput
+projection (one list, one owner); each entry keeps its event seq;
+choosing a command or shell entry rewinds to the latest completed
+turn boundary before that seq exactly as a prompt entry does, and the
+existing second screen (conversation, code, both) and composer
+prefill apply unchanged, so a recalled `/model ...` or `!ls` can be
+re-run after the rewind. Entries with no preceding boundary (before
+the first turn) map to session start as today. No new state.
+Acceptance: rewind tests with the W-058 mixed recorded log proving
+the picker rows and the boundary each maps to; PTY test rewinding to
+a `!` entry; production source under 30 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
