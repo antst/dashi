@@ -518,7 +518,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
-  it('shows the configured model and git branch in the persistent status line', async () => {
+  it('shows the configured model and git repo/branch in the persistent status line', async () => {
     const workspace = join(testDir, 'status-workspace')
     mkdirSync(workspace)
     run('git', ['init', '--initial-branch=status-proof'], process.env, workspace)
@@ -526,13 +526,13 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       shell.resize(200, 24)
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
-      await shell.waitFor('model deepseek-official/deepseek-v4-flash', start)
-      await shell.waitFor('branch status-proof', start)
+      await shell.waitFor('deepseek-v4-flash', start)
+      await shell.waitFor('status-workspace/status-proof', start)
       run('git', ['branch', '-m', 'status-after-turn'], process.env, workspace)
       const turnAt = shell.output.length
       shell.write('refresh status branch\r')
       await shell.waitFor('First turn complete.', turnAt)
-      await shell.waitFor('branch status-after-turn', turnAt)
+      await shell.waitFor('status-workspace/status-after-turn', turnAt)
     } finally {
       await shell.close()
     }
@@ -2678,7 +2678,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(frame).toContain('W054 provider · W054 row 59')
       const selectedAt = shell.output.length
       shell.write('\r')
-      await shell.waitFor('idle · w054-59', selectedAt)
+      await shell.waitFor('w054-59', selectedAt)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

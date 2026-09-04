@@ -105,29 +105,43 @@ describe('terminal renderer', () => {
     }
   }
 
-  for (const columns of [80, 120]) {
-    it(`keeps the persistent status directly above the composer at ${String(columns)} columns`, async () => {
-      const terminal = new ScreenTerminal(columns, 24)
-      const status = 'model replay/recorded · permission default · context 12,345/200,000 · cache 90% · branch feature/long-status-proof'
-      const shell = createTerminalShell({
-        createView: bindings => createRenderer({ ...bindings, inline: false, statusLine: () => status, terminal }),
-        cwd: '/work', exit: () => {}, inline: false,
-        initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+  const hudCases = [
+    {
+      label: 'with activity',
+      status: 'gpt-5.6-terra · high · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok · 1 agents · 1 jobs · dashi · dtui/develop',
+      widths: ['gpt-5.6-terra · high · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok…', 'gpt-5.6-terra · high · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok · 1 agents · 1 jobs · dashi · dtui/deve…'],
+    },
+    {
+      label: 'without activity',
+      status: 'gpt-5.6-terra · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok · dtui/develop',
+      widths: ['gpt-5.6-terra · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok · dtui…', 'gpt-5.6-terra · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok · dtui/develop'],
+    },
+  ] as const
+  for (const hud of hudCases) {
+    for (const [index, columns] of [80, 120].entries()) {
+      it(`renders the HUD ${hud.label} at ${String(columns)} columns`, async () => {
+        const terminal = new ScreenTerminal(columns, 24)
+        const shell = createTerminalShell({
+          createView: bindings => createRenderer({ ...bindings, inline: false, statusLine: () => hud.status, terminal }),
+          cwd: '/work', exit: () => {}, inline: false,
+          initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+        })
+        shell.start()
+        await terminal.flush()
+        const lines = terminal.lines()
+        const statusIndex = lines.findIndex(value => value.includes('gpt-5.6-terra'))
+        expect(statusIndex).toBeGreaterThan(-1)
+        expect(lines[statusIndex]?.trimEnd()).toBe(hud.widths[index])
+        expect(lines[statusIndex + 1]?.trimStart()).toMatch(/^─/u)
+        expect(lines.join('\n')).toContain('idle · Enter send · cards collapsed')
+        expect(lines.join('\n')).not.toContain('idle · recorded')
+        terminal.send('\u0004')
+        await shell.whenIdle(); await terminal.flush()
+        expect(terminal.lines().join('\n')).not.toContain('gpt-5.6-terra')
+        expect(terminal.lines().join('\n')).toContain('Ctrl+C or Ctrl+D again to exit')
+        await shell.dispose()
       })
-      shell.start()
-      await terminal.flush()
-      const lines = terminal.lines()
-      const statusIndex = lines.findIndex(value => value.includes('model replay/recorded'))
-      expect(statusIndex).toBeGreaterThan(-1)
-      expect(lines[statusIndex + 1]?.trimStart()).toMatch(/^─/u)
-      expect(lines.join('\n')).toContain('cache 90%')
-      expect(lines.join('\n').includes('branch feature/long-status-proof')).toBe(columns === 120)
-      terminal.send('\u0004')
-      await shell.whenIdle(); await terminal.flush()
-      expect(terminal.lines().join('\n')).not.toContain('model replay/recorded')
-      expect(terminal.lines().join('\n')).toContain('Ctrl+C or Ctrl+D again to exit')
-      await shell.dispose()
-    })
+    }
   }
 
   it('omits the persistent status in accessible mode', async () => {
@@ -138,10 +152,12 @@ describe('terminal renderer', () => {
         ...bindings, accessible: true, inline: true, statusLine: () => 'model hidden', terminal,
       }),
       cwd: '/work', exit: () => {}, inline: true,
+      initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
     })
     shell.start()
     await terminal.flush()
     expect(terminal.lines().join('\n')).not.toContain('model hidden')
+    expect(terminal.lines().join('\n')).toContain('idle · recorded · Enter send · cards collapsed')
     await shell.dispose()
   })
 
