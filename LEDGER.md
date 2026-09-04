@@ -1608,7 +1608,18 @@ Registered aliases over existing behavior: /quit, /reset, /continue,
 cited DSH operation; no new mechanism. Acceptance: one PTY test per
 alias; production source under 40 lines.
 
-### W-041 /login and /logout — status: open (owner roller-exec, after W-039; branch `w-041-login`)
+### W-041 /login and /logout — status: accepted 2026-09-04 (PR #41 squash-merged; owner roller-exec)
+/login lists AuthorizationService flows and begins one, relaying
+notice/text/secret/select steps through the existing decision
+overlay (secret answers masked, including bracketed pastes); /logout
+deletes the credential record by key without reading it. Review
+found the typed secret surviving in pi-tui's Editor undo history
+(setText pushes an undo snapshot; Ctrl+- is handled inside the
+Editor); fix: the Editor instance is replaced synchronously when a
+secret question resolves, so the old undo stack is unreachable; PTY
+test presses Ctrl+- after submit and scans terminal output and
+session.jsonl for the sentinel. dashi-app mounts dsh-authorization.
+Cap raised to 70 lines for the fix; 70 production lines; 233 tests.
 /login lists AuthorizationService flows and begins the chosen one,
 relaying the provider-owned interactive steps; /logout deletes the
 provider's credential record (PARITY.md rows). Acceptance: PTY test
