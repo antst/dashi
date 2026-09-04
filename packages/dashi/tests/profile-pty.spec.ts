@@ -3192,6 +3192,46 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
   }, 120_000)
 
+  it('creates, lists, rejects, and stops loops through DSH Schedule', async () => {
+    const shell = new PtyShell()
+    let id = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      id = sessionId(shell.output, start)
+
+      const createAt = shell.output.length
+      shell.write('/loop 5m check the release\r')
+      await shell.waitFor('scheduled schedule-1 · every 5m · check the release', createAt)
+
+      const listAt = shell.output.length
+      shell.write('/loop\r')
+      await shell.waitFor('schedule-1 · every 5m · check the release', listAt)
+
+      const rejectedAt = shell.output.length
+      shell.write('/loop 1m too frequent\r')
+      await shell.waitFor('every_seconds must be at least 300.', rejectedAt)
+
+      const stopAt = shell.output.length
+      shell.write('/loop stop schedule-1\r')
+      await shell.waitFor('stopped schedule-1', stopAt)
+
+      const emptyAt = shell.output.length
+      shell.write('/loop\r')
+      await shell.waitFor('no active schedules', emptyAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const events = sessionEvents(id)
+    expect(events.filter(event => event.type === 'command/run'
+      && event.data?.name === 'loop')).toHaveLength(5)
+    expect(events.filter(event => event.type === 'schedule/change')
+      .map(event => event.data?.operation)).toEqual(['create', 'delete'])
+  }, 60_000)
+
   it('resumes a generated 200k-event session and pages older history on demand', async () => {
     const created = new PtyShell()
     let id = ''

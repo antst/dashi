@@ -472,7 +472,7 @@ terminal operations and orchestration of existing services:
 ```text
 /help  /status  /new  /clear  /reset  /resume  /continue  /fork  /branch
 /rewind  /rename  /model  /effort  /permission  /config  /login  /logout  /agents  /queue  /context  /init  /memory  /skills  /diff
-/plugins  /plugin  /tasks  /bashes  /subtask
+/plugins  /plugin  /tasks  /bashes  /subtask  /loop
 /history  /export  /copy  /exit  /quit
 ```
 
@@ -487,7 +487,8 @@ through `ctx.fs`; `/memory` opens DSH's loaded instruction files;
 `/skills` lists and filters DSH's session-resolved skill catalog;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native
 job/subagent details, reads and kills jobs, `/bashes` aliases it, and `/subtask`
-starts a native continuable child;
+starts a native continuable child; `/loop` creates, lists, and cancels
+DSH-owned fixed-rate schedules through the native Schedule tools;
 `/plugins` reads DSH's plugin inventory; `/plugin` runs the current profile's
 DSH CLI; `/export` writes controller history as Markdown.
 `/copy N` selects a completed assistant cell from the existing fold, while

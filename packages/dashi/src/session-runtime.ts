@@ -17,8 +17,11 @@ import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { JobId } from '@deepseek-ai/dsh-jobs'
-import { createUserMessage, type ContentBlock } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId, type ContentBlock } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-permission-presets'
+import type {
+  ScheduleCreateValue, ScheduleDeleteValue, ScheduleListValue, ScheduleView,
+} from '@deepseek-ai/dsh-schedule'
 import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-query'
@@ -205,6 +208,17 @@ async function firstControl(
 
 function usage(raw: string, expected: string): CommandResult | undefined {
   return raw.trim() === '' ? undefined : { kind: 'error', text: `usage: ${expected}` }
+}
+
+function loopInterval(seconds: number): string {
+  if (seconds % 3_600 === 0) return `${String(seconds / 3_600)}h`
+  return seconds % 60 === 0 ? `${String(seconds / 60)}m` : `${String(seconds)}s`
+}
+
+function loopLine(schedule: ScheduleView): string {
+  const rule = schedule.kind === 'every' ? `every ${loopInterval(schedule.everySeconds)}`
+    : schedule.kind === 'after' ? `after ${String(schedule.afterSeconds)}s` : `at ${schedule.scheduledAt}`
+  return `${String(schedule.id)} · ${rule} · ${schedule.prompt}`
 }
 
 function configValue(raw: string): unknown {
@@ -626,6 +640,31 @@ export async function createSessionRuntime(
       const result = ctx.jobs.kill(JobId(match[1]), bound.agent, 'stopped by /tasks')
       return { kind: 'success', text: result === 'requested' ? `stopping ${match[1]}` : `${match[1]} already finished` }
     }
+    const loop = async (invocation: CommandInvocation): Promise<CommandResult> => {
+      const stale = ensureCurrent(invocation)
+      if (stale !== undefined) return stale
+      const raw = invocation.rawInput.trim()
+      const stop = /^stop\s+(\S+)$/u.exec(raw)
+      const create = /^(\d+)([mh])\s+(.+)$/su.exec(raw)
+      if (raw !== '' && stop === null && create === null) {
+        return { kind: 'error', text: 'usage: /loop [INTERVAL TEXT | stop ID]' }
+      }
+      const name = raw === '' ? 'schedule_list' : stop === null ? 'schedule_create' : 'schedule_delete'
+      const args = raw === '' ? {} : stop === null ? {
+        every_seconds: Number(create![1]) * (create![2] === 'h' ? 3_600 : 60), prompt: create![3],
+      } : { id: stop[1] }
+      const result = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
+        agent: bound.agent, arguments: args, callId: ToolCallId(`${String(invocation.commandId)}:loop`),
+        name, signal: invocation.signal,
+      }))
+      if (result.isError) return { kind: 'error', text: result.error.message }
+      const value = result.value as unknown as ScheduleCreateValue | ScheduleDeleteValue | ScheduleListValue
+      if (!Array.isArray(value) && 'message' in value) return { kind: 'error', text: value.message }
+      if (Array.isArray(value)) return { kind: 'success', text: value.length === 0 ? 'no active schedules' : value.map(loopLine).join('\n') }
+      if ('deleted' in value) return value.deleted ? { kind: 'success', text: `stopped ${String(value.id)}` }
+        : { kind: 'error', text: `schedule ${String(value.id)} not found` }
+      return { kind: 'success', text: `scheduled ${loopLine(value)}` }
+    }
     const definitions: readonly CommandDefinition[] = [
       {
         name: 'help', description: 'Show keyboard and command help',
@@ -862,6 +901,10 @@ export async function createSessionRuntime(
           })
           return { kind: 'success', text: `subtask ${String(started.childId)} started` }
         },
+      },
+      {
+        name: 'loop', description: 'List, schedule, or stop a fixed-rate reminder',
+        input: { hint: '[INTERVAL TEXT | stop ID]' }, handler: loop,
       },
       {
         name: 'agents', description: 'Choose the native DSH agent preset',

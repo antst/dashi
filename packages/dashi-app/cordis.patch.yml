@@ -94,6 +94,9 @@
     - id: authorization
       name: '@deepseek-ai/dsh-authorization'
 
+    - id: schedule
+      name: '@deepseek-ai/dsh-schedule'
+
     - id: dashi
       name: '@antst/dashi'
 
