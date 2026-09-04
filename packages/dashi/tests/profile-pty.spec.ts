@@ -3281,7 +3281,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         type: 'image', attachment: expect.objectContaining({ mediaType: 'image/png', name: 'shot.png' }),
       }),
     ]))
-  }, 60_000)
+  }, testCeiling(60_000))
 
   it('accepts repeated --image paths including one outside cwd and persists durable references', async () => {
     const workspace = join(testDir, 'cli-image-workspace')
