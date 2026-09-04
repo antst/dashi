@@ -1768,7 +1768,16 @@ Plan limits and cost are a DSH gap (one README sentence). Acceptance:
 PTY test after a replayed turn showing nonzero totals; production
 source under 40 lines.
 
-### W-051 /btw and /recap — status: open (owner dsh-exec, after W-049)
+### W-051 /btw and /recap — status: accepted 2026-09-04 (PR #76 squash-merged)
+One shared askAside: fork at DSH's latest completed boundary (no
+atSeq, so a running source is accepted and its open tail excluded),
+resolve and rename the child through the controller, steer one
+prompt, follow to turn/end, fold the child suffix through the
+existing fold into the info overlay titled with the boundary turn.
+Both commands recordInput false; the root gains only its
+command/run and command/done pair. Cold picker title for large forks
+is the named DSH gap (upstream queue). 46 production lines; 246
+tests. Ships in alpha.11.
 Owner request 2026-09-04. Claude Code's /btw asks a side question
 without touching the conversation; PARITY.md marks it a DSH gap
 (no no-history model call). DSH-native shape instead: `/btw TEXT`
