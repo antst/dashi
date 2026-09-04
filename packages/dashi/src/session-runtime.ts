@@ -138,6 +138,7 @@ interface Binding {
 function starterAgents(cwd: string): string {
   return `# ${basename(cwd)}\n\n## Working agreement\n\n- Add project-specific architecture guidance.\n- Add required build, test, and lint commands.\n- Add repository conventions and constraints.\n`
 }
+const RECAP_PROMPT = 'Summarize this conversation so far in ten lines: goal, decisions, open items.'
 
 type RootOperation = Extract<OverlayValue, {
   kind: 'fork' | 'new' | 'open-resume' | 'open-rewind' | 'resume' | 'rewind'
@@ -675,6 +676,42 @@ export async function createSessionRuntime(
         : { kind: 'error', text: `schedule ${String(value.id)} not found` }
       return { kind: 'success', text: `scheduled ${loopLine(value)}` }
     }
+    const askAside = async (invocation: CommandInvocation, prompt = invocation.rawInput.trim()): Promise<CommandResult> => {
+      const stale = ensureCurrent(invocation)
+      if (stale !== undefined) return stale
+      if (prompt === '') return { kind: 'error', text: 'usage: /btw TEXT' }
+      const forked = await ctx.sessionController.fork({ sessionId: bound.agent.id })
+      const resolved = await ctx.sessionController.resolveAgent(forked.sessionId)
+      if ('error' in resolved) throw resolved.error
+      const child = resolved.agent
+      const turn = inheritedTurn(child.session.snapshotEvents(), child.session.inheritedEventCount)
+      if (turn === undefined) throw new Error('the fork contains no completed turn')
+      const iterator = ctx.sessionController.follow({
+        address: { kind: 'session', sessionId: child.id }, maxMessages: 50,
+      }, invocation.signal)[Symbol.asyncIterator]()
+      await firstSnapshot(iterator)
+      await ctx.sessionController.rename({
+        sessionId: child.id, title: `btw · ${prompt.split(/\s+/u).slice(0, 6).join(' ')}`,
+      })
+      const from = child.session.seq
+      child.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      try {
+        for (;;) {
+          const next = await iterator.next()
+          if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
+          if (next.value.type !== 'snapshot' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+        }
+      } finally {
+        await iterator.return?.()
+      }
+      await ctx.sessions.flush(child.session)
+      const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
+        .filter(cell => cell.kind !== 'user')
+      dispatch({ type: 'open-overlay', overlay: {
+        cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}`,
+      } })
+      return { kind: 'success' }
+    }
     const definitions: readonly CommandDefinition[] = [
       {
         name: 'help', description: 'Show keyboard and command help',
@@ -926,6 +963,14 @@ export async function createSessionRuntime(
       {
         name: 'loop', description: 'List, schedule, or stop a fixed-rate reminder',
         input: { hint: '[INTERVAL TEXT | stop ID]' }, handler: loop,
+      },
+      {
+        name: 'btw', description: 'Ask a side question in a fork', input: { hint: 'TEXT' }, recordInput: false,
+        handler: invocation => askAside(invocation),
+      },
+      {
+        name: 'recap', description: 'Summarize the conversation in a fork', recordInput: false,
+        handler: invocation => usage(invocation.rawInput, '/recap') ?? askAside(invocation, RECAP_PROMPT),
       },
       {
         name: 'agents', description: 'Choose the native DSH agent preset',
