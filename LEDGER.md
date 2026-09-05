@@ -464,23 +464,24 @@ as a classified list before any code.
 Owner rulings relayed through the Agent Sessions architect and the
 accepted proposal (agent-sessions-dsh repo, docs/PROPOSAL.md,
 73aafda). There is no --lane flag. Lane mode is the presence of
-AGENT_SESSIONS_LAUNCH_TOKEN in the environment; the daemon runs
+AGENTBUS_LAUNCH_TOKEN in the environment; the daemon runs
 `dashi` with an empty argv. The dashi launcher does exactly two
 things beyond forwarding: with the token present it spawns
-`dsh --profile agent-sessions` (headless bundle + the plugin row with
+`dsh --profile agentbus` (headless bundle + the plugin row with
 mode: lane + session-controller and workspace rows), otherwise
 `--profile dashi`; and it parses `-g/--group` (repeatable,
-comma-splitting) into AGENT_SESSIONS_GROUPS as a JSON array string,
+comma-splitting) into AGENTBUS_GROUPS as a JSON array string,
 forwarding everything else untouched. The plugin never reads argv.
 D-036's startup `/agent-sessions group` call is dropped: groups have
 one source, the environment; the plugin's `/agent-sessions` command
-is read-only in v1. The package is `@agent-sessions/dsh` (the
+is read-only in v1. The package is `@agentbus/dsh` (the
 predecessor `dsh-comms` becomes a deprecated alias); dashi-app ships
 it in peer mode by default at an exact npm pin; one connection per
 root session; one name, the DSH title, re-announced in place on the
 same connection. Cost recorded: the launcher is no longer a pure
 forwarder (about 35 lines), and `dsh --profile dashi` without the
 launcher has no -g.
+Rename 2026-09-05: the bus product is agentbus; package @agentbus/dsh, kit @agentbus/kit, profile name `agentbus`, environment AGENTBUS_*.
 
 ## Work items
 
@@ -1540,8 +1541,8 @@ queued as upstream reports.
 Owner: dsh-exec. Branch none; handoff is the table, cited.
 Acceptance evidence: every row cited or marked as a gap with the
 missing DSH surface named; no row left as "unknown".
-### W-036 Agent Sessions plugin in dashi-app, launcher token check, and -g — status: open (per D-039; blocked until @agent-sessions/dsh is on npm)
-Per D-036. Scope: dashi-app adds `@agent-sessions/dsh-comms` at exact
+### W-036 agentbus plugin in dashi-app, launcher token check, and -g — status: in preparation 2026-09-05 on branch w-036-agentbus (per D-039; merge blocked until @agentbus/dsh is on npm)
+Per D-036. Scope: dashi-app adds `@agentbus/dsh-comms` at exact
 0.4.0 as a dependency and a patch row (sibling of dashi and roller;
 activation is service-driven, row order is irrelevant); dashi parses
 `-g <group>` / `--group <group>` repeatable and runs one
