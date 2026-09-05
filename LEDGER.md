@@ -460,6 +460,28 @@ hosted macos-latest job stays the durable regression gate. Its first
 job is the host gate on the mac plus a real-terminal check, reported
 as a classified list before any code.
 
+### D-039 (2026-09-05) Agent Sessions: launch token selects the lane profile; -g via environment; amends D-036
+Owner rulings relayed through the Agent Sessions architect and the
+accepted proposal (agent-sessions-dsh repo, docs/PROPOSAL.md,
+73aafda). There is no --lane flag. Lane mode is the presence of
+AGENT_SESSIONS_LAUNCH_TOKEN in the environment; the daemon runs
+`dashi` with an empty argv. The dashi launcher does exactly two
+things beyond forwarding: with the token present it spawns
+`dsh --profile agent-sessions` (headless bundle + the plugin row with
+mode: lane + session-controller and workspace rows), otherwise
+`--profile dashi`; and it parses `-g/--group` (repeatable,
+comma-splitting) into AGENT_SESSIONS_GROUPS as a JSON array string,
+forwarding everything else untouched. The plugin never reads argv.
+D-036's startup `/agent-sessions group` call is dropped: groups have
+one source, the environment; the plugin's `/agent-sessions` command
+is read-only in v1. The package is `@agent-sessions/dsh` (the
+predecessor `dsh-comms` becomes a deprecated alias); dashi-app ships
+it in peer mode by default at an exact npm pin; one connection per
+root session; one name, the DSH title, re-announced in place on the
+same connection. Cost recorded: the launcher is no longer a pure
+forwarder (about 35 lines), and `dsh --profile dashi` without the
+launcher has no -g.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -1518,7 +1540,7 @@ queued as upstream reports.
 Owner: dsh-exec. Branch none; handoff is the table, cited.
 Acceptance evidence: every row cited or marked as a gap with the
 missing DSH surface named; no row left as "unknown".
-### W-036 Agent Sessions comms in dashi-app and --group — status: open (after W-035; blocked until @agent-sessions/dsh-comms 0.4.0 is on npm)
+### W-036 Agent Sessions plugin in dashi-app, launcher token check, and -g — status: open (per D-039; blocked until @agent-sessions/dsh is on npm)
 Per D-036. Scope: dashi-app adds `@agent-sessions/dsh-comms` at exact
 0.4.0 as a dependency and a patch row (sibling of dashi and roller;
 activation is service-driven, row order is irrelevant); dashi parses
@@ -2265,3 +2287,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted): DSH Discussion: `dsh plugin add` of a plugin package without a bundle manifest installs it and warns, but composes no loader row, so it never loads; suggest adding an insert row to the profile patch (or a `dsh plugin enable <pkg>` verb) and making the warning say what is missing (apps/cli/src/plugin.ts:59-91) (W-061).
 - Queued (not yet posted): DSH Discussion: live patch reload (patchReload: live) applies cordis.patch.yml edits at runtime but not dsh.profile.bundles additions, and nothing documents the asymmetry; suggest either reloading bundle layers live or stating the restart requirement in the profile docs (apps/cli/src/profile-boot.ts:279-286, packages/boot/app-boot/src/index.ts:236-267) (W-061).
 - Queued (not yet posted): DSH Discussion: with `pnpm install -g @deepseek-ai/dsh@0.1.2-rc.1` under pnpm 11 on macOS, every profile fails to boot, including DSH's own `dsh --profile web`, with missing @deepseek-ai/dsh-llm (and others). Cause: healProfilesModuleFallback (packages/boot/app-boot/src/profile.ts:578-592) walks the CLI's dependency closure with require.resolve.paths from the CLI package's own location, but pnpm 11's global layout keeps the CLI package under store/v11/links with its dependencies hoisted into the global instance's .pnpm/node_modules, which that walk does not reach; the healed $DSH_HOME/profiles/node_modules ends up with 68 of the packages and no dsh-llm. Reproduced 2026-09-04 on macOS 27 arm64, pnpm 11.7. Suggest resolving the closure from the pnpm virtual-store instance (the realpath's .pnpm/node_modules sibling) or documenting that global pnpm installs are unsupported and npx/local installs are the path.
+- Queued (not yet posted): DSH Discussion: session-only model selection, restated for the Agent Sessions lane case: SessionSelectModelRequest carries sessionId but selectModel always calls agentDefaultModel.saveSelection (packages/api/session-controller/src/commands.ts:119-145), so a headless lane opened with a model moves the deployment default for every later session in that DSH home (D-039; duplicates the W-025 entry's ask with the second motivating case).
