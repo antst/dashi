@@ -30,6 +30,7 @@
     }
   },
   "dependencies": {
+    "@agentbus/dsh": "0.0.0-pending",
     "@antst/dashi": "workspace:^",
     "@antst/roller": "0.1.2",
     "@deepseek-ai/dsh-agent-presets": "0.1.2-rc.1",

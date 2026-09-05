@@ -103,6 +103,9 @@
     - id: dashi
       name: '@antst/dashi'
 
+    - id: agentbus
+      name: '@agentbus/dsh'
+
     - id: roller
       name: '@antst/roller'
 
