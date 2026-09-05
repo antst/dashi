@@ -30,6 +30,7 @@
     }
   },
   "dependencies": {
+    "@sessionbus/dsh": "0.1.0-pre.2",
     "@antst/dashi": "workspace:^",
     "@antst/dsh-file-uploads-none": "workspace:*",
     "@antst/roller": "0.1.3",

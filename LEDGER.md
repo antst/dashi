@@ -1630,6 +1630,9 @@ applied (assert through the plugin's own command output or its
 exposed service, not by parsing logs); clean-install test still
 passes with the added dependency; production source under 40 lines.
 Builder note allowed on the exact 0.4.0 version once published.
+Builder note: the published `@sessionbus/dsh@0.1.0-pre.2` depends on the
+registry `@antst/dsh-file-uploads-none@0.1.0-alpha.18`, while dashi-app links
+the workspace copy; the lock therefore contains both copies by design.
 
 ### W-037 /memory — status: accepted 2026-09-03 (PR #35 squash-merged)
 Defect found and fixed on the way: dashi-app had mirrored the web

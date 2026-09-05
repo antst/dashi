@@ -69,9 +69,9 @@ describe('validated DSH patch surface', () => {
     expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)).filter(id => !inherited.has(id)))
 
     const webInserts = new Map(rowsAt(web, 4).map(row => [row.id, row.name]))
-    // Authorization supports /login; Schedule owns /loop. The terminal no-upload service replaces the web provider.
+    // Authorization, Schedule, Sessionbus, and the terminal no-upload service do not belong to the web client.
     for (const row of rowsAt(dashi, 4).filter(row =>
-      !['authorization', 'schedule', 'file-uploads-none', 'dashi', 'roller'].includes(row.id))) {
+      !['authorization', 'schedule', 'file-uploads-none', 'dashi', 'sessionbus', 'roller'].includes(row.id))) {
       expect(webInserts.get(row.id), `web insert ${row.id}`).toBe(row.name)
     }
   })

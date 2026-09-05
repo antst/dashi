@@ -122,7 +122,7 @@ class PtyShell {
   private readonly exited: Promise<number>
 
   constructor(snapshot = replayFixture, rootEvents?: string, cwd = root, extraEnv: NodeJS.ProcessEnv = {}) {
-    const env = {
+    const env: NodeJS.ProcessEnv = {
       ...process.env,
       ...hermeticGitEnv,
       DSH_HOME: home,
@@ -133,7 +133,10 @@ class PtyShell {
       PROMPT_COMMAND: '',
       PS1: '',
       TERM: 'xterm-256color',
-      ...extraEnv,
+    }
+    for (const [name, value] of Object.entries(extraEnv)) {
+      if (value === undefined) delete env[name]
+      else env[name] = value
     }
     this.process = pty.spawn('/bin/bash', ['--noprofile', '--norc', '-i'], {
       cols: 80, rows: 24, cwd, env,
@@ -684,6 +687,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: pluginHome,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_SOCKET: undefined,
     })
     const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)}`
     try {
@@ -702,14 +707,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       start = await launch(shell, `${launcher} --patch ${quote(replayPatch)} --fullscreen --yolo`)
       shell.write('/plugins\r')
       for (const row of [
-        '@deepseek-ai/dsh-api-session-controller',
         'include:dashi · @antst/dashi · enabled · active',
+        'include:sessionbus · @sessionbus/dsh · enabled · active',
         'include:roller · @antst/roller · enabled · active',
       ]) {
         await shell.waitFor(row, start)
       }
       expect(shell.output.slice(start)).toContain('enabled')
       expect(shell.output.slice(start)).toContain('active')
+      // The session-controller row is above /plugins' materialized viewport; the live prompt proves it active.
+      shell.write('sessionbus no-daemon proof\r')
+      const completedAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+      await shell.waitFor('idle ·', completedAt)
 
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
@@ -724,6 +733,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('[exit 1]', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('[exit 1]')
+      expect((shell.output.slice(start).match(/sessionbus:/gu) ?? []).length).toBeLessThanOrEqual(1)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

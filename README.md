@@ -23,6 +23,14 @@ is `0.1.5-rc.2`; CI tests `0.1.5-rc.2`, `0.1.6-alpha.1`, and
 Without the launcher package, run `dsh --profile dashi` directly or use the
 shell alias documented below.
 
+Create the `sessionbus` lane profile with the plugin's installer,
+`sessionbus-dsh-install` (see the @sessionbus/dsh README); the dashi profile's
+Sessionbus row ships in dashi-app. When `SESSIONBUS_LAUNCH_TOKEN` is present, the
+launcher selects that `sessionbus` profile; repeatable `-g`/`--group` options
+export its group names as `SESSIONBUS_GROUPS`. One group name becomes the
+Sessionbus session title, and groups are fixed for that session. With no
+Sessionbus daemon running, Sessionbus has no effect.
+
 dashi renders in the terminal's main screen by default. Use
 `dashi --fullscreen` for an application-owned viewport in the
 alternate screen.
