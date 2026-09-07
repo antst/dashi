@@ -2237,7 +2237,18 @@ once mid-turn and seeing the arm hint with the process still alive,
 then a second press exiting; production source under 10 lines.
 Ships in alpha.17.
 
-### W-069 Tolerate an open trailing turn (DSH turn/end loss) — status: open (owner dsh-exec)
+### W-069 Tolerate an open trailing turn (DSH turn/end loss) — status: accepted 2026-09-07 (PR #143 squash-merged)
+One pure projection, latestCompletedTurn, treats any real turn/end
+(completed or aborted) as a boundary and ignores only the synthetic
+`interrupted` end DSH's repair appends on reload (rc.1
+core/session/src/repair.ts:128-134; the loop never emits it,
+types.ts:207-210). Rewind rows, /btw (explicit atSeq), and /diff turn
+use that boundary and label a trailing open turn; the transcript
+keeps the open cells and drops the synthetic outcome; HUD and hint
+follow agent/status. README names the gap. Fixture tail turn/start,
+step/start, user/message, request/header, request/context, step/end
+resumed through the shipped profile. 27 production lines; 287 tests.
+Ships in alpha.18.
 Found 2026-09-06 through the sessionbus lane cells and reproduced
 offline: DSH rc.1 loses turn/end when a turn is cancelled while the
 LLM fetch awaits response headers (undici mutates the cancel-cause
