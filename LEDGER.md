@@ -2237,6 +2237,21 @@ once mid-turn and seeing the arm hint with the process still alive,
 then a second press exiting; production source under 10 lines.
 Ships in alpha.17.
 
+### W-069 Tolerate an open trailing turn (DSH turn/end loss) — status: open (owner dsh-exec)
+Found 2026-09-06 through the sessionbus lane cells and reproduced
+offline: DSH rc.1 loses turn/end when a turn is cancelled while the
+LLM fetch awaits response headers (undici mutates the cancel-cause
+object, Session.append rejects it; upstream queue, HIGH). The agent
+goes idle normally; only the log keeps an open turn. dashi must not
+mislead on such a log: HUD and transcript state follow agent status,
+never the log tail; rewind, /btw, and /diff turn use the latest
+completed boundary and say so when the trailing turn is open;
+/history renders the open turn without a spinner; README names the
+gap in one sentence. Acceptance: recorded-log fixture with an open
+trailing turn (step/end last); renderer and reducer tests; one PTY
+test with the replay provider stalling before headers plus Ctrl+C;
+production source under 30 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
