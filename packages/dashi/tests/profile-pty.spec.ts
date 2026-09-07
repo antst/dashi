@@ -29,6 +29,7 @@ const requestContextFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures
 const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'long-turn-session.jsonl')
 const btwChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'btw-child-session.jsonl')
 const recapChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'recap-child-session.jsonl')
+const openTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'open-turn-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
 const pluginManagementFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'plugin-management')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
@@ -966,7 +967,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       openedAt = shell.output.length
       shell.write('/diff turn\r')
-      await shell.waitFor('Last turn diff', openedAt)
+      await shell.waitFor('Last completed turn diff', openedAt)
       await shell.waitFor('Write roller-e2e.txt', openedAt)
       await shell.waitFor('roller-e2e.txt', openedAt)
       shell.write('\u000f')
@@ -1720,6 +1721,87 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.close()
     }
   }, 30_000)
+
+  it('resumes an idle session with an open trailing turn', async () => {
+    const cwd = join(testDir, `open-turn-${String(Date.now())}`)
+    mkdirSync(cwd)
+    const parent = 'session-00000000-0000-0000-0000-000000000690'
+    const seed = new PtyShell(replayFixture, undefined, cwd)
+    try {
+      const seededAt = await launch(seed,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --session-id ${parent}`,
+        'idle ·')
+      seed.write('\u0004\u0004')
+      await seed.waitFor('\u001B[?1049l', seededAt)
+    } finally {
+      await seed.close()
+    }
+    const fixture = readFileSync(openTurnFixture, 'utf8').trim().split('\n')
+    const header = JSON.parse(fixture[0] ?? '{}') as Record<string, unknown>
+    writeFileSync(findSessionFile(join(home, 'replay-sessions'), parent), [
+      JSON.stringify({ ...header, id: parent, cwd, createdAt: Date.now() }),
+      ...fixture.slice(1),
+    ].join('\n') + '\n')
+
+    const shell = new PtyShell(btwChildFixture, undefined, cwd, {
+      DSH_SNAPSHOT_CHILD_FILES: replayFixture,
+    })
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${parent}`,
+        'idle ·')
+      expect(await firstFrame(shell.output.slice(start))).toContain('idle · Enter send')
+      let overlayAt = shell.output.length
+      shell.write('/history\r')
+      await shell.waitFor('History', overlayAt)
+      const history = await firstFrame(shell.output.slice(start))
+      expect(history).toContain('open prompt')
+      expect(history).not.toContain('outcome · interrupted')
+      expect(history).not.toMatch(/[\u2800-\u28ff]/u)
+      const closedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', closedAt)
+
+      overlayAt = shell.output.length
+      shell.write('/rewind\r')
+      await shell.waitFor('trailing turn open; completed boundaries only', overlayAt)
+      const rewindClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', rewindClosedAt)
+      overlayAt = shell.output.length
+      shell.write('/diff turn\r')
+      await shell.waitFor('Last completed turn diff · trailing turn open', overlayAt)
+      const diffClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', diffClosedAt)
+      overlayAt = shell.output.length
+      shell.write('/btw use the stable boundary\r')
+      await shell.waitFor('Btw · turn 1 · trailing turn open', overlayAt)
+      const btwClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', btwClosedAt)
+      const promptAt = shell.output.length
+      shell.write('fresh prompt after open tail\r')
+      await shell.waitFor('Approval · bash', promptAt)
+      shell.write('\r')
+      await waitForIdleAfter(shell, 'Recorded answer: DASHI_TOOL_ROUND_TRIP complete.', promptAt)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+
+    const rows = listedSessions(cwd)
+    const child = rows.map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+      .find(item => item.log.header.parentSession === parent)
+    expect(child, JSON.stringify(rows)).toBeDefined()
+    const humanMessages = child?.log.events.filter(event => event.type === 'user/message'
+      && (event.data?.source as { kind?: string } | undefined)?.kind === 'user') ?? []
+    expect(JSON.stringify(humanMessages)).not.toContain('open prompt')
+    expect(JSON.stringify(humanMessages)).toContain('use the stable boundary')
+    expect(JSON.stringify(child?.log.events)).toContain('BTW_SIDE_ANSWER')
+  }, testCeiling(90_000))
 
   it('hands the terminal to the shell while suspended and redraws after fg', async () => {
     const { baseline, shell } = await prepareShell()

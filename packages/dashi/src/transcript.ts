@@ -320,6 +320,7 @@ export function foldCells(
         break
       }
       case 'turn/end':
+        if (event.data.reason.kind === 'interrupted') break
         if (!openTurns.delete(event.data.turn)) {
           if (!truncatedPrefix) {
             cells.push({ key: `${event.seq}:error`, kind: 'error', text: `turn ${event.data.turn} ended without starting` })
