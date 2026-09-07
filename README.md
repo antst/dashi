@@ -71,6 +71,9 @@ over the main session, which receives no conversation events; the fork remains
 in `/resume` because DSH does not expose root release.
 DSH's cold list cannot surface a large seeded fork's title after relaunch, so
 that picker row may be untitled; its UUID remains resumable.
+DSH rc.1 can omit `turn/end` when a request is cancelled before response
+headers; dashi treats the idle agent as authoritative and ignores that open tail
+for completed-turn actions.
 
 ## Sessions
 
@@ -138,7 +141,7 @@ to `vi`); DSH applies edits according to its own instruction reload rules.
 `/skills [TEXT]` lists the session's resolved skills and filters their names
 and descriptions; choosing one inserts its human invocation into the composer.
 `/diff` shows the working tree against `HEAD`; `/diff turn` shows write/edit
-hunks recorded by DSH for the last turn. `/tasks` opens the job and subagent
+hunks recorded by DSH for the last completed turn. `/tasks` opens the job and subagent
 details view, Enter reads selected job output, and `/tasks kill ID` stops a job;
 `/bashes` aliases it. `/subtask TEXT` starts a continuable child with TEXT as
 its first prompt. `/loop 5m TEXT` or `/loop 1h TEXT` creates a DSH-owned

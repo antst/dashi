@@ -17,6 +17,12 @@ function codeBlockCells() {
   return foldCells(events as SessionEvent[])
 }
 
+function openTurnCells() {
+  const lines = readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
+  const events = lines.flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+  return foldCells(events as SessionEvent[])
+}
+
 function percentile95(samples: readonly number[]): number {
   return [...samples].sort((left, right) => left - right)[Math.floor(samples.length * 0.95)] ?? Infinity
 }
@@ -63,6 +69,25 @@ class ScreenTerminal {
 }
 
 describe('terminal renderer', () => {
+  it('renders an idle open-tail session and its history without a spinner', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false, initialCells: openTurnCells(),
+      initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+    })
+    shell.start()
+    await terminal.flush()
+    expect(terminal.lines().join('\n')).toContain('idle ·')
+    shell.dispatch({ type: 'open-history' })
+    await shell.whenIdle()
+    await terminal.flush()
+    const history = terminal.lines().join('\n')
+    expect(history).toContain('open prompt')
+    expect(history).not.toMatch(/[\u2800-\u28ff]/u)
+    await shell.dispose()
+  })
+
   it('renders recalled command and shell input from a mixed durable log', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const shell = createTerminalShell({

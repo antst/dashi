@@ -53,7 +53,7 @@ import { eventsFromRecords } from './history-records.js'
 import { admitDraftImages, encodeDraftImages, readDraftImages } from './image-input.js'
 import { contextPercent, jobViews, subagentViews } from './presentation.js'
 import {
-  historyInput, historyInputs, humanPrompt, inheritedTurn, rewindActionOverlay, rewindOverlay,
+  historyInput, historyInputs, humanPrompt, inheritedTurn, latestCompletedTurn, rewindActionOverlay, rewindOverlay,
   rewindModelSelection,
 } from './rewind.js'
 import type {
@@ -704,7 +704,9 @@ export async function createSessionRuntime(
       const stale = ensureCurrent(invocation)
       if (stale !== undefined) return stale
       if (prompt === '') return { kind: 'error', text: 'usage: /btw TEXT' }
-      const forked = await ctx.sessionController.fork({ sessionId: bound.agent.id })
+      const boundary = latestCompletedTurn(bound.agent.session.snapshotEvents())
+      if (boundary.atSeq === undefined) throw new Error('the current session has no completed turn to fork')
+      const forked = await ctx.sessionController.fork({ atSeq: boundary.atSeq, sessionId: bound.agent.id })
       const resolved = await ctx.sessionController.resolveAgent(forked.sessionId)
       if ('error' in resolved) throw resolved.error
       const child = resolved.agent
@@ -732,7 +734,7 @@ export async function createSessionRuntime(
       const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
         .filter(cell => cell.kind !== 'user')
       dispatch({ type: 'open-overlay', overlay: {
-        cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}`,
+        cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}${boundary.open ? ' · trailing turn open' : ''}`,
       } })
       return { kind: 'success' }
     }

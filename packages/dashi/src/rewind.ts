@@ -9,6 +9,16 @@ export interface RewindBoundary {
   readonly prompt: string
 }
 
+export function latestCompletedTurn(events: readonly SessionEvent[]): {
+  readonly atSeq?: number; readonly open: boolean; readonly turn?: number
+} {
+  const end = events.filter((event): event is SessionEvent<'turn/end'> =>
+    event.type === 'turn/end' && event.data.reason.kind !== 'interrupted').at(-1)
+  const start = events.filter((event): event is SessionEvent<'turn/start'> => event.type === 'turn/start').at(-1)
+  return { open: start !== undefined && (end === undefined || start.seq > end.seq),
+    ...(end === undefined ? {} : { atSeq: end.seq, turn: end.data.turn }) }
+}
+
 /** Return only a selection that DSH recorded for the source session. */
 export function rewindModelSelection(
   projection: {
@@ -60,7 +70,7 @@ export function rewindBoundaries(events: readonly SessionEvent[]): readonly Rewi
     if (event.type === 'turn/start') {
       openTurn = event.data.turn
       prompted = false
-    } else if (event.type === 'turn/end') {
+    } else if (event.type === 'turn/end' && event.data.reason.kind !== 'interrupted') {
       previousEnd = event
       openTurn = undefined
       prompted = false
@@ -80,6 +90,7 @@ export function rewindBoundaries(events: readonly SessionEvent[]): readonly Rewi
 
 export function rewindOverlay(events: readonly SessionEvent[], roller: boolean): Overlay {
   const boundaries = rewindBoundaries(events)
+  const trailing = latestCompletedTurn(events)
   return {
     cursor: Math.max(0, boundaries.length - 1),
     kind: 'list',
@@ -91,7 +102,7 @@ export function rewindOverlay(events: readonly SessionEvent[], roller: boolean):
       },
     })),
     purpose: 'rewind',
-    title: 'Rewind to a prompt',
+    title: `Rewind to a prompt${trailing.open ? ' · trailing turn open; completed boundaries only' : ''}`,
   }
 }
 

@@ -4,6 +4,16 @@ import { initialViewState, reduce, TURN_BELL_THRESHOLD_MS } from '../src/state.j
 import { inputHistory, inputHistoryEvents } from './fixtures/input-history.js'
 
 describe('view-state reducer', () => {
+  it('takes idle status from the agent even when the transcript has an open-tail cell', () => {
+    const running = initialViewState('/work', false, {
+      cwd: '/work', id: 'session-1', model: 'm', status: 'running',
+    }, [{ key: 'open', kind: 'user', text: 'open prompt' }])
+    const [idle, effects] = reduce(running, { type: 'root-status', rootId: 'session-1', status: 'idle' })
+    expect(idle.root?.status).toBe('idle')
+    expect(idle.cells).toBe(running.cells)
+    expect(effects).toEqual([{ type: 'redraw', force: false }])
+  })
+
   it('clears a draft before arming or exiting', () => {
     const base = { ...initialViewState('/work', false), composer: 'draft' }
     const [cleared, clearEffects] = reduce(base, { type: 'ctrl-c' })

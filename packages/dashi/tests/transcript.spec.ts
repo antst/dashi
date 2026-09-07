@@ -14,6 +14,11 @@ function contextEvents(): SessionEvent[] {
     .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
 }
 
+function openTurnEvents(): SessionEvent[] {
+  return readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
+    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+}
+
 describe('foldCells', () => {
   it('folds a recorded DSH session log and skips unrelated native events', () => {
     expect(foldCells(recordedEvents())).toEqual([
@@ -21,6 +26,14 @@ describe('foldCells', () => {
       expect.objectContaining({ kind: 'assistant', text: 'Checkpoint 01 is recorded.' }),
       expect.objectContaining({ kind: 'outcome', text: 'completed' }),
     ])
+  })
+
+  it('renders an open trailing turn as durable cells without a running marker', () => {
+    const cells = foldCells([...openTurnEvents(), { type: 'turn/end', seq: 14, time: 15,
+      data: { turn: 2, reason: { kind: 'interrupted' } } } as SessionEvent])
+    expect(cells).toContainEqual(expect.objectContaining({ kind: 'user', text: 'open prompt' }))
+    expect(cells).not.toContainEqual(expect.objectContaining({ pending: true }))
+    expect(cells.filter(cell => cell.kind === 'outcome')).toHaveLength(1)
   })
 
   it('folds a recorded instructions injection into one collapsed context cell', () => {
