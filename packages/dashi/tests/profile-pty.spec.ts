@@ -643,14 +643,17 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       start = await launch(shell, `${launcher} --patch ${quote(replayPatch)} --fullscreen --yolo`)
       shell.write('/plugins\r')
       for (const row of [
-        '@deepseek-ai/dsh-api-session-controller',
         'include:dashi · @antst/dashi · enabled · active',
+        'include:sessionbus · @sessionbus/dsh · enabled · active',
         'include:roller · @antst/roller · enabled · active',
       ]) {
         await shell.waitFor(row, start)
       }
       expect(shell.output.slice(start)).toContain('enabled')
       expect(shell.output.slice(start)).toContain('active')
+      shell.write('sessionbus no-daemon proof\r')
+      const completedAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
+      await shell.waitFor('idle ·', completedAt)
 
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
@@ -665,6 +668,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('dsh: pnpm failed in profile directory', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('404')
+      expect(shell.output.slice(missingAt)).toContain('[stderr]')
+      expect((shell.output.slice(start).match(/sessionbus:/gu) ?? []).length).toBeLessThanOrEqual(1)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -1252,6 +1257,19 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       `  '@antst/dashi': 'file:${pluginArchive}'`,
       '',
     ].join('\n'))
+    const sessionbus = (JSON.parse(readFileSync(
+      join(root, 'packages', 'dashi-app', 'package.json'), 'utf8',
+    )) as { dependencies?: Record<string, string> }).dependencies?.['@sessionbus/dsh']
+    if (sessionbus?.startsWith('http')) {
+      // Branch-only preview priming: delete this HTTP branch at the exact npm pin.
+      // pnpm 11 blocks preview URLs as transitive dependencies; prime it under pnpm 10.
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { packageManager?: string }
+      manifest.packageManager = 'pnpm@10.28.1'
+      writeFileSync(manifestPath, `${JSON.stringify(manifest, undefined, 2)}\n`)
+      rmSync(join(profile, 'node_modules'), { force: true, recursive: true })
+      rmSync(join(profile, 'pnpm-lock.yaml'))
+      run(cleanDsh, ['plugin', '--profile', 'dashi', 'add', sessionbus], cleanEnv)
+    }
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'add', appArchive], cleanEnv)
     run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${validatedDshVersion}`], cleanEnv, profile)
     const cliResolved = assertResolvedDshGraph(readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8'), validatedDshVersion)

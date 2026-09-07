@@ -22,6 +22,11 @@ dependencies exactly.
 Without the launcher package, run `dsh --profile dashi` directly or use the
 shell alias documented below.
 
+When `SESSIONBUS_LAUNCH_TOKEN` is present, the launcher selects the bundled
+`sessionbus` profile; repeatable `-g`/`--group` options supply its group names.
+One group name becomes the Sessionbus session title, and groups are fixed for
+that session. With no Sessionbus daemon running, Sessionbus has no effect.
+
 dashi renders in the terminal's main screen by default. Use
 `dashi --fullscreen` for an application-owned viewport in the
 alternate screen.

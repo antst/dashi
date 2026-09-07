@@ -103,6 +103,9 @@
     - id: dashi
       name: '@antst/dashi'
 
+    - id: sessionbus
+      name: '@sessionbus/dsh'
+
     - id: roller
       name: '@antst/roller'
 
