@@ -2291,7 +2291,22 @@ mechanisms; no new state. The delta report in the architect's
 scratchpad (dsh-delta/REPORT.md) is the map. Acceptance: gate green
 on rc.2; README and DESIGN version references updated.
 
-### W-071 sessionbus-dsh on DSH 0.1.5-rc.2 and 0.1.6-alpha.2 — status: open (owner roller-exec; repo antst/sessionbus-dsh)
+### W-071 sessionbus-dsh on DSH 0.1.5-rc.2 and 0.1.6-alpha.2 — status: accepted 2026-09-18 (sessionbus-dsh PR #2 squash-merged; owner roller-exec)
+Peers `0.1.5-rc.2 || 0.1.6-alpha.2`, cordis 4.0.2, loader 1.0.3, kit
+0.1.0-pre.3 exact; @antst/dsh-file-uploads-none as a preview
+dependency until its npm publish (README marks it). Installer writes
+only profile-local rows: the base-backed `sessionbus` lane profile by
+default (dsh-base, persona, title job disabled, workspace,
+session-controller, file-uploads-none, plugin row mode: lane), a peer
+row plus file-uploads-none for named non-web profiles, existing
+sessionbus rows left alone; the global home-patch row and the
+all-profile scan are deleted (rc.2 composes the home patch after every
+profile layer, so a global row collided with dashi's and the lane's).
+Dispose releases tool and command registrations for alpha.2's runtime
+unload (enable-disable-enable test); session/writer-held relayed as a
+plain open failure; docs/LANE-WITHOUT-TUI.md. 38 tests; real-DSH
+proofs on both versions (lane hello, web boot, dashi co-install,
+packed install). Version stays 0.1.0-pre.1 until the publish commit.
 In the plugin repo (branch from main 9a4b7d4): peer range
 `0.1.5-rc.2 || 0.1.6-alpha.2` for every @deepseek-ai/dsh-* peer,
 cordis and loader to what those DSH versions ship, kit exact; the
