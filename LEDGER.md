@@ -2319,7 +2319,16 @@ dependency resolution/unload, multi-instance Session API) handled
 without branching dashi's code by version unless unavoidable, and
 then named in the ledger.
 
-### W-074 fileUploads provider for non-web profiles — status: open (owner dsh-exec, inside W-070)
+### W-074 fileUploads provider for non-web profiles — status: accepted 2026-09-18 (PR #149 squash-merged, standalone)
+packages/file-uploads-none: one plugin providing `fileUploads` with
+DSH's own four-no-op test-stub shape (rc.2 session-controller
+tests/test-remote.ts:269-276), no runtime or type dependency on the
+web package (which did not exist at rc.1); dashi-app row and exact
+workspace pin; fourth package in ci.yml previews, release.yml
+publish order, Dockerfile, and the clean-install test; README names
+the DSH gap. 12 production lines; 288 tests on rc.1. The
+FILE_NOT_STAGED relay proof runs on rc.2 in W-070 (fixture command
+dashi-file-fixture is in place).
 DSH 0.1.5-rc.2 and 0.1.6-alpha.2 make dsh-api-session-controller
 hard-inject `fileUploads` (packages/api/session-controller/src/index.ts:92,
 used at :125-129 and commands.ts:351,362,477), provided only by the
