@@ -2319,6 +2319,25 @@ dependency resolution/unload, multi-instance Session API) handled
 without branching dashi's code by version unless unavoidable, and
 then named in the ledger.
 
+### W-074 fileUploads provider for non-web profiles — status: open (owner dsh-exec, inside W-070)
+DSH 0.1.5-rc.2 and 0.1.6-alpha.2 make dsh-api-session-controller
+hard-inject `fileUploads` (packages/api/session-controller/src/index.ts:92,
+used at :125-129 and commands.ts:351,362,477), provided only by the
+web client's @deepseek-ai/dsh-client-file-upload (needs `connection`);
+DSH's own acp/headless/sdk bundles never mount session-controller, so
+every non-web profile that does (dashi, the sessionbus lane) fails to
+activate. Fix: new package packages/file-uploads-none published as
+@antst/dsh-file-uploads-none, one plugin providing `fileUploads` with
+DSH's own test stub semantics (session-controller/tests/test-remote.ts:269-276):
+registerAgentResolver returns a disposer, resolve returns undefined,
+bindPrompt returns a no-op Disposable, retirePrompt no-op; a prompt
+with a file part fails with DSH's own FILE_NOT_STAGED error. dashi-app
+depends on it exactly and inserts row file-uploads-none; release.yml
+and the manifest check gain the fourth package; the sessionbus lane
+profile inserts the same row (W-071). README names the DSH gap.
+Acceptance: shipped profile boots on rc.2 and runs a prompt; a file
+part relays FILE_NOT_STAGED; production source under 25 lines.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -2373,3 +2392,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted): DSH Discussion: session-only model selection, restated for the Agent Sessions lane case: SessionSelectModelRequest carries sessionId but selectModel always calls agentDefaultModel.saveSelection (packages/api/session-controller/src/commands.ts:119-145), so a headless lane opened with a model moves the deployment default for every later session in that DSH home (D-039; duplicates the W-025 entry's ask with the second motivating case).
 - Queued (not yet posted): DSH Discussion (Ideas): ctx.launchEnvironment (packages/util/launch-environment/src/index.ts) is an immutable snapshot, so a plugin that consumes a one-time secret from the environment (the agentbus launch token) cannot remove it and it stays readable to every plugin for the process lifetime; suggest a take-once accessor (read and delete) on the snapshot. Raised by the agentbus plugin work 2026-09-06.
 - Queued (not yet posted), HIGH: DSH Discussion (Bug): in @deepseek-ai/dsh-agent-loop 0.1.2-rc.1 a turn cancelled while the LLM fetch is still awaiting response headers (the ordinary "cancel during time-to-first-token" case) never gets its turn/end. ReactLoopAgent.turn() logs `{kind:'aborted', reason: signal.reason}` (packages/core/agent-loop/src/agent.ts:313, appended at :328); signal.reason is the caller's cancel-cause object, which every fetch-based adapter hands to fetch via AbortSignal.any (packages/llm/llm-deepseek/src/adapter.ts:473-476,643-648); Node/undici installs a non-enumerable `stack` accessor on that object when a pre-header fetch is aborted, Session.append rejects it as non-serializable (dsh-session lib/index.js:1409 via dsh-util-values enumerableStringKeys), the append throws inside the finally and is rerouted to agent/error, and the log keeps step/end as its last event with the turn open forever; mid-body aborts are unaffected. Adapter and loop otherwise honor the abort (adapter settles in 3 ms). Reproduced 2026-09-06 on rc.1 with Node 25.9 against a local endpoint that accepts the socket and never sends headers; invisible to DSH's own tests because the replay provider never calls fetch. Suggested fix: log a detached snapshot of the cause (captured in cancel()) or rebuild the closed AgentCancelCause union at :313, never the object handed to platform code. Consumers folding turn/start..turn/end (dashi, sessionQuery) show the turn running indefinitely. Found via sessionbus lane cells 6 and 8.
+- Queued (not yet posted): DSH Discussion (Bug): since 0.1.5-rc.2, @deepseek-ai/dsh-api-session-controller hard-injects `fileUploads` (src/index.ts:92; calls at :125-129, commands.ts:351,362,477), a service provided only by the web client plugin @deepseek-ai/dsh-client-file-upload (which itself needs `connection`), so any non-web composition that mounts the session controller (a TUI, a headless controller) cannot activate; DSH's own non-web bundles avoid it only by not mounting session-controller at all. Suggest making fileUploads optional (ctx.get with null-safe bindPrompt/retirePrompt/resolve paths) or splitting a fileUploads service definition with a no-op default. Found 2026-09-18 (W-074).
