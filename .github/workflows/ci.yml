@@ -28,7 +28,7 @@ jobs:
       - run: pnpm gate:docker
       - name: Publish preview
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
-        run: pnpx pkg-pr-new publish ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact
+        run: pnpx pkg-pr-new publish ./packages/file-uploads-none ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact
 
   macos-gate:
     runs-on: macos-latest

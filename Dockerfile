@@ -10,10 +10,10 @@ RUN apt-get update \
   && corepack enable \
   && mkdir -p /workspace/.pnpm-store /workspace/node_modules \
     /workspace/packages/dashi/node_modules /workspace/packages/dashi-app/node_modules \
-    /workspace/packages/dashi-launcher/node_modules \
+    /workspace/packages/dashi-launcher/node_modules /workspace/packages/file-uploads-none/node_modules \
   && chmod 0777 /workspace/.pnpm-store /workspace/node_modules \
     /workspace/packages/dashi/node_modules /workspace/packages/dashi-app/node_modules \
-    /workspace/packages/dashi-launcher/node_modules
+    /workspace/packages/dashi-launcher/node_modules /workspace/packages/file-uploads-none/node_modules
 
 WORKDIR /workspace
 

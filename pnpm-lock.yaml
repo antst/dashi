@@ -194,6 +194,9 @@ importers:
       '@antst/dashi':
         specifier: workspace:^
         version: link:../dashi
+      '@antst/dsh-file-uploads-none':
+        specifier: workspace:*
+        version: link:../file-uploads-none
       '@antst/roller':
         specifier: 0.1.2
         version: 0.1.2(07a76de614ab56f0762b4f0cccb7c7ff)
@@ -235,6 +238,12 @@ importers:
         version: 0.1.2-rc.1(c4f266c8456c2e5dc1e1d3e663271a2c)
 
   packages/dashi-launcher: {}
+
+  packages/file-uploads-none:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.2
+        version: 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
 
 packages:
 
