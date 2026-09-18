@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
-import { decodeStorageRecord, type SessionEvent } from '@deepseek-ai/dsh-session'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
@@ -13,13 +13,13 @@ import { testCeiling } from './test-budget.js'
 
 function codeBlockCells() {
   const lines = readFileSync(new URL('./fixtures/code-block-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  const events = lines.flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+  const events = lines.slice(1).map(line => JSON.parse(line) as SessionEvent)
   return foldCells(events as SessionEvent[])
 }
 
 function openTurnCells() {
   const lines = readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  const events = lines.flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+  const events = lines.slice(1).map(line => JSON.parse(line) as SessionEvent)
   return foldCells(events as SessionEvent[])
 }
 

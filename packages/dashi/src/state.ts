@@ -856,6 +856,13 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
     case 'submit': {
       if (head !== undefined) return reduce(state, { type: 'decision-submit' })
       if (state.root === undefined || state.composer === '' && state.attachments.length === 0) return [state, []]
+      if (state.root.status === 'running' && /^\/(?:btw|recap)(?:\s|$)/u.test(state.composer)) {
+        const cleared = { ...state, attachments: [], composer: '', exitArmed: false, recall: undefined, rewindArmed: false }
+        const [reported, effects] = reduce(cleared, {
+          type: 'runtime-error', message: 'finish or interrupt the turn first', rootId: state.root.id,
+        })
+        return [reported, [{ type: 'set-composer', text: '' }, ...effects]]
+      }
       const mode = state.root.status === 'running' ? state.sendMode : 'next-turn'
       return [{
         ...state, attachments: [], composer: '', exitArmed: false, recall: undefined, rewindArmed: false,

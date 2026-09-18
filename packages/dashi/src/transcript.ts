@@ -1,4 +1,4 @@
-import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, StreamChunk, UserMessage } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-commands'
 import type {} from '@deepseek-ai/dsh-compaction'
 import type {} from '@deepseek-ai/dsh-plan-mode'
@@ -106,6 +106,62 @@ function compactSource(event: SessionEvent<'user/message'>): {
   }
 }
 
+function putAssistant(
+  cells: TerminalCell[],
+  assistants: Map<string, AssistantCells>,
+  turn: number,
+  step: number,
+  kind: 'reasoning' | 'text',
+  text: string,
+  complete: boolean,
+): void {
+  const key = `${turn}:${step}`
+  const pair = assistants.get(key) ?? {}
+  const slot = kind === 'text' ? pair.text : pair.reasoning
+  const cellKind = kind === 'text' ? 'assistant' : 'reasoning'
+  if (slot === undefined) {
+    const next = cells.length
+    cells.push({
+      key: `assistant:${key}:${kind}`,
+      kind: cellKind,
+      ...(!complete && kind === 'text' ? { pending: true } : {}),
+      text,
+      ...(complete && kind === 'reasoning' ? { collapsed: true } : {}),
+    })
+    if (kind === 'text') pair.text = next
+    else pair.reasoning = next
+    assistants.set(key, pair)
+    return
+  }
+  const previous = cells[slot]
+  if (previous === undefined) return
+  const { pending: _pending, ...settled } = previous
+  cells[slot] = {
+    ...(complete ? settled : previous),
+    text: complete ? text : previous.text + text,
+    ...(complete && kind === 'reasoning' ? { collapsed: true } : {}),
+  }
+}
+
+/** Fold one transient DSH Assistant frame into the current pending cells. */
+export function foldAssistantStream(
+  current: readonly TerminalCell[], turn: number, step: number, chunk: StreamChunk,
+): readonly TerminalCell[] {
+  const cells = [...current]
+  const pair: AssistantCells = {}
+  cells.forEach((cell, slot) => {
+    if (cell.kind === 'assistant') pair.text = slot
+    else if (cell.kind === 'reasoning') pair.reasoning = slot
+  })
+  const assistants = new Map([[`${turn}:${step}`, pair]])
+  if (chunk.type === 'text-delta') putAssistant(cells, assistants, turn, step, 'text', chunk.text, false)
+  else if (chunk.type === 'reasoning-delta') putAssistant(cells, assistants, turn, step, 'reasoning', chunk.text, false)
+  else if (chunk.type === 'block-end' && (chunk.block.type === 'text' || chunk.block.type === 'reasoning')) {
+    putAssistant(cells, assistants, turn, step, chunk.block.type, chunk.block.text, true)
+  }
+  return cells
+}
+
 /** Fold one chronological DSH event slice into terminal-owned presentation cells. */
 export function foldCells(
   events: readonly SessionEvent[],
@@ -124,43 +180,10 @@ export function foldCells(
   let todoSlot: number | undefined
   let truncatedPrefix = options.truncatedStart === true
 
-  const putAssistant = (
-    turn: number,
-    step: number,
-    kind: 'reasoning' | 'text',
-    text: string,
-    complete: boolean,
-  ): void => {
-    const key = `${turn}:${step}`
-    const pair = assistants.get(key) ?? {}
-    const slot = kind === 'text' ? pair.text : pair.reasoning
-    const cellKind = kind === 'text' ? 'assistant' : 'reasoning'
-    if (slot === undefined) {
-      const next = cells.length
-      cells.push({
-        key: `assistant:${key}:${kind}`,
-        kind: cellKind,
-        ...(!complete && kind === 'text' ? { pending: true } : {}),
-        text,
-        ...(complete && kind === 'reasoning' ? { collapsed: true } : {}),
-      })
-      if (kind === 'text') pair.text = next
-      else pair.reasoning = next
-      assistants.set(key, pair)
-      return
-    }
-    const previous = cells[slot]
-    if (previous === undefined) return
-    const { pending: _pending, ...settled } = previous
-    cells[slot] = {
-      ...(complete ? settled : previous),
-      text: complete ? text : previous.text + text,
-      ...(complete && kind === 'reasoning' ? { collapsed: true } : {}),
-    }
-  }
-
   for (const event of events) {
     switch (event.type) {
+      case 'system/message':
+        break
       case 'turn/start':
         truncatedPrefix = false
         openTurns.add(event.data.turn)
@@ -191,21 +214,12 @@ export function foldCells(
             })
         break
       }
-      case 'assistant/chunk': {
-        const { chunk, step, turn } = event.data
-        if (chunk.type === 'text-delta') putAssistant(turn, step, 'text', chunk.text, false)
-        else if (chunk.type === 'reasoning-delta') putAssistant(turn, step, 'reasoning', chunk.text, false)
-        else if (chunk.type === 'block-end' && (chunk.block.type === 'text' || chunk.block.type === 'reasoning')) {
-          putAssistant(turn, step, chunk.block.type, chunk.block.text, true)
-        }
-        break
-      }
       case 'assistant/message': {
         const { message, step, turn } = event.data
         const text = blockText(message.content, 'text')
         const reasoning = blockText(message.content, 'reasoning')
-        if (reasoning !== '') putAssistant(turn, step, 'reasoning', reasoning, true)
-        if (text !== '') putAssistant(turn, step, 'text', text, true)
+        if (reasoning !== '') putAssistant(cells, assistants, turn, step, 'reasoning', reasoning, true)
+        if (text !== '') putAssistant(cells, assistants, turn, step, 'text', text, true)
         break
       }
       case 'tool/call': {

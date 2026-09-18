@@ -7,7 +7,7 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 Install the exact validated DSH release and start dashi:
 
 ```sh
-pnpm install @deepseek-ai/dsh@0.1.2-rc.1 @antst/dashi-launcher
+pnpm install @deepseek-ai/dsh@0.1.5-rc.2 @antst/dashi-launcher
 dsh plugin --profile dashi add @antst/dashi-app
 dashi
 ```
@@ -69,6 +69,8 @@ release; `dashi --help` starts with both dashi and DSH versions.
 and `/recap` does the same with a fixed ten-line summary prompt. The answer opens
 over the main session, which receives no conversation events; the fork remains
 in `/resume` because DSH does not expose root release.
+Both commands require an idle root because DSH forks of a running source seed
+and immediately run pending input, with no option to exclude post-boundary inbox items.
 DSH's cold list cannot surface a large seeded fork's title after relaunch, so
 that picker row may be untitled; its UUID remains resumable.
 DSH rc.1 can omit `turn/end` when a request is cancelled before response
@@ -256,6 +258,12 @@ adds ASCII status markers, and suppresses the terminal bell.
 
 DSH does not currently enforce writer ownership across processes; do not
 resume the same root in two DSH processes.
+
+Cold resume is quadratic in event count in DSH 0.1.5-rc.2 (50k: 11.88 s;
+200k: 183.09 s) and 0.1.6-alpha.2 (50k: 11.76 s; 200k: 183.22 s) because
+its token-meter fold clones and scans the retained surface per event
+(`packages/llm/token-meter/src/breakdown-projection.ts:56-75`, introduced by
+deepseek-ai/deepseek-harness commit `6525195953`).
 
 DSH conversation forks are per-turn, so a steered prompt rewinds to the start
 of its containing turn. DSH also exposes no operation to summarize a selected

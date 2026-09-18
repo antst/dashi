@@ -1,22 +1,22 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { decodeStorageRecord, type SessionEvent } from '@deepseek-ai/dsh-session'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { foldCells, pendingShellCells } from '../src/transcript.js'
+import { foldAssistantStream, foldCells, pendingShellCells } from '../src/transcript.js'
 
 function recordedEvents(): SessionEvent[] {
   return readFileSync(new URL('./fixtures/recorded-turn.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+    .slice(1).map(line => JSON.parse(line) as SessionEvent)
 }
 
 function contextEvents(): SessionEvent[] {
   return readFileSync(new URL('./fixtures/context-injection-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+    .slice(1).map(line => JSON.parse(line) as SessionEvent)
 }
 
 function openTurnEvents(): SessionEvent[] {
   return readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+    .slice(1).map(line => JSON.parse(line) as SessionEvent)
 }
 
 describe('foldCells', () => {
@@ -28,8 +28,15 @@ describe('foldCells', () => {
     ])
   })
 
+  it('skips the V3 system prompt surface node', () => {
+    const events = [{ type: 'system/message', seq: 0, time: 1, surfaceOp: 'append', data: {
+      content: [{ type: 'text', text: 'system prompt' }], id: 'system', role: 'system', source: { kind: 'system' },
+    } }] as unknown as SessionEvent[]
+    expect(foldCells(events)).toEqual([])
+  })
+
   it('renders an open trailing turn as durable cells without a running marker', () => {
-    const cells = foldCells([...openTurnEvents(), { type: 'turn/end', seq: 14, time: 15,
+    const cells = foldCells([...openTurnEvents(), { type: 'turn/end', seq: 19, time: 18,
       data: { turn: 2, reason: { kind: 'interrupted' } } } as SessionEvent])
     expect(cells).toContainEqual(expect.objectContaining({ kind: 'user', text: 'open prompt' }))
     expect(cells).not.toContainEqual(expect.objectContaining({ pending: true }))
@@ -95,8 +102,6 @@ describe('foldCells', () => {
   it('coalesces streamed reasoning and text, then pairs a tool result', () => {
     const events = [
       { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
-      { type: 'assistant/chunk', seq: 1, time: 2, data: { turn: 1, step: 1, chunk: { type: 'reasoning-delta', index: 0, text: 'think' } } },
-      { type: 'assistant/chunk', seq: 2, time: 3, data: { turn: 1, step: 1, chunk: { type: 'text-delta', index: 1, text: 'answer' } } },
       { type: 'assistant/message', seq: 3, time: 4, surfaceOp: 'append', data: {
         turn: 1, step: 1, message: { id: 'a1', role: 'assistant', source: { kind: 'model', provider: 'p', model: 'm' }, content: [
           { type: 'reasoning', text: 'think' }, { type: 'text', text: 'answer' },
@@ -145,14 +150,9 @@ describe('foldCells', () => {
   })
 
   it('marks assistant deltas pending until the durable completed message arrives', () => {
-    const events = [
-      { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
-      { type: 'assistant/chunk', seq: 1, time: 2, data: {
-        turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'partial' },
-      } },
-    ] as unknown as SessionEvent[]
-    expect(foldCells(events)[0]).toMatchObject({ kind: 'assistant', pending: true, text: 'partial' })
-    const complete = [...events, { type: 'assistant/message', seq: 2, time: 3, surfaceOp: 'append', data: {
+    const pending = foldAssistantStream([], 1, 1, { type: 'text-delta', index: 0, text: 'partial' })
+    expect(pending[0]).toMatchObject({ kind: 'assistant', pending: true, text: 'partial' })
+    const complete = [{ type: 'assistant/message', seq: 2, time: 3, surfaceOp: 'append', data: {
       turn: 1, step: 1, message: {
         id: 'a', role: 'assistant', source: { kind: 'model', provider: 'p', model: 'm' },
         content: [{ type: 'text', text: 'complete' }],
@@ -247,7 +247,7 @@ describe('foldCells', () => {
       },
     })
     const checkpoint = (seq: number, id: string, sourceCommandId?: string) => ({
-      type: 'user/message', seq, time: seq, surfaceOp: { op: 'replace', start: 0, end: 1 }, data: {
+      type: 'user/message', seq, time: seq, surfaceOp: { op: 'replace', startSeq: 0, endSeq: 1 }, data: {
         content: [{ type: 'text', text: 'summary' }], id: `m-${String(seq)}`, role: 'user',
         source: { kind: 'plugin', plugin: 'compact', compactionId: id,
           ...(sourceCommandId === undefined ? {} : { sourceCommandId }) },
