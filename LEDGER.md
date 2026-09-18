@@ -2347,6 +2347,18 @@ profile inserts the same row (W-071). README names the DSH gap.
 Acceptance: shipped profile boots on rc.2 and runs a prompt; a file
 part relays FILE_NOT_STAGED; production source under 25 lines.
 
+### W-075 Gate and release workflows for sessionbus-dsh — status: open (owner roller-exec, after W-071)
+The plugin repo has no gate check (GitGuardian only). Add ci.yml: on
+pull requests and pushes to main, `npm test` plus the packed-tarball
+install proof, once per DSH version in the peer disjunction (matrix
+over 0.1.5-rc.2 and 0.1.6-alpha.2, each in an isolated DSH_HOME with
+a home-level install), plus pkg.pr.new previews; and release.yml
+modeled on dashi's (tag push v*, gate, GitHub release from the
+changelog, npm publish with provenance, skipping already-published
+versions) for use after the owner's manual first publish. Production
+source 0. The operations peer's merge rule for that repo becomes: the
+`gate` check SUCCESS on the exact head.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
