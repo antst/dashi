@@ -483,6 +483,24 @@ forwarder (about 35 lines), and `dsh --profile dashi` without the
 launcher has no -g.
 Rename 2026-09-05: the bus product is agentbus; package @agentbus/dsh, kit @agentbus/kit, profile name `agentbus`, environment AGENTBUS_*.
 
+### D-040 (2026-09-18) DSH 0.1.5-rc.2 minimum, 0.1.6-alpha.2 supported; sessionbus-dsh owned here
+Owner rulings. dashi and the sessionbus plugin must work on DSH
+0.1.5-rc.2 (minimum supported) and 0.1.6-alpha.2. Pins: DSH
+packages stay peers, and the peer range is the disjunction of the
+validated versions, `0.1.5-rc.2 || 0.1.6-alpha.2`, never a caret or
+an open range; validated-dsh-versions.json lists both and the DSH
+version gate accepts exactly one of them for the whole graph; the
+container gate runs once per listed version. Ownership: the architect
+now owns antst/sessionbus-dsh (implementation, package, DSH
+compatibility) under this ledger and protocol; pdev keeps the daemon,
+protocol, and @sessionbus/kit. Host updates: the dsh host is upgraded
+by the architect's agents after the gate passes on the new version
+(in place: `pnpm add --save-exact @deepseek-ai/dsh@<version>` in ~, then verify the lockfile holds no DSH package at another version, pruning only DSH entries if stale peers remain; never wipe ~/node_modules, which is shared with other tools; then rebuild the dashi profile); umka-dev1 by one pdev writer on the architect's
+instructions; the mac when a mac peer exists. Install inventory
+2026-09-18 on the dsh host: single home-level install
+(dsh 0.1.2-rc.1, launcher alpha.17), no global copies, profiles
+`dashi` and a stale `agent-sessions`.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -1541,7 +1559,7 @@ queued as upstream reports.
 Owner: dsh-exec. Branch none; handoff is the table, cited.
 Acceptance evidence: every row cited or marked as a gap with the
 missing DSH surface named; no row left as "unknown".
-### W-036 agentbus plugin in dashi-app, launcher token check, and -g — status: in preparation 2026-09-05 on branch w-036-agentbus (per D-039; merge blocked until @agentbus/dsh is on npm)
+### W-036 sessionbus plugin in dashi-app, launcher token check, and -g — status: in preparation on branch w-036-sessionbus (PR #139 draft at b72fe9b, plugin preview b8586c2; merge blocked until @sessionbus/dsh is on npm at a version validated per D-040)
 Per D-036. Scope: dashi-app adds `@agentbus/dsh-comms` at exact
 0.4.0 as a dependency and a patch row (sibling of dashi and roller;
 activation is service-driven, row order is irrelevant); dashi parses
@@ -2262,6 +2280,44 @@ gap in one sentence. Acceptance: recorded-log fixture with an open
 trailing turn (step/end last); renderer and reducer tests; one PTY
 test with the replay provider stalling before headers plus Ctrl+C;
 production source under 30 lines.
+
+### W-070 dashi on DSH 0.1.5-rc.2 — status: open (owner dsh-exec)
+Bump every DSH peer to `0.1.5-rc.2`, cordis and loader to what rc.2
+ships, validated-dsh-versions.json to rc.2, fresh lockfile, run the
+full gate, and classify every failure: API change (cite old and new
+file:line), removed API (replacement), test-harness assumption,
+or DSH regression (upstream). Fix API changes within the existing
+mechanisms; no new state. The delta report in the architect's
+scratchpad (dsh-delta/REPORT.md) is the map. Acceptance: gate green
+on rc.2; README and DESIGN version references updated.
+
+### W-071 sessionbus-dsh on DSH 0.1.5-rc.2 and 0.1.6-alpha.2 — status: open (owner roller-exec; repo antst/sessionbus-dsh)
+In the plugin repo (branch from main 9a4b7d4): peer range
+`0.1.5-rc.2 || 0.1.6-alpha.2` for every @deepseek-ai/dsh-* peer,
+cordis and loader to what those DSH versions ship, kit exact; the
+plugin's node tests plus a real-DSH proof per version: base-only
+`sessionbus` lane profile boots with no CLI task, `dsh --profile web`
+with the home-patch peer row loads the plugin, and the installer's
+all-profile suppression (mergedProfilesHaveSessionbus) does not
+leave a selected non-dashi profile without the row when dashi is
+co-installed (fix if it does). A short docs/LANE-WITHOUT-TUI.md:
+how the daemon uses the lane profile with no dashi (exec
+`dsh --profile sessionbus` with the token). Acceptance: tests green
+on both versions; a packed tarball installs into a fresh profile on
+each.
+
+### W-072 Gate matrix over validated DSH versions — status: open (owner roller-exec, after W-071)
+ci.yml and release.yml run the container gate once per version in
+validated-dsh-versions.json (matrix), the DSH-versions check
+accepting the matrix entry; local `pnpm gate` takes an optional
+version and defaults to the first. Production source 0.
+
+### W-073 dashi on DSH 0.1.6-alpha.2 — status: open (owner dsh-exec, after W-070 and W-072)
+Second matrix entry: gate green on alpha.2 with the same code;
+failures classified as in W-070; alpha-only differences (runtime
+dependency resolution/unload, multi-instance Session API) handled
+without branching dashi's code by version unless unavoidable, and
+then named in the ledger.
 
 ## Backlog
 
