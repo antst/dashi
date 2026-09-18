@@ -2362,7 +2362,18 @@ profile inserts the same row (W-071). README names the DSH gap.
 Acceptance: shipped profile boots on rc.2 and runs a prompt; a file
 part relays FILE_NOT_STAGED; production source under 25 lines.
 
-### W-075 Gate and release workflows for sessionbus-dsh — status: open (owner roller-exec, after W-071)
+### W-075 Gate and release workflows for sessionbus-dsh — status: accepted 2026-09-18 (sessionbus-dsh PR #3 squash-merged; owner roller-exec; production source 0)
+ci.yml: matrix over the peer disjunction (hardcoded; must move with the
+peers), each cell a home-level install of that DSH in an isolated
+DSH_HOME, npm test, and the packed real-DSH proof (profile rows, exact
+versions, lane hello over a fake socket, web boot, dashi-row
+coexistence); an aggregator job `gate` requires every cell and then
+publishes pkg.pr.new previews; the standalone preview workflow is
+gone. release.yml on v* tags mirrors dashi's (matrix gate, tag =
+version, prerelease dist-tag, GitHub release from CHANGELOG,
+idempotent publish with provenance). Hosted run green on both
+versions. The ops merge rule for the plugin repo is now: `gate`
+SUCCESS on the exact head.
 The plugin repo has no gate check (GitGuardian only). Add ci.yml: on
 pull requests and pushes to main, `npm test` plus the packed-tarball
 install proof, once per DSH version in the peer disjunction (matrix
