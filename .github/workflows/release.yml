@@ -30,7 +30,7 @@ jobs:
         id: release
         run: |
           version="${GITHUB_REF_NAME#v}"
-          for manifest in packages/dashi/package.json packages/dashi-app/package.json packages/dashi-launcher/package.json; do
+          for manifest in packages/file-uploads-none/package.json packages/dashi/package.json packages/dashi-app/package.json packages/dashi-launcher/package.json; do
             package_version="$(node -p "require('./$manifest').version")"
             if [[ "$version" != "$package_version" ]]; then
               echo "Tag $GITHUB_REF_NAME does not match $manifest version $package_version" >&2
@@ -76,6 +76,17 @@ jobs:
             args+=(--generate-notes)
           fi
           gh "${args[@]}"
+      - name: Publish @antst/dsh-file-uploads-none
+        env:
+          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if npm view "@antst/dsh-file-uploads-none@$RELEASE_VERSION" version >/dev/null 2>&1; then
+            echo "@antst/dsh-file-uploads-none@$RELEASE_VERSION already published"
+          else
+            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
+          fi
+        working-directory: packages/file-uploads-none
       - name: Publish @antst/dashi
         env:
           NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}

@@ -264,6 +264,8 @@ duplicate it.
 
 The Session Controller has no root-release operation, so roots left by
 `/new`, `/resume`, `/fork`, or `/rewind` remain idle until profile teardown.
+DSH's Session Controller also hard-requires its web-only file-upload service;
+the terminal profile provides a no-upload service and rejects file receipts as unstaged.
 
 DSH's plugin CLI exposes no enable/disable verb, so dashi cannot toggle profile
 rows in-session. The MCP client exposes configured server names but no live

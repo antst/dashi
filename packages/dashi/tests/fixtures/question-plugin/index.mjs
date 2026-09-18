@@ -3,7 +3,7 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agents', 'authorization', 'commands', 'credentials', 'skills', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agents', 'authorization', 'commands', 'credentials', 'sessionController', 'skills', 'tools', 'tuiRoot', 'userQuestions']
 
 export function apply(ctx) {
   const fixtureCredential = credentialKey('dashi-fixture', 'account')
@@ -46,6 +46,21 @@ export function apply(ctx) {
     handler: async () => {
       await new Promise(resolve => { setTimeout(resolve, 750) })
       return { kind: 'success', text: 'Slow fixture complete.' }
+    },
+  })
+  ctx.commands.register({
+    name: 'dashi-file-fixture',
+    description: 'Submit one unstaged file receipt through the Session Controller.',
+    handler: async ({ agent, signal }) => {
+      try {
+        await ctx.sessionController.prompt({
+          requestId: 'dashi-file-fixture', sessionId: agent.id, mode: 'queue',
+          content: [{ type: 'file', receiptId: 'not-staged' }],
+        }, signal)
+        return { kind: 'success', text: 'unexpected file admission' }
+      } catch (error) {
+        return { kind: 'error', text: `${error.code}: ${error.details?.reason}` }
+      }
     },
   })
   ctx.skills.register({

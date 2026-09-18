@@ -81,7 +81,9 @@ for (const [, packageName, version] of lockedDsh) {
 }
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
   .filter(path => path.endsWith('package.json'))
-const pinnedManifests = new Set(['packages/dashi/package.json', 'packages/dashi-app/package.json'])
+const pinnedManifests = new Set([
+  'packages/file-uploads-none/package.json', 'packages/dashi/package.json', 'packages/dashi-app/package.json',
+])
 for (const path of packageFiles) {
   const manifest = JSON.parse(await readFile(path, 'utf8'))
   if (relative(root, path) === 'packages/dashi-app/package.json'

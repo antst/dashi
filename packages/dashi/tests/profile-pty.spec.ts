@@ -30,6 +30,7 @@ const longTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'lo
 const btwChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'btw-child-session.jsonl')
 const recapChildFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'recap-child-session.jsonl')
 const openTurnFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'open-turn-session.jsonl')
+const noUploadsFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'file-uploads-none-session.jsonl')
 const questionPlugin = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'question-plugin')
 const pluginManagementFixture = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'plugin-management')
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
@@ -490,10 +491,11 @@ async function expectRestored(shell: PtyShell, baseline: string): Promise<void> 
 function prepareTestProfile(profileHome: string): void {
   const env = { ...process.env, DSH_HOME: profileHome }
   const plugin = join(root, 'packages', 'dashi')
+  const noUploads = join(root, 'packages', 'file-uploads-none')
   const profile = join(root, 'packages', 'dashi-app')
   run(dsh, ['plugin', '--profile', 'dashi', 'install'], env)
   appendFileSync(join(profileHome, 'profiles', 'dashi', 'pnpm-workspace.yaml'),
-    `\nminimumReleaseAge: 0\noverrides:\n  '@antst/dashi': 'link:${plugin}'\n`)
+    `\nminimumReleaseAge: 0\noverrides:\n  '@antst/dashi': 'link:${plugin}'\n  '@antst/dsh-file-uploads-none': 'link:${noUploads}'\n`)
   run(dsh, ['plugin', '--profile', 'dashi', 'add', profile], env)
   run('pnpm', ['add', '--save-exact', '@deepseek-ai/dsh-llm-replay@0.1.2-rc.1'], env,
     join(profileHome, 'profiles', 'dashi'))
@@ -1220,10 +1222,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const cleanHome = join(cleanRoot, 'home')
     mkdirSync(archives)
     mkdirSync(prefix)
+    const noUploadsArchive = packWorkspacePackage(join(root, 'packages', 'file-uploads-none'), archives)
     const pluginArchive = packWorkspacePackage(join(root, 'packages', 'dashi'), archives)
     const appArchive = packWorkspacePackage(join(root, 'packages', 'dashi-app'), archives)
     const launcherArchive = packWorkspacePackage(join(root, 'packages', 'dashi-launcher'), archives)
-    expect([pluginArchive, appArchive, launcherArchive].every(existsSync)).toBe(true)
+    expect([noUploadsArchive, pluginArchive, appArchive, launcherArchive].every(existsSync)).toBe(true)
 
     writeFileSync(join(prefix, 'package.json'), '{"private":true}\n')
     writeFileSync(join(prefix, 'pnpm-workspace.yaml'), [
@@ -1249,6 +1252,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     appendFileSync(workspacePath, [
       '',
       'overrides:',
+      `  '@antst/dsh-file-uploads-none': 'file:${noUploadsArchive}'`,
       `  '@antst/dashi': 'file:${pluginArchive}'`,
       '',
     ].join('\n'))
@@ -1259,6 +1263,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(cliResolved).toBeGreaterThan(0)
     expect(profileResolved).toBeGreaterThan(0)
     const manifests = [
+      join(profile, 'node_modules', '@antst', 'dsh-file-uploads-none', 'package.json'),
       join(profile, 'node_modules', '@antst', 'dashi', 'package.json'),
       join(profile, 'node_modules', '@antst', 'dashi-app', 'package.json'),
       join(prefix, 'node_modules', '@antst', 'dashi-launcher', 'package.json'),
@@ -1269,9 +1274,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const workspaceVersion = (JSON.parse(readFileSync(
       join(root, 'packages', 'dashi', 'package.json'), 'utf8',
     )) as { version: string }).version
-    expect(manifests.map(manifest => manifest.version)).toEqual(Array(3).fill(workspaceVersion))
-    expect(manifests[1]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[0]?.version ?? ''}`)
-    expect(manifests[1]?.dependencies?.['@antst/roller']).toBe('0.1.2')
+    expect(manifests.map(manifest => manifest.version)).toEqual(Array(4).fill(workspaceVersion))
+    expect(manifests[2]?.dependencies?.['@antst/dsh-file-uploads-none']).toBe(manifests[0]?.version)
+    expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[1]?.version ?? ''}`)
+    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.2')
     expect(JSON.parse(readFileSync(
       join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
     )).version).toBe('0.1.2')
@@ -1326,6 +1332,25 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.close()
     }
   }, 180_000)
+
+  it('boots the shipped profile with the terminal no-upload provider', async () => {
+    const shell = new PtyShell(noUploadsFixture)
+    try {
+      const start = await launch(shell,
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      shell.write('prove the no-upload profile boots\r')
+      const idleAt = await shell.waitFor('Queued turn complete.', start)
+      await shell.waitFor('idle ·', idleAt)
+      shell.resize(120, 60)
+      shell.write('/plugins\r')
+      await shell.waitFor('file-uploads-none · @antst/dsh-file-uploads-none · enabled · active', start)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('Resume with:', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, 30_000)
 
   it.each(['xterm-256color', 'tmux-256color', 'screen', 'linux', 'dumb'])(
     'runs the daily inline flow with TERM=%s',
