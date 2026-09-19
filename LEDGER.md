@@ -2597,7 +2597,7 @@ else none; configuration proof through the real kit against a
 Unix-socket fake daemon with no config groups. Real-daemon env-only
 peer check remains part of the umka acceptance.
 
-### W-080 PTY flake audit and a blocking macOS gate — status: open (owner dsh-exec)
+### W-080 PTY flake audit and a blocking macOS gate — status: accepted 2026-09-19 (PR #166 squash-merged)
 Three shipped-profile PTY tests failed once each on hosted runners on
 2026-09-19 with no code cause: 'completes cwd-bounded paths, attaches an
 @ image, and stashes the image draft' (Linux alpha.1 leg, run
@@ -2614,6 +2614,16 @@ assertion. Then remove continue-on-error from macos-gate in ci.yml so
 it blocks. Production source 0. Acceptance: each test 20/20 locally
 under load, three consecutive green hosted runs including macOS,
 macos-gate required.
+Accepted 2026-09-19 at 8f24ac5, production source 0. Causes: the image
+stash asserted only a negative on a frame that had not been proven
+repainted (now a positive sentinel establishes the frame first); the
+tall model picker's inner waits were CI-scaled but the outer test
+timeout was a fixed 30 s (now testCeiling); prepareShell waited for the
+mode marker then slept 30 ms, so macOS could show the marker before the
+stty output (now a shared waitForTerminalMode polls a complete parsed
+mode line). Evidence: each test 20/20 under load beside a full gate;
+run 35450886839 green on three consecutive attempts including macOS;
+macos-gate blocks from now on.
 
 ## Backlog
 
