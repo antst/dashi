@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.19 — 2026-09-19
+
+- Sessionbus: dashi-app ships the @sessionbus/dsh plugin (0.1.0-pre.2) as the dashi product; the launcher selects the sessionbus profile when SESSIONBUS_LAUNCH_TOKEN is present and exports -g/--group names as SESSIONBUS_GROUPS (W-036).
+- DSH compatibility is a floor: peers `>=0.1.5-rc.2`, tested on 0.1.5-rc.2, 0.1.6-alpha.1 and 0.1.6-alpha.2; the runtime version warning is gone (W-072, W-073).
+- PTY test waits observe parsed frames; the macOS gate is blocking (W-080).
+
 ## 0.1.0-alpha.18 — 2026-09-19
 
 - DSH 0.1.5-rc.2 is the minimum supported version; the whole graph is uniform at rc.2 (W-070).
