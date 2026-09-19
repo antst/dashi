@@ -1307,10 +1307,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(manifests.map(manifest => manifest.version)).toEqual(Array(4).fill(workspaceVersion))
     expect(manifests[2]?.dependencies?.['@antst/dsh-file-uploads-none']).toBe(manifests[0]?.version)
     expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[1]?.version ?? ''}`)
-    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.2')
+    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.3')
     expect(JSON.parse(readFileSync(
       join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
-    )).version).toBe('0.1.2')
+    )).version).toBe('0.1.3')
 
     for (const path of [manifestPath, workspacePath, join(profile, 'pnpm-lock.yaml')]) {
       const installed = readFileSync(path, 'utf8')
@@ -4122,12 +4122,13 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await resumed.waitFor('large prompt 12301', closedAt, 20_000)
 
       const streamingAt = resumed.output.length
-      const firstFrame = resumed.frameTimes.length
       resumed.write('measure chunk storm\r')
       const runningAt = await resumed.waitFor('running ·', streamingAt)
+      const firstFrame = resumed.frameTimes.length
       await resumed.waitFor('idle ·', runningAt + 1, 20_000)
       const streamingOutput = resumed.output.slice(streamingAt)
-      const frameTimes = resumed.frameTimes.slice(firstFrame)
+      // Exclude the immediate running/idle transition frames; this measures timer-driven streaming redraws.
+      const frameTimes = resumed.frameTimes.slice(firstFrame, -1)
       const frames = frameTimes.length
       const frameSpan = (frameTimes.at(-1) ?? 0) - (frameTimes[0] ?? 0)
       const framesPerSecond = Math.max(0, frames - 1) / Math.max(frameSpan / 1_000, Number.EPSILON)
