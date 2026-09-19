@@ -1599,7 +1599,7 @@ queued as upstream reports.
 Owner: dsh-exec. Branch none; handoff is the table, cited.
 Acceptance evidence: every row cited or marked as a gap with the
 missing DSH surface named; no row left as "unknown".
-### W-036 sessionbus plugin in dashi-app, launcher token check, and -g — status: in preparation on branch w-036-sessionbus (PR #139 draft at b72fe9b, plugin preview b8586c2; merge blocked until @sessionbus/dsh is on npm at a version validated per D-040)
+### W-036 sessionbus plugin in dashi-app, launcher token check, and -g — status: accepted 2026-09-19 (PR #139 squash-merged; @sessionbus/dsh 0.1.0-pre.2 exact)
 Per D-036. Scope: dashi-app adds `@agentbus/dsh-comms` at exact
 0.4.0 as a dependency and a patch row (sibling of dashi and roller;
 activation is service-driven, row order is irrelevant); dashi parses
@@ -1633,6 +1633,16 @@ Builder note allowed on the exact 0.4.0 version once published.
 Builder note: the published `@sessionbus/dsh@0.1.0-pre.2` depends on the
 registry `@antst/dsh-file-uploads-none@0.1.0-alpha.18`, while dashi-app links
 the workspace copy; the lock therefore contains both copies by design.
+Accepted 2026-09-19 at 50588d9: dashi-app pins @sessionbus/dsh 0.1.0-pre.2
+exactly and ships the sibling row `id: sessionbus`, `config: { product:
+dashi }` (matches the plugin installer's peer row); the launcher selects
+`--profile sessionbus` when SESSIONBUS_LAUNCH_TOKEN is present and
+exports repeatable -g/--group names (all four spellings, comma lists) as
+SESSIONBUS_GROUPS, rejecting a missing or dash-leading value; real-spawn
+launcher tests, a shipped-profile PTY with the socket and token removed
+from the child env proving the row active and a prompt completing with
+no daemon; 296/296. The lane profile is created by the plugin installer,
+not bundled.
 
 ### W-037 /memory — status: accepted 2026-09-03 (PR #35 squash-merged)
 Defect found and fixed on the way: dashi-app had mirrored the web
