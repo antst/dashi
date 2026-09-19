@@ -15,9 +15,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      tested: ${{ steps.versions.outputs.tested }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: versions
+        run: echo "tested=$(node -p 'JSON.stringify(require("./packages/dashi/validated-dsh-versions.json").tested)')" >> "$GITHUB_OUTPUT"
+
   gate:
+    needs: versions
+    name: DSH ${{ matrix.dsh }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        dsh: ${{ fromJSON(needs.versions.outputs.tested) }}
+    env:
+      DSH_TEST_VERSION: ${{ matrix.dsh }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -26,8 +43,18 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm gate:docker
+
+  preview:
+    needs: gate
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
       - name: Publish preview
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
         run: pnpx pkg-pr-new publish ./packages/file-uploads-none ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact
 
   macos-gate:

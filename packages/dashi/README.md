@@ -3,7 +3,7 @@
 dashi is a terminal UI for DeepSeek Harness (DSH). Install it as a bundle
 via `@antst/dashi-app`, not as a standalone dependency:
 
-Install the exact validated DSH release and start dashi:
+Install DSH 0.1.5-rc.2 or newer and start dashi:
 
 ```sh
 pnpm install @deepseek-ai/dsh@0.1.5-rc.2
@@ -15,11 +15,11 @@ Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.
 When upgrading DSH, remove `node_modules` and the lockfile before installing so
 pnpm cannot retain stale peer-only DSH packages.
-dashi validates each DSH release before adopting it, and its packages pin DSH
-dependencies exactly.
+A DSH profile must use one uniform DSH version. The minimum supported version
+is `0.1.5-rc.2`; CI tests `0.1.5-rc.2`, `0.1.6-alpha.1`, and
+`0.1.6-alpha.2` with exact, reproducible graphs.
 
-Status: pre-release alpha. Interfaces and behavior may change between
-alpha versions; the validated DSH version is `0.1.5-rc.2`.
+Status: pre-release alpha. Interfaces and behavior may change between alpha versions.
 
 Full documentation, source, and issue tracker:
 https://forgejo.antst.net/ai/dashi

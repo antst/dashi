@@ -4,6 +4,15 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+const dshPolicy = JSON.parse(await readFile(
+  fileURLToPath(new URL('../packages/dashi/validated-dsh-versions.json', import.meta.url)), 'utf8',
+))
+const testedVersions = Array.isArray(dshPolicy.tested) ? dshPolicy.tested : []
+const testedVersion = process.argv[2] ?? process.env.DSH_TEST_VERSION ?? testedVersions[0]
+if (typeof dshPolicy.minimum !== 'string' || !testedVersions.includes(testedVersion)) {
+  console.error(`gate: DSH ${String(testedVersion)} is not in the tested matrix`)
+  process.exit(1)
+}
 const checks = [
   ['typecheck', ['run', 'typecheck']],
   ['build', ['run', 'build']],
@@ -12,7 +21,9 @@ const checks = [
 ]
 
 for (const [label, args] of checks) {
-  const result = spawnSync('pnpm', args, { cwd: root, stdio: 'inherit' })
+  const result = spawnSync('pnpm', args, {
+    cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
+  })
   if (result.status !== 0) process.exit(result.status ?? 1)
   console.log(`gate: ${label} passed`)
 }
@@ -62,28 +73,20 @@ function packageViolation(specifier) {
 }
 
 const failures = []
-const validatedVersions = JSON.parse(await readFile(
-  fileURLToPath(new URL('../packages/dashi/validated-dsh-versions.json', import.meta.url)), 'utf8',
-))
-if (validatedVersions.length !== 1) failures.push('validated-dsh-versions.json: expected one version')
-const validatedVersion = validatedVersions[0]
 const workspace = await readFile(fileURLToPath(new URL('../pnpm-workspace.yaml', import.meta.url)), 'utf8')
 const catalog = workspace.split('\ncatalog:\n', 2)[1] ?? ''
 for (const [, packageName, version] of catalog.matchAll(/^  '(@deepseek-ai\/dsh(?:-[^']+)?)': (\S+)$/gm)) {
-  if (version !== validatedVersion) failures.push(`pnpm-workspace.yaml: ${packageName} must be ${validatedVersion}`)
+  if (version !== testedVersion) failures.push(`pnpm-workspace.yaml: ${packageName} must be ${testedVersion}`)
 }
 const lockfile = await readFile(fileURLToPath(new URL('../pnpm-lock.yaml', import.meta.url)), 'utf8')
 const packageSection = lockfile.split('\nsnapshots:\n', 1)[0]
 const lockedDsh = [...packageSection.matchAll(/^  '?(@deepseek-ai\/dsh[^@']*)@([^':]+)'?:$/gm)]
 if (lockedDsh.length === 0) failures.push('pnpm-lock.yaml: no @deepseek-ai/dsh packages found')
 for (const [, packageName, version] of lockedDsh) {
-  if (!validatedVersions.includes(version)) failures.push(`pnpm-lock.yaml: unvalidated ${packageName}@${version}`)
+  if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
 }
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
   .filter(path => path.endsWith('package.json'))
-const pinnedManifests = new Set([
-  'packages/file-uploads-none/package.json', 'packages/dashi/package.json', 'packages/dashi-app/package.json',
-])
 for (const path of packageFiles) {
   const manifest = JSON.parse(await readFile(path, 'utf8'))
   if (relative(root, path) === 'packages/dashi-app/package.json'
@@ -91,17 +94,9 @@ for (const path of packageFiles) {
     failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.3')
   }
   for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
-    for (const [dependency, version] of Object.entries(manifest[field] ?? {})) {
+    for (const dependency of Object.keys(manifest[field] ?? {})) {
       const reason = packageViolation(dependency)
       if (reason !== undefined) failures.push(`${relative(root, path)}: ${reason}: ${dependency}`)
-      if (pinnedManifests.has(relative(root, path)) && dependency.startsWith('@deepseek-ai/')) {
-        if (!/^\d+\.\d+\.\d+(?:-[\dA-Za-z.-]+)?(?:\+[\dA-Za-z.-]+)?$/.test(version)) {
-          failures.push(`${relative(root, path)}: ${dependency} must be pinned exactly`)
-        }
-        if (/^@deepseek-ai\/dsh(?:-|$)/.test(dependency) && version !== validatedVersion) {
-          failures.push(`${relative(root, path)}: ${dependency} must match validated ${validatedVersion}`)
-        }
-      }
     }
   }
 }
@@ -147,6 +142,6 @@ if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)
 }
-console.log(`gate: DSH versions passed (${lockedDsh.length} packages at ${validatedVersions.join(', ')})`)
+console.log(`gate: DSH version passed (${lockedDsh.length} packages at ${testedVersion})`)
 console.log(`gate: import lint passed (${sourceFiles.length} source files)`)
 console.log('gate: PASS — typecheck, build, lint, tests, DSH versions, import lint')
