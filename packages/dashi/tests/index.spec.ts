@@ -91,14 +91,12 @@ describe('dashi profile plugin', () => {
       },
     }
     const exits: number[] = []
-    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     const ctx = new Context()
     provideCmdline(ctx, { args: ['--inline'], exit: code => { exits.push(code) }, ready })
 
     apply(ctx)
     expect(shell.start).not.toHaveBeenCalled()
     announce()
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('DSH unknown is not validated'))
     await vi.waitFor(() => { expect(shell.start).toHaveBeenCalledOnce() })
     expect(runtime.start).toHaveBeenCalledOnce()
     expect(exits).toEqual([])

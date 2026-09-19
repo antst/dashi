@@ -17,4 +17,4 @@ RUN apt-get update \
 
 WORKDIR /workspace
 
-CMD ["sh", "-c", "getent group \"$HOST_GID\" >/dev/null || groupadd --gid \"$HOST_GID\" dashi-gate; getent passwd \"$HOST_UID\" >/dev/null || useradd --uid \"$HOST_UID\" --gid \"$HOST_GID\" --home-dir /tmp/dashi-home --create-home dashi-gate; gate_name=$(getent passwd \"$HOST_UID\" | cut -d: -f1); gate_home=$(getent passwd \"$HOST_UID\" | cut -d: -f6); exec setpriv --reuid=\"$HOST_UID\" --regid=\"$HOST_GID\" --init-groups env HOME=\"$gate_home\" USER=\"$gate_name\" sh -c 'pnpm install --frozen-lockfile && pnpm gate'"]
+CMD ["sh", "-c", "getent group \"$HOST_GID\" >/dev/null || groupadd --gid \"$HOST_GID\" dashi-gate; getent passwd \"$HOST_UID\" >/dev/null || useradd --uid \"$HOST_UID\" --gid \"$HOST_GID\" --home-dir /tmp/dashi-home --create-home dashi-gate; gate_name=$(getent passwd \"$HOST_UID\" | cut -d: -f1); gate_home=$(getent passwd \"$HOST_UID\" | cut -d: -f6); exec setpriv --reuid=\"$HOST_UID\" --regid=\"$HOST_GID\" --init-groups env HOME=\"$gate_home\" USER=\"$gate_name\" node scripts/run-version-gate.mjs"]

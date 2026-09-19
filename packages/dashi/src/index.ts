@@ -21,7 +21,6 @@ export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'loader', 'permissionPresets', 'subagents',
   'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
 ]
-const validatedVersions = JSON.parse(readFileSync(new URL('../validated-dsh-versions.json', import.meta.url), 'utf8')) as string[]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
   readonly accessible: boolean
@@ -153,9 +152,6 @@ function warnDshVersion(): void {
   const [version, baseVersion] = runningDshVersions()
   if (baseVersion !== version) {
     process.stderr.write(`dashi: warning: DSH ${version} loads @deepseek-ai/dsh-base ${baseVersion}; versions must match\n`)
-  }
-  if (!validatedVersions.includes(version)) {
-    process.stderr.write(`dashi: warning: DSH ${version} is not validated; validated: ${validatedVersions.join(', ')}\n`)
   }
 }
 

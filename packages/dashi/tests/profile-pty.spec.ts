@@ -41,9 +41,11 @@ const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
 const fakeEditor = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'fake-editor.mjs')
 const mcpStderrPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'mcp-stderr.patch.yml')
-const [validatedDshVersion] = JSON.parse(readFileSync(
+const { tested: testedDshVersions } = JSON.parse(readFileSync(
   join(root, 'packages', 'dashi', 'validated-dsh-versions.json'), 'utf8',
-)) as [string]
+)) as { tested: string[] }
+const testedDshVersion = process.env.DSH_TEST_VERSION ?? testedDshVersions[0] ?? ''
+if (!testedDshVersions.includes(testedDshVersion)) throw new Error(`DSH ${testedDshVersion} is not a tested gate version`)
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWNgZGIGAAAOAAeCcsnOAAAAAElFTkSuQmCC', 'base64')
 // pi-tui 0.84.4 dist/stdin-buffer.js:22 holds a lone Escape for 10 ms.
 // Leave ample PTY scheduling margin so two Escape keys cannot become one Alt sequence.
@@ -106,7 +108,7 @@ function writeDshPinHook(directory: string): void {
 const fields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']
 module.exports = { hooks: { readPackage(pkg) {
   for (const field of fields) for (const name of Object.keys(pkg[field] ?? {})) {
-    if (name.startsWith('@deepseek-ai/dsh')) pkg[field][name] = ${JSON.stringify(validatedDshVersion)}
+    if (name.startsWith('@deepseek-ai/dsh')) pkg[field][name] = ${JSON.stringify(testedDshVersion)}
   }
   return pkg
 } } }
@@ -542,10 +544,10 @@ function prepareTestProfile(profileHome: string): void {
   appendFileSync(join(profileDir, 'pnpm-workspace.yaml'),
     `\nminimumReleaseAge: 0\noverrides:\n  '@antst/dashi': 'link:${plugin}'\n  '@antst/dsh-file-uploads-none': 'link:${noUploads}'\n`)
   run(dsh, ['plugin', '--profile', 'dashi', 'add', profile], env)
-  run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${validatedDshVersion}`], env,
+  run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`], env,
     profileDir)
   run('pnpm', ['add', questionPlugin], env, profileDir)
-  assertResolvedDshGraph(readFileSync(join(profileDir, 'pnpm-lock.yaml'), 'utf8'), validatedDshVersion)
+  assertResolvedDshGraph(readFileSync(join(profileDir, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
 }
 
 beforeAll(() => {
@@ -568,11 +570,11 @@ beforeAll(() => {
   prepareTestProfile(pluginSandboxHome)
   prepareTestProfile(mcpHome)
   prepareTestProfile(rewindDefaultHome)
-  run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${validatedDshVersion}`],
+  run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${testedDshVersion}`],
     { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
   assertResolvedDshGraph(readFileSync(
     join(mcpHome, 'profiles', 'dashi', 'pnpm-lock.yaml'), 'utf8',
-  ), validatedDshVersion)
+  ), testedDshVersion)
 }, 120_000)
 
 afterAll(() => {
@@ -682,14 +684,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       let start = shell.output.length
       shell.write(`${launcher} --help; printf '__W034_HELP_EXIT__%s\\n' "$?"\n`)
       await shell.waitFor('__W034_HELP_EXIT__0', start)
-      expect(shell.output.slice(start)).toContain(`dashi ${JSON.parse(readFileSync(join(root, 'packages', 'dashi', 'package.json'), 'utf8')).version as string} on DSH ${validatedDshVersion}`)
+      expect(shell.output.slice(start)).toContain(`dashi ${JSON.parse(readFileSync(join(root, 'packages', 'dashi', 'package.json'), 'utf8')).version as string} on DSH ${testedDshVersion}`)
       expect(shell.output.slice(start)).toContain('Launch flags:')
       expect(shell.output.slice(start)).toContain('--permission PRESET')
       start = shell.output.length
       shell.write(`${launcher} --version; printf '__W034_VERSION_EXIT__%s\\n' "$?"\n`)
       await shell.waitFor('__W034_VERSION_EXIT__0', start)
       expect(shell.output.slice(start).replaceAll('\r\n', '\n').replaceAll('\r', '\n'))
-        .toContain(`\n${validatedDshVersion}\n`)
+        .toContain(`\n${testedDshVersion}\n`)
 
       start = await launch(shell, `${launcher} --patch ${quote(replayPatch)} --fullscreen --yolo`)
       shell.write('/plugins\r')
@@ -1260,7 +1262,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
   it('rejects a resolved graph containing a deliberate DSH version mismatch', () => {
     expect(() => {
-      assertResolvedDshGraph(readFileSync(dshVersionMismatch, 'utf8'), validatedDshVersion)
+      assertResolvedDshGraph(readFileSync(dshVersionMismatch, 'utf8'), testedDshVersion)
     }).toThrow('@deepseek-ai/dsh-base@0.1.2-alpha.5')
   })
 
@@ -1288,7 +1290,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       '',
     ].join('\n'))
     writeDshPinHook(prefix)
-    run('pnpm', ['install', `@deepseek-ai/dsh@${validatedDshVersion}`, launcherArchive], process.env, prefix)
+    run('pnpm', ['install', `@deepseek-ai/dsh@${testedDshVersion}`, launcherArchive], process.env, prefix)
     const cleanDsh = join(prefix, 'node_modules', '.bin', 'dsh')
     const cleanLauncher = join(prefix, 'node_modules', '.bin', 'dashi')
     const cleanEnv = { ...process.env, DSH_HOME: cleanHome }
@@ -1308,9 +1310,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       '',
     ].join('\n'))
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'add', appArchive], cleanEnv)
-    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${validatedDshVersion}`], cleanEnv, profile)
-    const cliResolved = assertResolvedDshGraph(readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8'), validatedDshVersion)
-    const profileResolved = assertResolvedDshGraph(readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8'), validatedDshVersion)
+    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`], cleanEnv, profile)
+    const cliResolved = assertResolvedDshGraph(readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
+    const profileResolved = assertResolvedDshGraph(readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
     expect(cliResolved).toBeGreaterThan(0)
     expect(profileResolved).toBeGreaterThan(0)
     const manifests = [

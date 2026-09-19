@@ -47,12 +47,12 @@ describe('validated DSH patch surface', () => {
     const fromDsh = createRequire(dshManifestPath)
     const baseManifestPath = fromDsh.resolve('@deepseek-ai/dsh-base/package.json')
     const webManifestPath = fromDsh.resolve('@deepseek-ai/dsh-web-app/package.json')
-    const validated = JSON.parse(readFileSync(
+    const { tested } = JSON.parse(readFileSync(
       join(root, 'packages', 'dashi', 'validated-dsh-versions.json'), 'utf8',
-    )) as string[]
+    )) as { tested: string[] }
     for (const path of [dshManifestPath, baseManifestPath, webManifestPath]) {
       const installed = manifest(path)
-      expect(validated, `${installed.name}@${installed.version} is not validated`).toContain(installed.version)
+      expect(tested, `${installed.name}@${installed.version} is not tested`).toContain(installed.version)
     }
 
     const dashi = readFileSync(join(root, 'packages', 'dashi-app', 'cordis.patch.yml'), 'utf8')
