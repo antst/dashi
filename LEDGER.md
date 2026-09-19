@@ -2542,7 +2542,7 @@ dsh-free invocation. PROPOSAL missing-row facts corrected per version
 (rc.2 rejects any enabled unresolved row; alpha.1/alpha.2 reject only
 the core set and warn otherwise).
 
-### W-079 sessionbus-dsh groups from the environment, proven — status: open (owner roller-exec, after W-076)
+### W-079 sessionbus-dsh groups from the environment, proven — status: accepted 2026-09-19 (sessionbus-dsh PR #8 squash-merged)
 Peer-mode proof outside dashi: a profile without config groups, with
 SESSIONBUS_GROUPS set to a JSON array, against the fake daemon; the
 test asserts the recorded hello carries exactly that array (labeled a
@@ -2558,6 +2558,15 @@ a lane launch; the lane test asserts the hello carries no groups and
 that the session.open groups are the ones applied. The umka handoff
 includes a real-daemon peer check with groups supplied only by the
 environment.
+Accepted 2026-09-19 at deedb38 (PR #7 was closed by GitHub when its
+stacked base branch was deleted; PR #8 carries the identical patch-id):
+lane mode never reads SESSIONBUS_GROUPS and its hello carries no groups
+key; session.open carrying the daemon's groups succeeds and the plugin
+does not consume them (membership is the daemon's; pdev contract
+clearance 2026-09-19). Peer mode: config.groups, else SESSIONBUS_GROUPS,
+else none; configuration proof through the real kit against a
+Unix-socket fake daemon with no config groups. Real-daemon env-only
+peer check remains part of the umka acceptance.
 
 ## Backlog
 
