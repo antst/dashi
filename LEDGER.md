@@ -2520,7 +2520,7 @@ alpha.1, alpha.2. The daemon finds the bin on PATH, so a lane host
 installs @sessionbus/dsh alongside dsh at the host level in addition
 to the per-profile install (README). Production source +103/-14.
 
-### W-078 sessionbus-dsh uninstall — status: open (owner roller-exec, after W-077)
+### W-078 sessionbus-dsh uninstall — status: accepted 2026-09-19 (sessionbus-dsh PR #6 squash-merged)
 `install.mjs --remove <profile>` (same script, one flag) removes the
 plugin rows it added from the profile's plugin configuration and runs
 `pnpm remove @sessionbus/dsh` in the profile directory; it never boots
@@ -2532,6 +2532,15 @@ a hard boot failure" claim (written against 0.1.2-rc.1) is corrected
 per version: on 0.1.6-alpha.2 only the core plugin set is fatal
 (dsh-app-boot lib/index.js:2469-2477, 2642-2653); rc.2 and alpha.1
 behavior checked and stated.
+Accepted 2026-09-19 at 7668f00: `--remove <profile>` runs `pnpm remove
+@sessionbus/dsh` in the profile directory, then strips only the
+installer's own rows (sessionbus, file-uploads-none), ignores product,
+never boots DSH or imports plugin code; proven with a corrupted
+plugin.cjs and byte-identical unrelated rows; install+remove exercised
+on rc.2, alpha.1, alpha.2 and below-floor rc.1. README leads with the
+dsh-free invocation. PROPOSAL missing-row facts corrected per version
+(rc.2 rejects any enabled unresolved row; alpha.1/alpha.2 reject only
+the core set and warn otherwise).
 
 ### W-079 sessionbus-dsh groups from the environment, proven — status: open (owner roller-exec, after W-076)
 Peer-mode proof outside dashi: a profile without config groups, with
