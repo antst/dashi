@@ -102,6 +102,7 @@ function assertResolvedDshGraph(lockfile: string, expected: string): number {
 
 class PtyShell {
   readonly process: pty.IPty
+  readonly frameTimes: number[] = []
   output = ''
   private readonly exited: Promise<number>
 
@@ -122,7 +123,11 @@ class PtyShell {
     this.process = pty.spawn('/bin/bash', ['--noprofile', '--norc', '-i'], {
       cols: 80, rows: 24, cwd, env,
     })
-    this.process.onData(data => { this.output += data })
+    this.process.onData(data => {
+      this.output += data
+      const frames = data.split('\u001B[?2026h').length - 1
+      for (let index = 0; index < frames; index++) this.frameTimes.push(performance.now())
+    })
     this.exited = new Promise(resolveExit => {
       this.process.onExit(event => { resolveExit(event.exitCode) })
     })
@@ -3378,7 +3383,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
           `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --resume ${parent}`,
           'idle ·')
         const sourceTypes = sessionEvents(parent, rewindDefaultHome).map(event => event.type)
-        expect(sourceTypes).toEqual(expect.arrayContaining(['turn/start', 'user/message', 'turn/end']))
+        // V3 wraps the prompt in step markers and persists the assembled system message.
+        expect(sourceTypes.slice(0, 6)).toEqual([
+          'turn/start', 'step/start', 'system/message', 'user/message', 'step/end', 'turn/end',
+        ])
         expect(sourceTypes).not.toContain('request/header')
         expect(sourceTypes).not.toContain('model/selection')
 
@@ -4114,14 +4122,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await resumed.waitFor('large prompt 12301', closedAt, 20_000)
 
       const streamingAt = resumed.output.length
-      const streamingStartedAt = performance.now()
+      const firstFrame = resumed.frameTimes.length
       resumed.write('measure chunk storm\r')
       const runningAt = await resumed.waitFor('running ·', streamingAt)
       await resumed.waitFor('idle ·', runningAt + 1, 20_000)
-      const streamingElapsed = performance.now() - streamingStartedAt
       const streamingOutput = resumed.output.slice(streamingAt)
-      const frames = streamingOutput.split('\u001B[?2026h').length - 1
-      const framesPerSecond = Math.max(0, frames - 1) / (streamingElapsed / 1_000)
+      const frameTimes = resumed.frameTimes.slice(firstFrame)
+      const frames = frameTimes.length
+      const frameSpan = (frameTimes.at(-1) ?? 0) - (frameTimes[0] ?? 0)
+      const framesPerSecond = Math.max(0, frames - 1) / Math.max(frameSpan / 1_000, Number.EPSILON)
       reportPerformance('streaming-frame-rate', framesPerSecond, 'frames/s')
       expect(framesPerSecond).toBeLessThanOrEqual(testCeiling(30))
       expect(frames).toBeLessThan(stormChunks / 2)

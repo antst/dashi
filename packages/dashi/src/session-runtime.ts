@@ -434,7 +434,7 @@ export async function createSessionRuntime(
     })
   }
   const schedule = (bound: Binding): void => {
-    if (bound.timer === undefined) bound.timer = setTimeout(() => { publish(bound) }, 50)
+    if (bound.timer === undefined) bound.timer = setTimeout(() => { publish(bound) }, 34)
   }
   const refreshSubagents = async (bound: Binding): Promise<void> => {
     const subagents = await subagentViews(ctx, bound.agent.id, bound.abort.signal)

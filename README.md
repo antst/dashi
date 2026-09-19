@@ -259,8 +259,9 @@ adds ASCII status markers, and suppresses the terminal bell.
 DSH does not currently enforce writer ownership across processes; do not
 resume the same root in two DSH processes.
 
-Cold resume is quadratic in event count in DSH 0.1.5-rc.2 (50k: 11.88 s;
-200k: 183.09 s) and 0.1.6-alpha.2 (50k: 11.76 s; 200k: 183.22 s) because
+Cold resume is quadratic in event count in DSH 0.1.5-rc.2 (10k: 1.63 s;
+50k: 11.88 s; 100k: 47.25 s; 200k: 183.09 s) and 0.1.6-alpha.2
+(50k: 11.76 s; 200k: 183.22 s) because
 its token-meter fold clones and scans the retained surface per event
 (`packages/llm/token-meter/src/breakdown-projection.ts:56-75`, introduced by
 deepseek-ai/deepseek-harness commit `6525195953`).
