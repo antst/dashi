@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.18 — 2026-09-19
+
+- DSH 0.1.5-rc.2 is the minimum supported version; the whole graph is uniform at rc.2 (W-070).
+- New package @antst/dsh-file-uploads-none: a no-upload fileUploads provider for non-web profiles, mounted by dashi-app (W-074).
+- Sessions with an open trailing turn resume and render instead of failing (W-069).
+- /btw and /recap refuse while a turn is running (DSH fork behavior on rc.2).
+- Known DSH gap: cold resume is quadratic in event count on DSH 0.1.5-rc.2 and 0.1.6-alpha.2; see README.
+
 ## 0.1.0-alpha.17 — 2026-09-04
 
 - Fix Ctrl+D during a running turn: it now arms like Ctrl+D between turns instead of exiting at once.
