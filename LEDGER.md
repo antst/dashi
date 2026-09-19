@@ -2638,6 +2638,27 @@ mode line). Evidence: each test 20/20 under load beside a full gate;
 run 35450886839 green on three consecutive attempts including macOS;
 macos-gate blocks from now on.
 
+### W-081 sessionbus-dsh: the comms tool is permitted by default — status: open (owner roller-exec)
+Owner directive 2026-09-19 (relayed by the daemon owner): peers and
+lanes must have permission to use comms by default, for every product,
+with no global bypass of anything else. For the DSH plugin: the
+`sessionbus` tool runs without an approval prompt in all three
+compositions (dashi profile row, sessionbus lane profile, plain web or
+custom peer profile), granted through DSH's own permission mechanism
+(the plugin peers on dsh-permission-presets), scoped to that one tool,
+unconditionally (owner: no opt-out; a session without comms is an
+ordinary launch without the plugin), and nothing else in the sandbox
+or approval flow changed. If the narrow grant cannot be established on
+a DSH version, the plugin fails the launch truthfully with one line,
+never silently disables the tool. Deliverables: a source note with
+file:line of the mechanism per tested DSH version and why the plugin
+may set it (or, if DSH has no per-tool default grant a plugin can
+declare, that fact with file:line and the smallest honest alternative
+proposed before implementing); the implementation; packed-matrix proofs
+on each DSH leg that a replayed model turn calls the sessionbus tool
+with no approval event for the lane profile, the dashi row and the web
+peer. Production source small.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
