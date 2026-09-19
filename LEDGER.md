@@ -2638,7 +2638,7 @@ mode line). Evidence: each test 20/20 under load beside a full gate;
 run 35450886839 green on three consecutive attempts including macOS;
 macos-gate blocks from now on.
 
-### W-081 sessionbus-dsh: the comms tool is permitted by default — status: open (owner roller-exec)
+### W-081 sessionbus-dsh: the comms tool is permitted by default — status: accepted 2026-09-19 (sessionbus-dsh PR #15 squash-merged)
 Owner directive 2026-09-19 (relayed by the daemon owner): peers and
 lanes must have permission to use comms by default, for every product,
 with no global bypass of anything else. For the DSH plugin: the
@@ -2658,6 +2658,23 @@ proposed before implementing); the implementation; packed-matrix proofs
 on each DSH leg that a replayed model turn calls the sessionbus tool
 with no approval event for the lane profile, the dashi row and the web
 peer. Production source small.
+Accepted 2026-09-19 at 539c81e, production +7/-1 in plugin.cjs: a
+prepended tools/pre-execute waterfall decision registered before the
+tool, {kind:'allow'} for the tool named exactly sessionbus, next() for
+every other tool; DSH still applies its guard reasons after allow
+(rc.2 core/tools/src/index.ts:144, :1464-1478; alpha.1/alpha.2 :146,
+:1481-1497; DSH's own interception tests use the pattern). The grant is
+an override no later policy can deny, as directed; no opt-out. It
+relies on the waterfall present since the 0.1.5-rc.2 floor; the
+failure branch covers registration errors only, no feature detection.
+Evidence, all fake-daemon replay (distinct from the umka real-daemon
+acceptance): unit negative control with an appended ask-all policy
+(sessionbus allowed, dummy tool asked); packed proofs on rc.2, alpha.1
+and alpha.2 for the lane profile, the dashi row and a web peer, each
+with zero approval events for the sessionbus call and exactly one for
+the dummy tool; launch_token, no-groups hello and daemon-groups
+session.open assertions restored; the alpha.1 pin hook is applied on
+that leg only.
 
 ### W-082 Release publish job installs the workspace — status: accepted 2026-09-19 (PR #172 squash-merged)
 Release run 35458291047 for 0.1.0-alpha.19 failed at 'Publish
