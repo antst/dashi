@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.20 — 2026-09-19
+
+- Supersedes 0.1.0-alpha.19, which was published incomplete (@antst/dashi and @antst/dsh-file-uploads-none only) because the release job no longer installed the workspace before publishing (W-082); do not install alpha.19.
+- Everything listed under 0.1.0-alpha.19: the Sessionbus plugin in dashi-app with the launcher token and -g/--group path (W-036), the DSH compatibility floor with three tested versions (W-072, W-073), and observed-state PTY waits with a blocking macOS gate (W-080).
+
 ## 0.1.0-alpha.19 — 2026-09-19
 
 - Sessionbus: dashi-app ships the @sessionbus/dsh plugin (0.1.0-pre.2) as the dashi product; the launcher selects the sessionbus profile when SESSIONBUS_LAUNCH_TOKEN is present and exports -g/--group names as SESSIONBUS_GROUPS (W-036).
