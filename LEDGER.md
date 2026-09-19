@@ -2321,7 +2321,7 @@ trailing turn (step/end last); renderer and reducer tests; one PTY
 test with the replay provider stalling before headers plus Ctrl+C;
 production source under 30 lines.
 
-### W-070 dashi on DSH 0.1.5-rc.2 — status: open (owner dsh-exec)
+### W-070 dashi on DSH 0.1.5-rc.2 — status: accepted 2026-09-19 (PR #148 squash-merged)
 Bump every DSH peer to `0.1.5-rc.2`, cordis and loader to what rc.2
 ships, validated-dsh-versions.json to rc.2, fresh lockfile, run the
 full gate, and classify every failure: API change (cite old and new
@@ -2338,6 +2338,14 @@ The test-only sessionPersistence provider stub for the rc.2 schedule
 harness is accepted. Acceptance is conditional on roller 0.1.3 (W-011
 in roller) removing the three rc.1 peer islands from the lockfile; no
 overrides or packageExtensions.
+Accepted 2026-09-19 at 2c3a21d: 290/290 tests, 233 DSH packages uniform at
+0.1.5-rc.2, @antst/roller 0.1.3, no rc.1 islands. Cold-resume gate is the
+50k fixture (measured 11,879 ms, bound 15,000 ms); the 200k curve is in
+README Known DSH gaps. Streaming debounce stays 34 ms; the PTY frame-rate
+measurement now counts intervals over their span (26.3 fps under the 30
+cap). Rewind test asserts the exact V3 order. Test-only sessionPersistence
+stub for the schedule harness. /btw and /recap refuse while the source
+runs. Peer-only closure adds 18 exact devDependencies.
 
 ### W-071 sessionbus-dsh on DSH 0.1.5-rc.2 and 0.1.6-alpha.2 — status: accepted 2026-09-18 (sessionbus-dsh PR #2 squash-merged; owner roller-exec)
 Peers `0.1.5-rc.2 || 0.1.6-alpha.2`, cordis 4.0.2, loader 1.0.3, kit
