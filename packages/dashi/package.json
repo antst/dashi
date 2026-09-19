@@ -23,7 +23,7 @@
       "default": "./lib/index.js"
     }
   },
-  "files": ["lib/**/*.js", "lib/**/*.d.ts", "validated-dsh-versions.json"],
+  "files": ["lib/**/*.js", "lib/**/*.d.ts"],
   "license": "MIT",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
