@@ -2450,7 +2450,7 @@ versions) for use after the owner's manual first publish. Production
 source 0. The operations peer's merge rule for that repo becomes: the
 `gate` check SUCCESS on the exact head.
 
-### W-076 sessionbus-dsh peer floor and tested matrix — status: open (owner roller-exec, after W-011)
+### W-076 sessionbus-dsh peer floor and tested matrix — status: accepted 2026-09-19 (sessionbus-dsh PR #4 squash-merged)
 package.json peers per D-041 (`>=0.1.5-rc.2` for every `@deepseek-ai/*`
 peer, cordis `^4.0.2`, loader `^1.0.3`); package.test.cjs asserts the
 floor form instead of the frozen disjunction; ci.yml matrix becomes the
@@ -2466,6 +2466,15 @@ at 0.1.5-rc.2, at a newer prerelease (0.1.6-alpha.2), and at a
 below-floor version (0.1.2-rc.1: unmet-peer warning, install still
 completes, plugin reports the incompatibility on load), and remove
 after each.
+Accepted 2026-09-19 at e1fd53c: peers `>=0.1.5-rc.2`, cordis `^4.0.2`,
+loader `^1.0.3`; CI legs rc.2, alpha.1, alpha.2 install and boot; a
+0.1.2-rc.1 leg installs, asserts the unmet-peer reports, and does not
+boot (rc.1 happened to boot on 2026-09-19; recorded as an observation,
+never an obligation). CI pins pnpm 10.28.1 via action-setup; proof
+scripts stay pnpm-agnostic. README states the uniform-version rule.
+Production source 0. The pkg.pr.new dependency on
+@antst/dsh-file-uploads-none is replaced by the exact npm version once
+alpha.18 publishes it (W-077).
 
 ### W-077 sessionbus-dsh package-owned launcher — status: open (owner roller-exec, after W-076)
 A `sessionbus-dsh` bin in @sessionbus/dsh: when SESSIONBUS_LAUNCH_TOKEN
