@@ -24,7 +24,6 @@
     "@deepseek-ai/dsh-agent-loop-testkit": "catalog:",
     "@deepseek-ai/dsh-bash-local": "catalog:",
     "@deepseek-ai/dsh-brand": "catalog:",
-    "@deepseek-ai/dsh-code-runtime": "catalog:",
     "@deepseek-ai/dsh-hook-protocol": "catalog:",
     "@deepseek-ai/dsh-llm-replay": "catalog:",
     "@deepseek-ai/dsh-output-retention": "catalog:",

@@ -28,6 +28,10 @@ process.stdin.on('data', chunk => {
         scheduled = true
         setTimeout(() => { process.stderr.write(`${marker}\n`) }, 2_000)
       }
+    } else if (message.id !== undefined) {
+      process.stdout.write(`${JSON.stringify({
+        jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'Method not found' },
+      })}\n`)
     }
   }
 })

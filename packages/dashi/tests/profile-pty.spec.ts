@@ -100,6 +100,19 @@ function assertResolvedDshGraph(lockfile: string, expected: string): number {
   return resolved.length
 }
 
+function writeDshPinHook(directory: string): void {
+  mkdirSync(directory, { recursive: true })
+  writeFileSync(join(directory, '.pnpmfile.cjs'), `
+const fields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']
+module.exports = { hooks: { readPackage(pkg) {
+  for (const field of fields) for (const name of Object.keys(pkg[field] ?? {})) {
+    if (name.startsWith('@deepseek-ai/dsh')) pkg[field][name] = ${JSON.stringify(validatedDshVersion)}
+  }
+  return pkg
+} } }
+`)
+}
+
 class PtyShell {
   readonly process: pty.IPty
   readonly frameTimes: number[] = []
@@ -523,13 +536,16 @@ function prepareTestProfile(profileHome: string): void {
   const plugin = join(root, 'packages', 'dashi')
   const noUploads = join(root, 'packages', 'file-uploads-none')
   const profile = join(root, 'packages', 'dashi-app')
+  const profileDir = join(profileHome, 'profiles', 'dashi')
+  writeDshPinHook(profileDir)
   run(dsh, ['plugin', '--profile', 'dashi', 'install'], env)
-  appendFileSync(join(profileHome, 'profiles', 'dashi', 'pnpm-workspace.yaml'),
+  appendFileSync(join(profileDir, 'pnpm-workspace.yaml'),
     `\nminimumReleaseAge: 0\noverrides:\n  '@antst/dashi': 'link:${plugin}'\n  '@antst/dsh-file-uploads-none': 'link:${noUploads}'\n`)
   run(dsh, ['plugin', '--profile', 'dashi', 'add', profile], env)
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${validatedDshVersion}`], env,
-    join(profileHome, 'profiles', 'dashi'))
-  run('pnpm', ['add', questionPlugin], env, join(profileHome, 'profiles', 'dashi'))
+    profileDir)
+  run('pnpm', ['add', questionPlugin], env, profileDir)
+  assertResolvedDshGraph(readFileSync(join(profileDir, 'pnpm-lock.yaml'), 'utf8'), validatedDshVersion)
 }
 
 beforeAll(() => {
@@ -554,6 +570,9 @@ beforeAll(() => {
   prepareTestProfile(rewindDefaultHome)
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${validatedDshVersion}`],
     { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
+  assertResolvedDshGraph(readFileSync(
+    join(mcpHome, 'profiles', 'dashi', 'pnpm-lock.yaml'), 'utf8',
+  ), validatedDshVersion)
 }, 120_000)
 
 afterAll(() => {
@@ -694,7 +713,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const missingAt = shell.output.length
       shell.write('/plugin add @antst/dashi-w034-package-does-not-exist\r')
-      await shell.waitFor('dsh: pnpm failed in profile directory', missingAt)
+      await shell.waitFor('[exit 1]', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('[exit 1]')
       const releasedAt = shell.output.length
@@ -1268,10 +1287,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       '  protobufjs: false',
       '',
     ].join('\n'))
+    writeDshPinHook(prefix)
     run('pnpm', ['install', `@deepseek-ai/dsh@${validatedDshVersion}`, launcherArchive], process.env, prefix)
     const cleanDsh = join(prefix, 'node_modules', '.bin', 'dsh')
     const cleanLauncher = join(prefix, 'node_modules', '.bin', 'dashi')
     const cleanEnv = { ...process.env, DSH_HOME: cleanHome }
+    writeDshPinHook(join(cleanHome, 'profiles', 'dashi'))
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'install'], cleanEnv)
 
     // @antst/dashi is not published yet. Resolve its normal package range to the

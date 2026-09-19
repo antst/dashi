@@ -22,8 +22,6 @@ catalog:
   '@deepseek-ai/dsh-bash-local': 0.1.5-rc.2
   '@deepseek-ai/dsh-brand': 0.1.5-rc.2
   '@deepseek-ai/dsh-cmdline': 0.1.5-rc.2
-  '@deepseek-ai/dsh-code-runtime': 0.1.5-rc.2
-  '@deepseek-ai/dsh-code-runtime-worker-thread': 0.1.5-rc.2
   '@deepseek-ai/dsh-commands': 0.1.5-rc.2
   '@deepseek-ai/dsh-compaction': 0.1.5-rc.2
   '@deepseek-ai/dsh-attachment': 0.1.5-rc.2

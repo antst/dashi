@@ -64,8 +64,9 @@ describe('validated DSH patch surface', () => {
 
     const disabled = (rows: readonly PatchRow[]): string[] => rows.filter(row => row.disabled)
       .map(row => row.id).sort()
-    // Unlike the web app, dashi keeps DSH's agent-instructions active for workspace guidance and /memory.
-    expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)).filter(id => id !== 'agent-instructions'))
+    // Dashi keeps instructions active and leaves version-specific runtime/manager rows to DSH base.
+    const inherited = new Set(['agent-instructions', 'tool-plugin-manager', 'workflow-ptc', 'workflow-worker-thread'])
+    expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)).filter(id => !inherited.has(id)))
 
     const webInserts = new Map(rowsAt(web, 4).map(row => [row.id, row.name]))
     // Authorization supports /login; Schedule owns /loop. The terminal no-upload service replaces the web provider.
