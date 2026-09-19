@@ -2697,7 +2697,7 @@ invoking Docker (549 packages), which W-072 removed from the publish
 job. Proof: fresh clone of the alpha.19 tag, install, dashi-app dry-run
 publish resolves the workspace dependencies.
 
-### W-083 sessionbus-dsh: kit bump for the LanePolicy.trace response field — status: open, blocked on a published kit (owner roller-exec)
+### W-083 sessionbus-dsh: kit bump for the LanePolicy.trace response field — status: accepted 2026-09-19 (sessionbus-dsh PR #17 squash-merged; released as 0.1.0-pre.4)
 The daemon side plans an optional response-only `policy.trace` on
 successful spawn/resume (bus candidate c936873, unreleased). Kit
 0.1.0-pre.3, which the plugin pins exactly (package.json:16), validates
@@ -2712,6 +2712,14 @@ kit version: bump the pin, add one round-trip test that a spawn
 response carrying policy.trace decodes, release the plugin. No input
 schema rewrite, no plugin logic change. No daemon carrying the field is
 rolled to a DSH host before that release.
+Accepted 2026-09-19 (sessionbus-dsh PR #17): @sessionbus/kit pinned exactly
+to the registry 0.5.5 (gitHead 326bc81, verified by the daemon owner);
+one fake-daemon Unix-socket round-trip test proves a lane.spawn result
+carrying policy.trace reaches the tool result unchanged through both
+the peer caller and a lane agent's worker.caller; the manifest test
+asserts the kit spec stays an exact version. No plugin logic or input
+schema change; 49 tests; three DSH legs green. Released as 0.1.0-pre.4
+together with W-081 (0.1.0-pre.3 was tagged but never published).
 
 ## Backlog
 
