@@ -1,17 +1,10 @@
-import { Context, Service } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import * as SchedulePlugin from '@deepseek-ai/dsh-schedule'
 import { SessionId } from '@deepseek-ai/dsh-session'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-class PersistenceProbe extends Service {
-  constructor(ctx: Context) {
-    super(ctx, 'sessionPersistence')
-  }
-}
 
 async function settle(): Promise<void> {
   for (let index = 0; index < 8; index++) await Promise.resolve()
@@ -32,8 +25,14 @@ describe('DSH fixed-rate schedule runtime', () => {
   it('fires twice and stops through the native durable schedule tools', async () => {
     const ctx = new Context()
     await mountAgentLoopTestDependencies(ctx)
-    await ctx.plugin(SessionProjectionRegistry)
-    await ctx.plugin(PersistenceProbe)
+    ctx.provide('sessionPersistence', {
+      create: async (header: unknown) => ({
+        header,
+        inheritedEventCount: 0,
+        append: async () => {},
+        close: async () => {},
+      }),
+    } as never)
     ctx.on('session/flush', () => {})
     await ctx.plugin(AgentLoop, { agents: [] })
     const plugin = await ctx.plugin(SchedulePlugin)
@@ -53,9 +52,10 @@ describe('DSH fixed-rate schedule runtime', () => {
       expect(created).toMatchObject({ isError: false, value: { id: 'schedule-1', kind: 'every' } })
 
       await vi.advanceTimersByTimeAsync(300_000)
-      await settle()
+      await vi.waitFor(() => { expect(followup).toHaveBeenCalledTimes(1) })
+      await vi.waitFor(() => { expect(vi.getTimerCount()).toBeGreaterThan(0) })
       await vi.advanceTimersByTimeAsync(300_000)
-      await settle()
+      await vi.waitFor(() => { expect(followup).toHaveBeenCalledTimes(2) })
       const followed = followup.mock.calls.map(([message]) => message)
       expect(followed).toHaveLength(2)
       expect(followed.every(message => message.source.kind === 'plugin'

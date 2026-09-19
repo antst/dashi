@@ -112,6 +112,17 @@ describe('view-state reducer', () => {
     })
   })
 
+  it('refuses side questions at the running submission boundary', () => {
+    const base = initialViewState('/work', false, {
+      cwd: '/work', id: 'session-1', model: 'm', status: 'running',
+    })
+    for (const composer of ['/btw why', '/recap']) {
+      const [next, effects] = reduce({ ...base, composer }, { type: 'submit' })
+      expect(next.cells.at(-1)?.text).toBe('finish or interrupt the turn first')
+      expect(effects).not.toContainEqual(expect.objectContaining({ type: 'submit' }))
+    }
+  })
+
   it('answers a question batch including custom text from the sole FIFO head', () => {
     const base = initialViewState('/work', false)
     const decision = {

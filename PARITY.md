@@ -2,8 +2,8 @@
 
 Date: 2026-09-03
 
-Pinned DSH: `dsh-v0.1.2-rc.1`, commit
-`a66e4702047846cdaa10c66c9d3df3951f5ea70d`.
+Pinned DSH: `dsh-v0.1.5-rc.2`, commit
+`fb2c4b9e698e30edb738bca4cf0618587db7d203`.
 
 Audit basis is the current Claude Code
 [command roster](https://code.claude.com/docs/en/commands) and
@@ -12,7 +12,7 @@ Audit basis is the current Claude Code
 `/tmp/claude-1000/-home-antst-dtui/4e09852f-b0d6-4344-b2c4-741ea0134a4b/scratchpad/dsh-0.1.2-rc.1`.
 “Done” means the developer capability exists (the dashi spelling is called out
 where it differs); missing aliases are kept visible rather than counted as new
-mechanisms.
+mechanisms. The original audit citations below remain relative to its rc.1 tree.
 
 | Claude item | dashi status | Evidence / owner, or exact missing DSH surface |
 |---|---|---|

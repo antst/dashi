@@ -20,9 +20,9 @@ export function apply(ctx) {
     },
   }))
   let stdoutBroken = false
-  ctx.on('session/event', (_session, event) => {
+  ctx.on('agent/assistant-stream', ({ frame }) => {
     if (process.env.DSH_DASHI_BREAK_STDOUT !== '1' || stdoutBroken
-      || event.type !== 'assistant/chunk' || !JSON.stringify(event.data).includes('Inspecting')) return
+      || !JSON.stringify(frame).includes('Inspecting')) return
     stdoutBroken = true
     setImmediate(() => {
       process.stdout.destroy(Object.assign(new Error('fixture EPIPE: broken stdout'), { code: 'EPIPE' }))

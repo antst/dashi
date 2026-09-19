@@ -1,4 +1,4 @@
-import { decodeStorageRecord, type SessionEvent } from '@deepseek-ai/dsh-session'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -35,7 +35,7 @@ function events(): SessionEvent[] {
 
 function openTurnEvents(): SessionEvent[] {
   return readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .flatMap((line, index) => index === 0 ? [] : decodeStorageRecord(JSON.parse(line)))
+    .slice(1).map(line => JSON.parse(line) as SessionEvent)
 }
 
 describe('rewind boundaries', () => {
@@ -57,10 +57,10 @@ describe('rewind boundaries', () => {
 
   it('uses completed cuts and labels an open trailing turn', () => {
     const open = openTurnEvents()
-    const recovered = [...open, { type: 'turn/end', seq: 14, time: 15,
+    const recovered = [...open, { type: 'turn/end', seq: 19, time: 18,
       data: { turn: 2, reason: { kind: 'interrupted' } } } as SessionEvent]
-    expect(latestCompletedTurn(recovered)).toEqual({ atSeq: 7, open: true, turn: 1 })
-    expect(rewindBoundaries(recovered).at(-1)).toEqual({ atSeq: 7, label: 'open prompt', prompt: 'open prompt' })
+    expect(latestCompletedTurn(recovered)).toEqual({ atSeq: 11, open: true, turn: 1 })
+    expect(rewindBoundaries(recovered).at(-1)).toEqual({ atSeq: 11, label: 'open prompt', prompt: 'open prompt' })
     const overlay = rewindOverlay(recovered, false)
     if (overlay.kind !== 'list') throw new Error('expected picker')
     expect(overlay.title).toContain('trailing turn open; completed boundaries only')

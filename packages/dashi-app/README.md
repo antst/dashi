@@ -6,7 +6,7 @@ for DSH.
 Install the exact validated DSH release and start dashi:
 
 ```sh
-pnpm install @deepseek-ai/dsh@0.1.2-rc.1
+pnpm install @deepseek-ai/dsh@0.1.5-rc.2
 dsh plugin --profile dashi add @antst/dashi-app
 dsh --profile dashi
 ```
@@ -21,7 +21,7 @@ dashi validates each DSH release before adopting it, and its packages pin DSH
 dependencies exactly.
 
 Status: pre-release alpha. Interfaces and behavior may change between
-alpha versions; the validated DSH version is `0.1.2-rc.1`.
+alpha versions; the validated DSH version is `0.1.5-rc.2`.
 
 Full documentation, source, and issue tracker:
 https://forgejo.antst.net/ai/dashi

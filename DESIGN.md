@@ -202,7 +202,7 @@ The distribution contains `@antst/dashi` in `packages/dashi`, the
 installation creates/composes the named profile:
 
 ```text
-pnpm install @deepseek-ai/dsh@0.1.2-rc.1 @antst/dashi-launcher
+pnpm install @deepseek-ai/dsh@0.1.5-rc.2 @antst/dashi-launcher
 dsh plugin --profile dashi add @antst/dashi-app
 dashi [TUI_ARGS...] [PROMPT]
 ```
@@ -260,8 +260,8 @@ and `--dangerously-skip-permissions` are explicit-consent aliases for
 `--permission danger-full-access`, so they do not add a launch confirmation.
 
 `/btw TEXT` and `/recap` fork at the latest completed turn, run one side prompt,
-and show the folded answer without switching the main root. A running source's
-open tail is excluded by DSH's native fork boundary; the child remains resumable.
+and show the folded answer without switching the main root. They require an idle
+source because DSH cannot exclude post-boundary pending input from a running-source fork.
 
 `UUID` in this interface means DSH's complete product `SessionId` (currently
 `session-` plus the generated UUID), not an accepted prefix. An ID-shaped value

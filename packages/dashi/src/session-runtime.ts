@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-agent-presets'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {
   ModelSelection,
+  SessionAssistantStreamBaseline,
   SessionControlFrame,
   SessionFollowFrame,
   SessionProjectionBaseline,
@@ -17,7 +18,8 @@ import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { JobId } from '@deepseek-ai/dsh-jobs'
-import { createUserMessage, ToolCallId, type ContentBlock } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, ToolCallId, type ContentBlock, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { expandAssistantStream } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {
   ScheduleCreateValue, ScheduleDeleteValue, ScheduleListValue, ScheduleView,
@@ -73,7 +75,7 @@ import { quoteShellWord, runHumanShell } from './shell-command.js'
 import { markdownTranscript } from './session-export.js'
 import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
-import { foldCells, pendingShellCells } from './transcript.js'
+import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
@@ -127,6 +129,7 @@ interface Binding {
   readonly controlIterator: AsyncIterator<SessionControlFrame>
   readonly iterator: AsyncIterator<SessionFollowFrame>
   readonly presenter: ToolPresenter
+  streamCells: readonly TerminalCell[]
   repo: string
   commandScope?: Fiber
   readonly cursor: number
@@ -187,6 +190,21 @@ function turnStartTime(events: readonly SessionEvent[], turn: number): number | 
     const event = events[index]
     if (event?.type === 'turn/start' && event.data.turn === turn) return event.time
   }
+}
+
+function latestStep(events: readonly SessionEvent[]): SessionEvent<'step/start'> | undefined {
+  for (let index = events.length - 1; index >= 0; index--) {
+    const event = events[index]
+    if (event?.type === 'step/start') return event
+  }
+}
+
+function openingStream(baseline: SessionAssistantStreamBaseline | undefined): readonly TerminalCell[] {
+  const attempt = baseline?.activeAttempt
+  if (attempt === undefined) return []
+  return expandAssistantStream(attempt.stream as never).slice(0, attempt.nextIndex)
+    .reduce<readonly TerminalCell[]>((cells, member) =>
+      foldAssistantStream(cells, attempt.turn, attempt.step, member.chunk), [])
 }
 
 function titleFromEvent(event: SessionEvent): string | undefined {
@@ -302,7 +320,7 @@ export async function createSessionRuntime(
       if (name !== undefined) title = (await ctx.sessionController.rename({ sessionId, title: name })).title
       await ctx.sessions.flush(agent.session)
       const iterator = ctx.sessionController.follow({
-        address: { kind: 'session', sessionId }, maxMessages: 50,
+        address: { kind: 'session', sessionId }, assistantStream: true, maxMessages: 50,
       }, abort.signal)[Symbol.asyncIterator]()
       const controlIterator = ctx.sessionController.control(abort.signal)[Symbol.asyncIterator]()
       const [opening, controlOpening, subagents, repo] = await Promise.all([
@@ -328,6 +346,7 @@ export async function createSessionRuntime(
         iterator,
         presenter: createToolPresenter(tool => ctx.tools.get(tool, agent)),
         presentationTimer: undefined,
+        streamCells: openingStream(opening.assistantStream),
         root: {
           ...(initialContextPercent === undefined ? {} : { contextPercent: initialContextPercent }),
           cwd: opening.header.cwd ?? options.cwd,
@@ -366,7 +385,8 @@ export async function createSessionRuntime(
     onSettled?: (execution: CommandExecution) => void,
   ): Promise<boolean> => {
     const from = bound.agent.session.seq
-    const execution = ctx.commands.execute(bound.agent, line, images, lifetime.signal)
+    const execution = ctx.commands.execute(bound.agent, line,
+      images.map(image => ({ type: 'image' as const, ...image })), lifetime.signal)
     const accepted = bound.agent.session.snapshotEvents(from).some(event => event.type === 'command/run')
     if (!accepted) {
       const result = await execution
@@ -402,6 +422,7 @@ export async function createSessionRuntime(
     })
   const transcriptCells = (bound: Binding): readonly TerminalCell[] => [
     ...foldCells(bound.events, bound.presenter, { truncatedStart: bound.hasMore }),
+    ...bound.streamCells,
     ...pendingShellCells(bound.agent.inbox.nextStep),
   ]
 
@@ -437,9 +458,24 @@ export async function createSessionRuntime(
     dispatch({ type: 'redraw' })
   }
   const consume = (bound: Binding, frame: Exclude<SessionFollowFrame, { type: 'snapshot' }>): void => {
+    if (frame.type === 'assistant-stream') {
+      if (frame.frame.type !== 'chunk') {
+        bound.streamCells = []
+        schedule(bound)
+        return
+      }
+      const step = latestStep(bound.events)
+      if (step === undefined) return
+      bound.streamCells = foldAssistantStream(
+        bound.streamCells, step.data.turn, step.data.step, frame.frame.chunk as StreamChunk,
+      )
+      schedule(bound)
+      return
+    }
     const [event] = eventsFromRecords([frame])
     if (event === undefined) return
     bound.events.push(event)
+    if (event.type === 'assistant/message' || event.type === 'assistant/attempt') bound.streamCells = []
     if (event.type === 'turn/end') {
       void refreshRepo(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
@@ -704,6 +740,7 @@ export async function createSessionRuntime(
       const stale = ensureCurrent(invocation)
       if (stale !== undefined) return stale
       if (prompt === '') return { kind: 'error', text: 'usage: /btw TEXT' }
+      if (bound.agent.status !== 'idle') return { kind: 'error', text: 'finish or interrupt the turn first' }
       const boundary = latestCompletedTurn(bound.agent.session.snapshotEvents())
       if (boundary.atSeq === undefined) throw new Error('the current session has no completed turn to fork')
       const forked = await ctx.sessionController.fork({ atSeq: boundary.atSeq, sessionId: bound.agent.id })
@@ -725,7 +762,7 @@ export async function createSessionRuntime(
         for (;;) {
           const next = await iterator.next()
           if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
-          if (next.value.type !== 'snapshot' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+          if (next.value.type === 'event' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
         }
       } finally {
         await iterator.return?.()

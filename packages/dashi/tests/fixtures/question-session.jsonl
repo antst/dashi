@@ -1,9 +1,10 @@
-{"type":"session","version":0,"id":"dashi-question","createdAt":1,"cwd":"/recorded","delegationDepth":0}
-{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"dashi-question-call","name":"dashi_question_fixture","argumentsDelta":"{}"}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"dashi-question-call","name":"dashi_question_fixture","arguments":"{}"}}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"text-delta","index":0,"text":"Question fixture complete."}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Question fixture complete."}}}}
-{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"session","version":3,"id":"dashi-question","createdAt":1,"cwd":"/recorded","isSeeded":false,"delegationDepth":0}
+{"type":"turn/start","data":{"turn":1},"seq":0,"time":0}
+{"type":"step/start","data":{"turn":1,"step":1},"seq":1,"time":0}
+{"type":"system/message","seq":2,"time":0,"data":{"turn":1,"step":1,"message":{"id":"v2-to-v3-system-357e8af497281f2b1b0023b1ae404016ff97d34c3d5ec78745b73e5a77d95abf","role":"system","source":{"kind":"plugin","plugin":"@deepseek-ai/dsh-system-prompt"},"content":[]}},"surfaceOp":"append"}
+{"type":"assistant/attempt","seq":3,"time":0,"data":{"turn":1,"step":1,"stream":[{"type":"chunk","time":0,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}},{"type":"tool-call-chunks","time0":0,"index":0,"dt":[],"id":"dashi-question-call","name":"dashi_question_fixture","args":["{}"]},{"type":"chunk","time":0,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"dashi-question-call","name":"dashi_question_fixture","arguments":"{}"}}},{"type":"chunk","time":0,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}]}}
+{"type":"step/end","data":{"turn":1,"step":1},"seq":4,"time":0}
+{"type":"step/start","data":{"turn":1,"step":2},"seq":5,"time":0}
+{"type":"assistant/attempt","seq":6,"time":0,"data":{"turn":1,"step":2,"stream":[{"type":"chunk","time":0,"chunk":{"type":"block-start","index":0,"blockType":"text"}},{"type":"text-chunks","time0":0,"index":0,"dt":[],"texts":["Question fixture complete."]},{"type":"chunk","time":0,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"Question fixture complete."}}},{"type":"chunk","time":0,"chunk":{"type":"finish","reason":{"kind":"stop"}}}]}}
+{"type":"step/end","data":{"turn":1,"step":2},"seq":7,"time":0}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}},"seq":8,"time":0}

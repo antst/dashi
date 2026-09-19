@@ -6,7 +6,7 @@ Harness profile.
 Install the exact validated DSH release and start dashi:
 
 ```sh
-pnpm install @deepseek-ai/dsh@0.1.2-rc.1 @antst/dashi-launcher
+pnpm install @deepseek-ai/dsh@0.1.5-rc.2 @antst/dashi-launcher
 dsh plugin --profile dashi add @antst/dashi-app
 dashi
 ```
