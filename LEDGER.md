@@ -2395,7 +2395,7 @@ warning in packages/dashi/src/index.ts (:24, :157-159) is deleted, the
 rewritten. Owner roller-exec after W-011. Production source: the
 deleted warning only.
 
-### W-073 dashi on DSH 0.1.6-alpha.2 — status: open (owner dsh-exec, after W-070 and W-072)
+### W-073 dashi on DSH 0.1.6-alpha.2 — status: accepted 2026-09-19 (PR #161 squash-merged)
 Second matrix entry: gate green on alpha.2 with the same code;
 failures classified as in W-070; alpha-only differences (runtime
 dependency resolution/unload, multi-instance Session API) handled
@@ -2410,6 +2410,19 @@ dsh-code-runtime-worker-thread; both alpha legs of the matrix green.
 Builder note: dashi consumes only the stable `agent/status` projection
 (`packages/dashi/src/session-runtime.ts:1214-1218`); the renamed startup
 event is DSH-internal, so alpha compatibility needs no version branch.
+Accepted 2026-09-19 at 3f0909d: zero production source lines. dashi
+never consumed agent/session-start or agent/created; its one lifecycle
+fold is the agent/status listener (session-runtime.ts:1214-1218), so
+the rename is DSH-internal and there is no version branch. dashi-app
+drops its dsh-code-runtime-worker-thread insert (unreachable: dashi
+never sets ptc tools mode; the package is gone on the alphas) and the
+rc.2 workflow-worker-thread disable (row absent from the alpha base;
+its consumers stay disabled). Test harness pins every @deepseek-ai/dsh*
+package per leg and asserts a uniform graph before boot; the MCP
+fixture answers unknown methods with -32601 for alpha.2's client.
+Local gates: rc.2 290/290 (233 packages), alpha.1 290/290 (238),
+alpha.2 290/290 (252). CI runs only rc.2 until W-072 ships the tested
+matrix and the reshaped validated-dsh-versions.json.
 
 ### W-074 fileUploads provider for non-web profiles — status: accepted 2026-09-18 (PR #149 squash-merged, standalone)
 packages/file-uploads-none: one plugin providing `fileUploads` with
