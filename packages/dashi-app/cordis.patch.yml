@@ -49,9 +49,6 @@
 - id: tool-subagent-fork
   disabled: true
 
-- id: workflow-worker-thread
-  disabled: true
-
 - id: tool-workflow
   disabled: true
 
@@ -72,9 +69,6 @@
 
     - id: subagent-model-selection-settings
       name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
-
-    - id: code-runtime
-      name: '@deepseek-ai/dsh-code-runtime-worker-thread'
 
     - id: workspace
       name: '@deepseek-ai/dsh-workspace'

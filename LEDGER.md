@@ -2407,6 +2407,10 @@ Added 2026-09-19 (D-041): covers 0.1.6-alpha.1 as well as alpha.2.
 fold; no dependency on dsh-plugin-manager or
 dsh-code-runtime-worker-thread; both alpha legs of the matrix green.
 
+Builder note: dashi consumes only the stable `agent/status` projection
+(`packages/dashi/src/session-runtime.ts:1214-1218`); the renamed startup
+event is DSH-internal, so alpha compatibility needs no version branch.
+
 ### W-074 fileUploads provider for non-web profiles — status: accepted 2026-09-18 (PR #149 squash-merged, standalone)
 packages/file-uploads-none: one plugin providing `fileUploads` with
 DSH's own four-no-op test-stub shape (rc.2 session-controller
