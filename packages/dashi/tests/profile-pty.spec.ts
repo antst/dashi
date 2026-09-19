@@ -2887,19 +2887,21 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell,
         `${quote(dsh)} --profile dashi --patch ${quote(tallModelCatalogPatch())} --fullscreen`)
       id = sessionId(shell.output, start)
-      const pickerAt = shell.output.length
       shell.write('/model\r')
-      await shell.waitFor('↓ 53 more', pickerAt)
-      let frame = await firstFrame(shell.output.slice(start), 100, 12)
-      expect(frame).toContain('W054 provider · W054 row 00')
+      let frame = ''
+      await vi.waitFor(async () => {
+        frame = await firstFrame(shell.output.slice(start), 100, 12)
+        expect(frame).toContain('↓ 53 more')
+        expect(frame).toContain('W054 provider · W054 row 00')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       expect(frame).not.toContain('W054 row 59')
 
-      const endAt = shell.output.length
       shell.write('\u001B[B'.repeat(59))
-      await shell.waitFor('↑ 53 more', endAt)
-      await shell.waitFor('W054 provider · W054 row 59', endAt)
-      frame = await firstFrame(shell.output.slice(start), 100, 12)
-      expect(frame).toContain('W054 provider · W054 row 59')
+      await vi.waitFor(async () => {
+        frame = await firstFrame(shell.output.slice(start), 100, 12)
+        expect(frame).toContain('↑ 53 more')
+        expect(frame).toContain('W054 provider · W054 row 59')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const selectedAt = shell.output.length
       shell.write('\r')
       await shell.waitFor('w054-59', selectedAt)
