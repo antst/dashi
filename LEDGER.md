@@ -2377,7 +2377,7 @@ how the daemon uses the lane profile with no dashi (exec
 on both versions; a packed tarball installs into a fresh profile on
 each.
 
-### W-072 Gate matrix over validated DSH versions — status: open (owner roller-exec, after W-071)
+### W-072 Gate matrix over validated DSH versions — status: accepted 2026-09-19 (PR #162 squash-merged)
 ci.yml and release.yml run the container gate once per version in
 validated-dsh-versions.json (matrix), the DSH-versions check
 accepting the matrix entry; local `pnpm gate` takes an optional
@@ -2394,6 +2394,18 @@ warning in packages/dashi/src/index.ts (:24, :157-159) is deleted, the
 `dsh` versus `dsh-base` mismatch warning stays; README install line
 rewritten. Owner roller-exec after W-011. Production source: the
 deleted warning only.
+Accepted 2026-09-19 at 816b390: peers `>=0.1.5-rc.2` in all three
+manifests (dashi-app dependencies too, per D-041); catalog and lockfile
+exact rc.2; validated-dsh-versions.json = {minimum, tested} consumed by
+CI, gate script and docs only, no longer shipped; gate.mjs asserts the
+leg is in tested and the graph is uniform; the default leg installs the
+committed workspace with --frozen-lockfile, other legs rewrite into a
+temp workspace via catalog rewrite plus a readPackage hook and assert
+uniformity; ci.yml/release.yml derive three container legs with
+fromJSON; the 'not validated' runtime warning is gone (production -4).
+Hosted run 35448781487: rc.2 233, alpha.1 238, alpha.2 252 packages,
+290/290 each. A first-attempt alpha.1 failure was the pre-existing '@'
+image PTY race (W-080).
 
 ### W-073 dashi on DSH 0.1.6-alpha.2 — status: accepted 2026-09-19 (PR #161 squash-merged)
 Second matrix entry: gate green on alpha.2 with the same code;
@@ -2584,6 +2596,24 @@ clearance 2026-09-19). Peer mode: config.groups, else SESSIONBUS_GROUPS,
 else none; configuration proof through the real kit against a
 Unix-socket fake daemon with no config groups. Real-daemon env-only
 peer check remains part of the umka acceptance.
+
+### W-080 PTY flake audit and a blocking macOS gate — status: open (owner dsh-exec)
+Three shipped-profile PTY tests failed once each on hosted runners on
+2026-09-19 with no code cause: 'completes cwd-bounded paths, attaches an
+@ image, and stashes the image draft' (Linux alpha.1 leg, run
+35448781487 attempt 1: expected the frame not to contain '[image 1]'
+after 64 s), 'keeps the selected row reachable in a model picker taller
+than the terminal' (macOS, timed out at profile-pty.spec.ts:2884 after
+the W-073 wait fix), and 'interrupts a running stream, restores the
+terminal, and resumes the root' (macOS, terminal-mode capture missing).
+Scope: for each, find the assertion that races observed state (a
+negative assertion on a frame that has not repainted, a wait keyed on
+bytes instead of parsed frames, a ceiling too small for the mac
+runner), fix the wait; never add sleeps or raw escapes, never widen an
+assertion. Then remove continue-on-error from macos-gate in ci.yml so
+it blocks. Production source 0. Acceptance: each test 20/20 locally
+under load, three consecutive green hosted runs including macOS,
+macos-gate required.
 
 ## Backlog
 
