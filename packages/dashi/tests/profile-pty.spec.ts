@@ -696,7 +696,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/plugin add @antst/dashi-w034-package-does-not-exist\r')
       await shell.waitFor('dsh: pnpm failed in profile directory', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
-      expect(shell.output.slice(missingAt)).toContain('404')
+      expect(shell.output.slice(missingAt)).toContain('[exit 1]')
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
