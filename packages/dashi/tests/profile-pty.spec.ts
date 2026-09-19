@@ -209,6 +209,15 @@ function relevantTerminalMode(mode: string): string {
   }).join(' ')
 }
 
+async function waitForTerminalMode(shell: PtyShell, marker: string, start: number): Promise<string> {
+  let mode = ''
+  await vi.waitFor(() => {
+    mode = modeBetween(shell.output.slice(start), marker)
+    relevantTerminalMode(mode)
+  }, { timeout: testCeiling(20_000), interval: 20 })
+  return mode
+}
+
 async function firstFrame(output: string, columns = 80, rows = 24): Promise<string> {
   const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: columns, rows })
   await new Promise<void>(resolveWrite => { terminal.write(output, resolveWrite) })
@@ -236,11 +245,9 @@ async function resizedFrame(
 
 async function prepareShell(extraEnv: NodeJS.ProcessEnv = {}, cwd = root): Promise<{ baseline: string; shell: PtyShell }> {
   const shell = new PtyShell(replayFixture, undefined, cwd, extraEnv)
+  const start = shell.output.length
   shell.write("printf '__MODE_BEFORE__\\n'; stty -a | tr '\\n' ' '; printf '\\n'\n")
-  await shell.waitFor('__MODE_BEFORE__')
-  await shell.waitFor('\n', shell.output.indexOf('__MODE_BEFORE__') + 20)
-  await new Promise(resolveDelay => { setTimeout(resolveDelay, 30) })
-  return { baseline: modeBetween(shell.output, '__MODE_BEFORE__'), shell }
+  return { baseline: await waitForTerminalMode(shell, '__MODE_BEFORE__', start), shell }
 }
 
 async function launch(
@@ -527,10 +534,9 @@ function generateLargeSession(
 async function expectRestored(shell: PtyShell, baseline: string): Promise<void> {
   const start = shell.output.length
   shell.write("printf '__MODE_AFTER__\\n'; stty -a | tr '\\n' ' '; printf '\\n__SHELL_OK__\\n'\n")
-  await shell.waitFor('__MODE_AFTER__\r\n', start)
-  await shell.waitFor('__SHELL_OK__\r\n', start)
-  expect(relevantTerminalMode(modeBetween(shell.output.slice(start), '__MODE_AFTER__')))
-    .toBe(relevantTerminalMode(baseline))
+  const restored = await waitForTerminalMode(shell, '__MODE_AFTER__', start)
+  await shell.waitFor('__SHELL_OK__', start)
+  expect(relevantTerminalMode(restored)).toBe(relevantTerminalMode(baseline))
 }
 
 function prepareTestProfile(profileHome: string): void {
@@ -2915,7 +2921,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
     expect(sessionEvents(id, overlayHome).some(event => event.type === 'model/selection'
       && event.data?.model === 'w054-59' && event.data.provider === 'w054-provider')).toBe(true)
-  }, 30_000)
+  }, testCeiling(30_000))
 
   it.each(['--yolo', '--dangerously-skip-permissions'])(
     'applies launch model, effort, and %s before the first prompt', async (dangerFlag) => {
@@ -3649,12 +3655,21 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         timeout: testCeiling(20_000),
       })
       shell.write('\u0013')
-      await vi.waitFor(async () => { expect(await screen()).not.toContain('[image 1]') }, {
+      shell.write('stashed image draft')
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).toContain('stashed image draft')
+        expect(frame).not.toContain('[image 1]')
+      }, {
         timeout: testCeiling(20_000),
       })
       const restoreAt = shell.output.length
       shell.write('\u0013')
-      await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).toContain('[image 1]')
+        expect(frame).not.toContain('stashed image draft')
+      }, {
         timeout: testCeiling(20_000),
       })
       shell.write('image selected through at\r')
