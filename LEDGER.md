@@ -501,6 +501,46 @@ instructions; the mac when a mac peer exists. Install inventory
 (dsh 0.1.2-rc.1, launcher alpha.17), no global copies, profiles
 `dashi` and a stale `agent-sessions`.
 
+### D-041 (2026-09-19) DSH compatibility is a floor, not an allowlist (supersedes the pin form of D-040)
+Owner rulings 2026-09-19. Minimum supported DSH stays 0.1.5-rc.2.
+Newer prereleases are admitted without an exact allowlist and without
+an upper cutoff; a boundary is excluded only when a break is
+demonstrated and named in this ledger. Encoding, verified empirically
+with pnpm 10.28 (its peer check is yarn's satisfiesWithPrereleases:
+build the range with includePrerelease, and if the strict test fails,
+strip the prerelease tag from the version and from every comparator):
+every `@deepseek-ai/*` peer range in dashi, the sessionbus plugin, and
+roller is `>=0.1.5-rc.2`, which admits 0.1.6-alpha.1, 0.1.6-alpha.2,
+0.1.7-alpha.1 and 0.2.0-alpha.1 without a warning and rejects 0.1.4
+and 0.1.2-rc.1 (it also admits 0.1.5-rc.1 and 0.1.5-alpha.x, untested;
+accepted, no check is added for it); `@deepseek-ai/cordis` `^4.0.2`,
+loader `^1.0.3`; no peerDependenciesMeta. The same string as a
+dependency range resolves to the `latest` dist-tag (0.1.5-rc.2 today),
+never silently to an alpha. Exact versions live only in devDependencies,
+the pnpm catalog, and lockfiles, for CI reproducibility.
+validated-dsh-versions.json becomes `{"minimum": ..., "tested": [...]}`
+consumed only by CI matrices and docs; tested is 0.1.5-rc.2,
+0.1.6-alpha.1, 0.1.6-alpha.2. 0.1.6-alpha.1 is a third state, not a
+midpoint: it already has `agent/created`, the ptc runtimes and the
+`CommandSubmitAttachment` type, but has no dsh-plugin-manager, the old
+`dsh plugin` CLI, no `session/writer-held`, and still carries
+SessionQueuedItem (scratchpad report dsh-delta/alpha1.md). No runtime
+version check remains anywhere beyond dashi's `dsh` versus `dsh-base`
+mismatch warning. Uninstall and recovery never require a bootable DSH
+or a particular pnpm version; `dsh plugin` itself never boots the
+profile (dsh lib/bin.js:225-229 forwards to pnpm in the profile
+directory), so the missing piece is a plugin uninstall, not a DSH fix.
+Cold resume on rc.2 and later is quadratic in event count (DSH
+token-meter, packages/llm/token-meter/src/breakdown-projection.ts:56-75,
+introduced by upstream commit 6525195953 of 2026-09-07, live at HEAD,
+unreported upstream; measured 10k 1.6 s, 50k 12 s, 100k 47 s, 200k
+183 s on both rc.2 and alpha.2, rc.1 200k 2.3 s): the gate asserts the
+50k fixture at the measured rc.2 bound and the 200k numbers stay
+documented as a named DSH gap; a smaller gate is not a repaired
+regression. The sessionbus daemon must not know `dsh --profile
+sessionbus`: the plugin ships its own launcher bin that the daemon
+invokes as a generic product command, and that bin selects the profile.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -2291,6 +2331,14 @@ mechanisms; no new state. The delta report in the architect's
 scratchpad (dsh-delta/REPORT.md) is the map. Acceptance: gate green
 on rc.2; README and DESIGN version references updated.
 
+Added 2026-09-19 (D-041): owner ruling on the cold-resume failure: the
+gate asserts the 50k fixture at the measured rc.2 bound; the 200k result
+is documented as a named DSH gap with the file:line and upstream commit.
+The test-only sessionPersistence provider stub for the rc.2 schedule
+harness is accepted. Acceptance is conditional on roller 0.1.3 (W-011
+in roller) removing the three rc.1 peer islands from the lockfile; no
+overrides or packageExtensions.
+
 ### W-071 sessionbus-dsh on DSH 0.1.5-rc.2 and 0.1.6-alpha.2 — status: accepted 2026-09-18 (sessionbus-dsh PR #2 squash-merged; owner roller-exec)
 Peers `0.1.5-rc.2 || 0.1.6-alpha.2`, cordis 4.0.2, loader 1.0.3, kit
 0.1.0-pre.3 exact; @antst/dsh-file-uploads-none as a preview
@@ -2327,12 +2375,29 @@ validated-dsh-versions.json (matrix), the DSH-versions check
 accepting the matrix entry; local `pnpm gate` takes an optional
 version and defaults to the first. Production source 0.
 
+Added 2026-09-19 (D-041): scope is now encoding D-041 in dashi. Peer
+ranges `>=0.1.5-rc.2` in all three manifests (after roller 0.1.3);
+scripts/gate.mjs drops the one-validated-version rule (:68) and the
+peers-must-equal-validated rule (:97-103) and keeps catalog and
+lockfile convergence (:72-81); validated-dsh-versions.json takes the
+{minimum, tested} shape; ci.yml and release.yml run the container gate
+once per `tested` entry (three legs); the "not validated" runtime
+warning in packages/dashi/src/index.ts (:24, :157-159) is deleted, the
+`dsh` versus `dsh-base` mismatch warning stays; README install line
+rewritten. Owner roller-exec after W-011. Production source: the
+deleted warning only.
+
 ### W-073 dashi on DSH 0.1.6-alpha.2 — status: open (owner dsh-exec, after W-070 and W-072)
 Second matrix entry: gate green on alpha.2 with the same code;
 failures classified as in W-070; alpha-only differences (runtime
 dependency resolution/unload, multi-instance Session API) handled
 without branching dashi's code by version unless unavoidable, and
 then named in the ledger.
+
+Added 2026-09-19 (D-041): covers 0.1.6-alpha.1 as well as alpha.2.
+`agent/session-start` and `agent/created` are both handled by the same
+fold; no dependency on dsh-plugin-manager or
+dsh-code-runtime-worker-thread; both alpha legs of the matrix green.
 
 ### W-074 fileUploads provider for non-web profiles — status: accepted 2026-09-18 (PR #149 squash-merged, standalone)
 packages/file-uploads-none: one plugin providing `fileUploads` with
@@ -2384,6 +2449,78 @@ changelog, npm publish with provenance, skipping already-published
 versions) for use after the owner's manual first publish. Production
 source 0. The operations peer's merge rule for that repo becomes: the
 `gate` check SUCCESS on the exact head.
+
+### W-076 sessionbus-dsh peer floor and tested matrix — status: open (owner roller-exec, after W-011)
+package.json peers per D-041 (`>=0.1.5-rc.2` for every `@deepseek-ai/*`
+peer, cordis `^4.0.2`, loader `^1.0.3`); package.test.cjs asserts the
+floor form instead of the frozen disjunction; ci.yml matrix becomes the
+tested list (0.1.5-rc.2, 0.1.6-alpha.1, 0.1.6-alpha.2); README
+compatibility line states minimum and tested. Production source 0.
+
+Added 2026-09-19 (pdev clarification): the `>=0.1.5-rc.2` floor applies
+to DSH-versioned packages only; `@deepseek-ai/cordis` and the loader
+keep their own caret ranges. The pnpm peer-check behavior is evidence
+for pnpm 10, not a semver guarantee, so the gate exercises the ordinary
+paths on the installed pnpm without pinning it: install into a profile
+at 0.1.5-rc.2, at a newer prerelease (0.1.6-alpha.2), and at a
+below-floor version (0.1.2-rc.1: unmet-peer warning, install still
+completes, plugin reports the incompatibility on load), and remove
+after each.
+
+### W-077 sessionbus-dsh package-owned launcher — status: open (owner roller-exec, after W-076)
+A `sessionbus-dsh` bin in @sessionbus/dsh: when SESSIONBUS_LAUNCH_TOKEN
+is present it execs `dsh --profile sessionbus` with argv appended,
+otherwise `dsh` with argv unchanged; resolves `dsh` from the same
+install the way dashi-launcher/bin/dashi.js does, mirrors signals and
+exit code, has no options of its own, about twenty lines. The daemon
+registers the product command as this bin; nothing on the daemon side
+names a profile. prove-packed-install.sh invokes the bin (with the
+token and SESSIONBUS_GROUPS set) instead of `dsh --profile sessionbus`;
+docs/LANE-WITHOUT-TUI.md and docs/PROPOSAL.md launcher sections are
+corrected to this wiring. dashi's own launcher keeps its token check
+(W-036) for the dashi product.
+
+Added 2026-09-19 (pdev daemon contract, cade269 launch.go:48 and
+directory.go:227-236): the daemon resolves the product command with
+LookPath(product) and claims the worker only when hello.product equals
+the launched product exactly; there is no alias mapping. The plugin
+therefore stops hardcoding `product: dashi`: the product name is a
+required field of the plugin's profile row (`product: dashi` in the
+dashi profile, `product: sessionbus-dsh` in the sessionbus profile),
+used in both the lane hello and the peer identity, hard error when
+missing. The fake daemon in the tests rejects a hello whose product
+differs from the product it launched, and both paths are proven: the
+dashi launcher (product dashi) and the new bin (product sessionbus-dsh).
+
+### W-078 sessionbus-dsh uninstall — status: open (owner roller-exec, after W-077)
+`install.mjs --remove <profile>` (same script, one flag) removes the
+plugin rows it added from the profile's plugin configuration and runs
+`pnpm remove @sessionbus/dsh` in the profile directory; it never boots
+DSH, never checks the DSH or pnpm version, and succeeds when the
+profile cannot boot. Test: install into a throwaway profile, replace
+the DSH packages with a version the plugin cannot load, remove, assert
+no plugin row and no package remain. docs/PROPOSAL.md's "missing row is
+a hard boot failure" claim (written against 0.1.2-rc.1) is corrected
+per version: on 0.1.6-alpha.2 only the core plugin set is fatal
+(dsh-app-boot lib/index.js:2469-2477, 2642-2653); rc.2 and alpha.1
+behavior checked and stated.
+
+### W-079 sessionbus-dsh groups from the environment, proven — status: open (owner roller-exec, after W-076)
+Peer-mode proof outside dashi: a profile without config groups, with
+SESSIONBUS_GROUPS set to a JSON array, against the fake daemon; the
+test asserts the recorded hello carries exactly that array (labeled a
+configuration proof). Lane mode, per pdev from the published kit 0.1.0-pre.3 and daemon
+cade269: the lane hello forbids groups whenever a launch token exists
+(sdk/go/protocol/session.schema.json:26; kit rejects before sending),
+the daemon does not export SESSIONBUS_GROUPS (launch.go:55 overlays only
+the token and socket), and authoritative lane groups arrive in the
+daemon's session.open params (lane.go:43). So the lane-side
+SESSIONBUS_GROUPS read in plugin.cjs is deleted: the variable means
+peer identity only; a stale or malformed inherited value never blocks
+a lane launch; the lane test asserts the hello carries no groups and
+that the session.open groups are the ones applied. The umka handoff
+includes a real-daemon peer check with groups supplied only by the
+environment.
 
 ## Backlog
 
@@ -2442,3 +2579,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted): DSH Discussion (Bug): since 0.1.5-rc.2, @deepseek-ai/dsh-api-session-controller hard-injects `fileUploads` (src/index.ts:92; calls at :125-129, commands.ts:351,362,477), a service provided only by the web client plugin @deepseek-ai/dsh-client-file-upload (which itself needs `connection`), so any non-web composition that mounts the session controller (a TUI, a headless controller) cannot activate; DSH's own non-web bundles avoid it only by not mounting session-controller at all. Suggest making fileUploads optional (ctx.get with null-safe bindPrompt/retirePrompt/resolve paths) or splitting a fileUploads service definition with a no-op default. Found 2026-09-18 (W-074).
 - Queued (not yet posted): DSH Discussion (Bug): since 0.1.5-rc.2, SessionController.fork of a RUNNING source (atSeq at the last completed turn/end) advances the cut to the next turn/start and so seeds the child with the agent/inbox/spliced item of the in-progress prompt (packages/api/session-controller/src/commands.ts:227-245); the child Agent is published and wakes on that item before fork returns, so the caller cannot clear it (cancel after resolveAgent is too late). A side-question fork therefore answers the source's open prompt too. Suggest a fork option to exclude post-boundary inbox splices, or excluding them when the source is running. Found 2026-09-18 (W-070); dashi now refuses /btw while a turn runs.
 - Queued (not yet posted), HIGH: DSH Discussion (Bug): cold resume of a large session regressed from ~2.3 s (0.1.2-rc.1) to over 120 s (0.1.5-rc.2) for a 200k-event log, stalling before the first UI frame inside agent-loop session open (packages/core/agent-loop/src/index.ts:878-899: whole-log V3 read-validate plus interruptedTurnClosers). Scaling numbers, profile, and the 0.1.6-alpha.2 result to be attached (W-070).
+- Update 2026-09-19 to the cold-resume entry above: localized by the rc.2 50k CPU profile to @deepseek-ai/dsh-token-meter, packages/llm/token-meter/src/breakdown-projection.ts:56-75 (`contextBreakdownProjectionDefinition.apply` / `commitSurfaceTokens` clones state.nodes and findLast-scans it per surface event), not the agent-loop open path; introduced by upstream commit 6525195953 ("fix(token-meter): classify surviving prompts in surface order", 2026-09-07), still live at HEAD. Timings on the same fixture: rc.2 10k 1,629 ms, 50k 11,879 ms, 100k 47,246 ms, 200k 183,088 ms; 0.1.6-alpha.2 50k 11,764 ms, 200k 183,216 ms; rc.1 200k 2.3 s. Related but distinct: Discussions #928 and #4416 (fixed by 0c5aa8110f, already in rc.1). Upstream has issues disabled; post as a Discussion (Bug). No existing report found.
