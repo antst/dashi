@@ -2484,7 +2484,7 @@ Production source 0. The pkg.pr.new dependency on
 @antst/dsh-file-uploads-none is replaced by the exact npm version once
 alpha.18 publishes it (W-077).
 
-### W-077 sessionbus-dsh package-owned launcher — status: open (owner roller-exec, after W-076)
+### W-077 sessionbus-dsh package-owned launcher — status: accepted 2026-09-19 (sessionbus-dsh PR #5 squash-merged)
 A `sessionbus-dsh` bin in @sessionbus/dsh: when SESSIONBUS_LAUNCH_TOKEN
 is present it execs `dsh --profile sessionbus` with argv appended,
 otherwise `dsh` with argv unchanged; resolves `dsh` from the same
@@ -2508,6 +2508,17 @@ used in both the lane hello and the peer identity, hard error when
 missing. The fake daemon in the tests rejects a hello whose product
 differs from the product it launched, and both paths are proven: the
 dashi launcher (product dashi) and the new bin (product sessionbus-dsh).
+Accepted 2026-09-19 at 6a2d748: `sessionbus-dsh` bin (26 lines, mirrors
+dashi-launcher: dsh from PATH, SIGINT/SIGTERM and exit mirrored; the
+copy is noted in the file); `product` is a required row field written
+and repaired in place by install.mjs (`--product`, grammar
+^[a-z0-9][a-z0-9-]{0,31}$; lane profile fixed to sessionbus-dsh, any
+other value rejected); plugin uses it in peer identity and lane hello
+and exits once with the repair command when missing; the fake daemon
+rejects a mismatched product; both launch paths proven on rc.2,
+alpha.1, alpha.2. The daemon finds the bin on PATH, so a lane host
+installs @sessionbus/dsh alongside dsh at the host level in addition
+to the per-profile install (README). Production source +103/-14.
 
 ### W-078 sessionbus-dsh uninstall — status: open (owner roller-exec, after W-077)
 `install.mjs --remove <profile>` (same script, one flag) removes the
