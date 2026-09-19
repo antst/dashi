@@ -2659,6 +2659,21 @@ on each DSH leg that a replayed model turn calls the sessionbus tool
 with no approval event for the lane profile, the dashi row and the web
 peer. Production source small.
 
+### W-082 Release publish job installs the workspace — status: open (owner dsh-exec)
+Release run 35458291047 for 0.1.0-alpha.19 failed at 'Publish
+@antst/dashi-app' with ERR_PNPM_CANNOT_RESOLVE_WORKSPACE_PROTOCOL for
+`@antst/dashi` (workspace:^): W-072 moved `pnpm gate:docker` out of the
+publish job into the verify matrix, and no step installs the workspace
+on the publish runner any more, so pnpm publish cannot resolve
+`workspace:` dependencies. alpha.19 is therefore partial on npm
+(@antst/dsh-file-uploads-none and @antst/dashi only; dashi-app and
+dashi-launcher never published); it stays as is and 0.1.0-alpha.20
+supersedes it. Scope: one step `pnpm install --frozen-lockfile` in the
+publish job before the first publish, nothing else; the PR names the
+step that left node_modules present in the alpha.18 run 35443532702;
+proof by a dry-run publish of dashi-app from a fresh clone of the
+alpha.19 tag after that install. Production source 0.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
