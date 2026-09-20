@@ -2981,7 +2981,7 @@ host runbook then re-pins dashi-app on both hosts (profile add of the
 exact dashi-app version, graph check, boot heal, closure check, dashi
 roster check). Production source 0 beyond the manifest.
 
-### W-092 Release publish job builds and verifies tarball contents — status: open (owner dsh-exec)
+### W-092 Release publish job builds and verifies tarball contents — status: accepted 2026-09-20 (PR #195 squash-merged; released as 0.1.0-alpha.21)
 Found on the dsh host after the alpha.20 install: the dashi profile
 fails to boot with "Cannot find module .../@antst/dashi/lib/index.js";
 npm confirms @antst/dashi@0.1.0-alpha.20 has dist.fileCount 3 (no lib/)
@@ -3000,6 +3000,15 @@ from `npm view`, and the guard run on a fresh clone of the alpha.20 tag
 failing before build and passing after. Released as 0.1.0-alpha.21;
 0.1.0-alpha.20 is deprecated on npm with the reason; both hosts re-pin
 dashi-app to alpha.21.
+Accepted 2026-09-20 at 8ed83b3: release.yml's publish job runs `pnpm
+build` after the frozen install and a guard that dry-run-packs all
+four packages and requires lib/index.js (dashi, file-uploads-none),
+cordis.patch.yml (dashi-app) and bin/dashi.js (dashi-launcher) before
+the release and the publishes. Proof: alpha.18 vs alpha.20 fileCount 56
+vs 3 (dashi) and 5 vs 3 (file-uploads-none); on a fresh alpha.20 tag
+clone the guard fails before build and passes after; in the alpha.18
+run the `pnpm gate:docker` step had installed and built on the
+runner, which W-072 removed from the publish job.
 
 ## Backlog
 
