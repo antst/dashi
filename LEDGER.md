@@ -2951,6 +2951,20 @@ row and the plugin dependency ship with dashi-app; until dashi re-pins,
 the dashi product runs the plugin version dashi-app pins). Production
 source small (install.mjs).
 
+### W-091 dashi-app pins the fixed plugin release — status: open (owner dsh-exec, after sessionbus-dsh W-089 and W-090 release)
+dashi-app 0.1.0-alpha.20 pins @sessionbus/dsh 0.1.0-pre.2 (W-036), so
+the dashi product runs a plugin without W-081 (default tool grant),
+W-083 (kit 0.5.5), W-086/W-087 (run result and text), W-088 (installer
+merge) and W-089 (peer re-hello), while lane and web profiles on the
+same host run the current release. Scope: bump the exact pin in
+packages/dashi-app/package.json to the release carrying W-089 and
+W-090, regenerate the lock, keep the sibling row `product: dashi`, run
+the gate (the shipped-profile PTY proves the row active and the
+launcher token and -g paths), and release dashi 0.1.0-alpha.21. The
+host runbook then re-pins dashi-app on both hosts (profile add of the
+exact dashi-app version, graph check, boot heal, closure check, dashi
+roster check). Production source 0 beyond the manifest.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
