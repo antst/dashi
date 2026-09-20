@@ -561,6 +561,35 @@ packages/credentials/credentials-local/src/index.ts:557-624); the
 daemon's service environment does not inherit the login environment.
 Neither the plugin nor the daemon changes.
 
+### D-043 (2026-09-20) Host graph truth is the install anchor and the healed fallback, not the lockfile
+Found on umka after the exact-pin repair: the lockfile was uniform at
+0.1.5-rc.2 while the physical top-level ~/node_modules/@deepseek-ai
+projection (hoisted install) still held unpacked 0.1.2-rc.1 copies and
+the shared $DSH_HOME/profiles/node_modules fallback had links into a
+removed rc.1 generation. Source (rc.2): DSH resolves from the executing
+dsh package in the pnpm virtual store (INSTALL_ANCHOR,
+apps/cli/src/profile-boot.ts:78,187-191,226-243), bundles from the
+installation anchor first with dsh-base guaranteed from the running
+install (packages/boot/app-boot/src/profile.ts:718-761), and on every
+profile launch checks the expected fallback closure (dependency and
+peer BFS from the anchor, :469-504) and replaces wrong, broken and
+missing expected links (:507-528, :201-239, :552-577) without pruning
+extras; rows import relative to the profile root (app-boot
+index.ts:787-804; cordis-plugin-loader src/config/tree.ts:144-160). No
+DSH path is anchored at top-level ~/node_modules. Rulings: (1) the
+runbook's graph check is physical: top-level projection inventory
+(one version for the host and the dashi profile) and the expected
+fallback closure exact; the lockfile check alone proves nothing. (2)
+After any host package change the required reconciliation is one
+headless boot from the real launcher plus the closure check; stale
+top-level copies on a hoisted install are cosmetic for DSH and a hazard
+only for other code anchored at ~, and the proven optional cleanup is
+`pnpm install --frozen-lockfile --force` (isolated hoisted
+reproduction: 214 rc.1 to 231 rc.2, lockfile hash and unrelated
+packages unchanged); never a node_modules deletion. (3) The dsh host
+is an isolated-linker install and was physically uniform after the
+pins (26/26 host, 231/231 fallback at rc.2).
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
