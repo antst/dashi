@@ -3023,7 +3023,7 @@ clone the guard fails before build and passes after; in the alpha.18
 run the `pnpm gate:docker` step had installed and built on the
 runner, which W-072 removed from the publish job.
 
-### W-093 sessionbus-dsh: a web-client root publishes the peer — status: open (owner roller-exec)
+### W-093 sessionbus-dsh: a web-client root publishes the peer — status: accepted 2026-09-20 (sessionbus-dsh PR #35 squash-merged; released as 0.1.0-pre.11)
 Found on the dsh host at 0.1.0-pre.9 with the real daemon: the web
 profile launched as a peer (token absent, groups from
 SESSIONBUS_GROUPS, SESSIONBUS_SOCKET set) connects, creates a native
@@ -3044,6 +3044,31 @@ location (a plugin fix) or the runbook exports SESSIONBUS_SOCKET for
 peer launches (a docs line), per the daemon owner's answer. Production
 source small (plugin.cjs). Released as 0.1.0-pre.11; W-091 pins that
 release.
+Accepted 2026-09-20 at b4d444c (sessionbus-dsh PR #35): two causes,
+both from source. (1) DSH emits agent/created and agent/disposed through
+the agent scope carrier (rc.2 core/agent/src/index.ts:415-423,
+451-479, 533-555) and the plugin's listeners were not global, so a root
+created by the web client after readiness (session-controller
+commands.ts:87-109 -> agent.ts:473-487) was never seen; the startup
+scan had already run. (2) present() treated the synchronous return of
+the kit's connectPeer as publication while the kit connects and sends
+hello asynchronously (sdk/js/index.js:200-213, 239-249), so a failed
+connect or rejected hello was silent and later title events were
+suppressed by the published flag. Fix: root create/dispose observed
+globally with one peer per root and the startup scan retained; every
+identity, socket or hello failure prints one sanitized sessionbus: line
+per root and drops the root's peer record, so the next real change
+(a title event) publishes it again; no retry loop. Socket
+discovery follows the daemon's rule (explicit socket made absolute,
+else XDG_RUNTIME_DIR/sessionbus/presence.sock, else
+/tmp/sessionbus-<uid>/presence.sock; no scanning); the runbook exports
+no socket. 60 tests including the scope-accurate regression that
+failed before the fix; packed proof on rc.2, alpha.1 and alpha.2 creates
+the root through the real web session/create RPC (no rename crutch) and
+asserts the peer in list with product dsh, env-only groups and an
+answered message; the rc.2 leg launches without SESSIONBUS_SOCKET. The
+pre.9 live failure's transport error text is unrecoverable (it was
+discarded); a recurrence is now visible. Released as 0.1.0-pre.11.
 
 ### W-094 PTY: jobs-and-subtask case races observed state on the alpha.1 leg — status: open (owner dsh-exec)
 The 0.1.0-alpha.21 release gate (run 35537837198) failed once on the
