@@ -56,6 +56,26 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Verify packed package entries
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process'
+
+          const expected = {
+            'packages/file-uploads-none': 'lib/index.js',
+            'packages/dashi': 'lib/index.js',
+            'packages/dashi-app': 'cordis.patch.yml',
+            'packages/dashi-launcher': 'bin/dashi.js',
+          }
+          for (const [cwd, entry] of Object.entries(expected)) {
+            const packed = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd, encoding: 'utf8' })
+            if (packed.status !== 0) throw new Error(`${cwd}: npm pack --dry-run failed\n${packed.stderr}`)
+            const files = JSON.parse(packed.stdout)[0]?.files?.map(file => file.path) ?? []
+            if (!files.includes(entry)) throw new Error(`${cwd}: packed package is missing ${entry}`)
+            console.log(`${cwd}: ${entry}`)
+          }
+          NODE
       - name: Select release metadata
         id: release
         run: |
