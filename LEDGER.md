@@ -541,6 +541,26 @@ regression. The sessionbus daemon must not know `dsh --profile
 sessionbus`: the plugin ships its own launcher bin that the daemon
 invokes as a generic product command, and that bin selects the profile.
 
+### D-042 (2026-09-20) The lane profile carries the host's selected provider
+Found on the dsh host's own upgrade: a daemon-launched lane spawned and
+was claimed, but its turn ended with DSH code NO_ADAPTER, "no adapter
+registered for provider openai-codex". The host's global
+$DSH_HOME/settings.yaml selects a provider that dsh-base does not
+register (dsh-base carries llm-deepseek / deepseek-official only); the
+dashi profile works because the owner added the provider plugin
+packages there. The accepted lane profile definition ("dsh-base only")
+is therefore amended: the sessionbus lane profile is dsh-base plus the
+provider plugin packages the host's selected provider requires, at the
+same exact DSH version as the host, added by the host install runbook
+after reading the provider name from settings.yaml, and checked by one
+headless boot that reports no NO_ADAPTER. Credentials are unchanged:
+for deepseek-official a daemon-launched lane must reach
+DEEPSEEK_API_KEY through the credentials-local order (process env,
+$DSH_HOME/.credentials.yaml, cwd .env, $DSH_HOME/.env; rc.2
+packages/credentials/credentials-local/src/index.ts:557-624); the
+daemon's service environment does not inherit the login environment.
+Neither the plugin nor the daemon changes.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
