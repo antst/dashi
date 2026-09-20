@@ -3963,6 +3963,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       child = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
       expect(child).not.toBe('')
       await shell.waitFor('Subagent · inspect W046 continuation ·', subtaskAt)
+      await vi.waitFor(() => {
+        expect(sessionEvents(child).some(event => event.type === 'user/message'
+          && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
