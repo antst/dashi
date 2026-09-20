@@ -2819,7 +2819,7 @@ requires CLI 11.5.1+, docs.npmjs.com/trusted-publishers). Released as
 0.1.0-pre.6 together with W-084; 0.1.0-pre.3 and 0.1.0-pre.5 remain
 GitHub-only tags.
 
-### W-086 sessionbus-dsh: a turn that fails before the input commit ends the run as failed, not unavailable — status: open (owner roller-exec)
+### W-086 sessionbus-dsh: a turn that fails before the input commit ends the run as failed, not unavailable — status: accepted 2026-09-20 (sessionbus-dsh PR #27 squash-merged)
 Found on the dsh host's section 5: DSH threw at turn start in the lane
 composition (turn/end reason error, code UNKNOWN, "Cannot read
 properties of undefined (reading 'get')") before committing the
@@ -2836,6 +2836,14 @@ stays reserved for the case where no turn/end exists at all. Unit
 test with a replayed turn/end error before the commit; packed proof on
 each DSH leg with a fixture plugin that throws at turn start. Production
 source small (plugin.cjs). The DSH-side crash is diagnosed separately.
+Accepted 2026-09-20 at 7097f3b (sessionbus-dsh PR #27): a turn/end with reason
+error for the run's opened turn before any user/message commit, or idle
+right after it, ends the run done with result.outcome failed,
+native_stop_reason 'error' and result '<code>: <message>' verbatim from
+DSH; unavailable only when no turn/end exists; bound-turn behavior
+unchanged. Unit test with a replayed pre-commit turn/end error; packed
+proof on rc.2, alpha.1 and alpha.2 with a fixture plugin that throws at
+turn start. Released as 0.1.0-pre.7 with W-087.
 
 ### W-087 sessionbus-dsh: user message text is a string, proven in the durable log — status: accepted 2026-09-20 (sessionbus-dsh PR #26 squash-merged)
 Found live on the dsh host once the provider plugin was fixed: the
