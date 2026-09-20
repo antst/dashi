@@ -2775,7 +2775,7 @@ holds the proven graph repair as one helper (exact pins of stale
 peer-only records, frozen install, checker; zero DSH records is
 coherent for lane and web profiles) with the hook removed.
 
-### W-085 sessionbus-dsh: release job needs npm 11.5+ for trusted publishing — status: open (owner roller-exec)
+### W-085 sessionbus-dsh: release job needs npm 11.5+ for trusted publishing — status: accepted 2026-09-20 (sessionbus-dsh PR #23 squash-merged)
 Release run 35530075138 (0.1.0-pre.5) signed provenance but published
 unauthenticated and got E404: the publish step ran node 22's bundled
 npm 10.9.8, and npm's trusted publishing (OIDC token exchange with the
@@ -2784,6 +2784,11 @@ because it publishes through pnpm. Scope: one step in the publish job,
 `npm install -g npm@^11.5.1` on the runner before the publish, with the
 version printed; nothing else. 0.1.0-pre.5 stays a GitHub-only tag
 (never on npm, like pre.3); the next release publishes unattended.
+Accepted 2026-09-20 at 1fd1c21: one publish-job step, `npm install -g
+npm@^11.5.1 && npm --version`, after setup-node (npm trusted publishing
+requires CLI 11.5.1+, docs.npmjs.com/trusted-publishers). Released as
+0.1.0-pre.6 together with W-084; 0.1.0-pre.3 and 0.1.0-pre.5 remain
+GitHub-only tags.
 
 ## Backlog
 
