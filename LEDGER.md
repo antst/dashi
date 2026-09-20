@@ -3045,6 +3045,20 @@ peer launches (a docs line), per the daemon owner's answer. Production
 source small (plugin.cjs). Released as 0.1.0-pre.11; W-091 pins that
 release.
 
+### W-094 PTY: jobs-and-subtask case races observed state on the alpha.1 leg — status: open (owner dsh-exec)
+The 0.1.0-alpha.21 release gate (run 35537837198) failed once on the
+0.1.6-alpha.1 leg: profile-pty.spec.ts:3977 'reads and kills jobs and
+starts a continuable subtask through DSH', "expected false to be
+true"; 295 others passed; rc.2 and alpha.2 legs green. Not one of the
+three W-080 cases. Scope: diagnose from the failed log and the test
+source without re-running; if the assertion reads state before the
+frame that carries it, fix the wait on observed state (no sleeps, no
+raw escapes, no widened assertion); if alpha.1 behaves differently,
+name the DSH file:line first. Evidence: the test 20/20 under load on
+rc.2 and alpha.1 through the version seam, five checks green. The
+alpha.21 release PR is rebased on the fix and re-gated; no re-run of
+a failed gate without a fix.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
