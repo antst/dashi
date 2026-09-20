@@ -227,7 +227,7 @@ async function firstFrame(output: string, columns = 80, rows = 24): Promise<stri
   const lines = Array.from({ length: terminal.rows }, (_, row) =>
     terminal.buffer.active.getLine(row)?.translateToString(true) ?? '')
   const header = lines.findIndex(line => line.includes('dashi'))
-  return lines.slice(header).join('\n')
+  return lines.slice(Math.max(0, header)).join('\n')
 }
 
 async function resizedFrame(

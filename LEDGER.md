@@ -3058,6 +3058,10 @@ name the DSH file:line first. Evidence: the test 20/20 under load on
 rc.2 and alpha.1 through the version seam, five checks green. The
 alpha.21 release PR is rebased on the fix and re-gated; no re-run of
 a failed gate without a fix.
+Builder note: the same macOS run exposed a W-080 frame-helper defect: once
+the 12-row picker scrolled the dashi header off screen, `slice(-1)` made the
+observed-state wait inspect only the footer. The fallback now returns all
+visible rows when no header is present.
 
 ## Backlog
 
