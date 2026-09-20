@@ -2721,7 +2721,7 @@ asserts the kit spec stays an exact version. No plugin logic or input
 schema change; 49 tests; three DSH legs green. Released as 0.1.0-pre.4
 together with W-081 (0.1.0-pre.3 was tagged but never published).
 
-### W-084 sessionbus-dsh: dashi as the single registered product for lanes — status: open (owner roller-exec)
+### W-084 sessionbus-dsh: dashi as the single registered product for lanes — status: accepted 2026-09-20 (sessionbus-dsh PR #21 squash-merged; released as 0.1.0-pre.5)
 Owner ruling 2026-09-20: a host with dashi installed registers one
 product, `dashi`, for peers and lanes. The daemon claims a lane only
 when the hello product equals the launched command, and the product
@@ -2741,6 +2741,19 @@ hello.product === 'dashi' and a completed lane turn, using the
 published launcher 0.1.0-alpha.20 (or newer exact) in the throwaway
 prefix; the `sessionbus-dsh` path stays proven. Production source
 small (installer only).
+Accepted 2026-09-20 at 80263dc, installer-only production change (+5/-4):
+the lane profile's product defaults to sessionbus-dsh and accepts
+`--product dashi`, any other value rejected; row repair works both
+ways; tests for both values. Packed proof on rc.2, alpha.1 and alpha.2
+installs the published @antst/dashi-launcher 0.1.0-alpha.20 and has the
+fake daemon launch its dashi bin with the launch token, asserting
+hello.product === 'dashi' and a completed replay turn; the
+sessionbus-dsh lane path stays proven. README and docs/HOST-INSTALL.md
+carry the one-product form as a variant beside the two-product
+procedure. No dashi launcher change. The runbook (PR #20, dc29d87) now
+holds the proven graph repair as one helper (exact pins of stale
+peer-only records, frozen install, checker; zero DSH records is
+coherent for lane and web profiles) with the hook removed.
 
 ## Backlog
 
