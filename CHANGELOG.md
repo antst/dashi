@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-alpha.21 — 2026-09-20
+
+- Supersedes 0.1.0-alpha.20 (and the partial alpha.19), whose @antst/dashi and @antst/dsh-file-uploads-none tarballs were published without compiled output; do not install alpha.20. The release job now builds and verifies each tarball's entry files before publishing (W-092).
+- dashi-app pins @sessionbus/dsh 0.1.0-pre.12 (default comms permission, kit 0.5.5, run result and text fixes, peer publication and socket discovery), so the dashi product carries the same plugin as lanes (W-091).
+
 ## 0.1.0-alpha.20 — 2026-09-19
 
 - Supersedes 0.1.0-alpha.19, which was published incomplete (@antst/dashi and @antst/dsh-file-uploads-none only) because the release job no longer installed the workspace before publishing (W-082); do not install alpha.19.
