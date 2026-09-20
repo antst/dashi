@@ -3084,7 +3084,7 @@ rc.2 and alpha.1 through the version seam, five checks green. The
 alpha.21 release PR is rebased on the fix and re-gated; no re-run of
 a failed gate without a fix.
 
-### W-095 sessionbus-dsh: a live web root reaches the publication gate — status: open (owner roller-exec)
+### W-095 sessionbus-dsh: a live web root reaches the publication gate — status: accepted 2026-09-20 (sessionbus-dsh PR #37 squash-merged; released as 0.1.0-pre.12)
 At 0.1.0-pre.11 on the dsh host against the real daemon, the web
 profile launched as a peer (token and socket unset, groups from the
 environment) created a native root through the web RPC (durable log:
@@ -3115,6 +3115,18 @@ claim was an observation error. Scope now: keep the env-gated trace
 (off by default, documented); the packed proof and the runbook's
 web-peer step assert presence from a same-group observer and state the
 visibility rule; no behavior change. W-091 pins 0.1.0-pre.11.
+Accepted 2026-09-20 at 718c89b (sessionbus-dsh PR #37), hardening only:
+SESSIONBUS_DSH_TRACE=1 prints one stderr line per event (mode and
+readiness, global agent lifecycle, root membership and the publication
+gate's reason, socket connection), off by default and documented; the
+packed web proof asserts observer and subject share a group; the
+runbook's web step requires a same-group observer, states that list
+shows only peers sharing a group with the caller, and drives the idle
+peer with one session/prompt before asserting its reply. Live trace on
+the dsh host: ready, agent/created global, present reason=publish,
+connect to the runtime socket, connected. 61 tests; three DSH legs
+green. Released as 0.1.0-pre.12. dsh host web peer PASS at pre.11 with
+a same-group observer and an answered message.
 
 ## Backlog
 
