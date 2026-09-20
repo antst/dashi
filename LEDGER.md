@@ -2775,6 +2775,16 @@ holds the proven graph repair as one helper (exact pins of stale
 peer-only records, frozen install, checker; zero DSH records is
 coherent for lane and web profiles) with the hook removed.
 
+### W-085 sessionbus-dsh: release job needs npm 11.5+ for trusted publishing — status: open (owner roller-exec)
+Release run 35530075138 (0.1.0-pre.5) signed provenance but published
+unauthenticated and got E404: the publish step ran node 22's bundled
+npm 10.9.8, and npm's trusted publishing (OIDC token exchange with the
+registry) exists only from npm 11.5.1. dashi's workflow is unaffected
+because it publishes through pnpm. Scope: one step in the publish job,
+`npm install -g npm@^11.5.1` on the runner before the publish, with the
+version printed; nothing else. 0.1.0-pre.5 stays a GitHub-only tag
+(never on npm, like pre.3); the next release publishes unattended.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
