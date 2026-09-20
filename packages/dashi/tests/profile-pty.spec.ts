@@ -3664,7 +3664,20 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
         timeout: testCeiling(20_000),
       })
+      shell.write('image selected through at')
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).toContain('[image 1]')
+        expect(frame).toContain('image selected through at')
+      }, { timeout: testCeiling(20_000) })
       shell.write('\u0013')
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).not.toContain('[image 1]')
+        expect(frame).not.toContain('image selected through at')
+      }, {
+        timeout: testCeiling(20_000),
+      })
       shell.write('stashed image draft')
       await vi.waitFor(async () => {
         const frame = await screen()
@@ -3678,11 +3691,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await vi.waitFor(async () => {
         const frame = await screen()
         expect(frame).toContain('[image 1]')
+        expect(frame).toContain('image selected through at')
         expect(frame).not.toContain('stashed image draft')
       }, {
         timeout: testCeiling(20_000),
       })
-      shell.write('image selected through at\r')
+      shell.write('\r')
       await shell.waitFor('Approval · bash', restoreAt)
       shell.write('\r')
       await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', restoreAt)

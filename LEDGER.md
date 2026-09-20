@@ -3062,6 +3062,9 @@ Builder note: the same macOS run exposed a W-080 frame-helper defect: once
 the 12-row picker scrolled the dashi header off screen, `slice(-1)` made the
 observed-state wait inspect only the footer. The fallback now returns all
 visible rows when no header is present.
+The third hosted run exposed the W-080 image input ordering race: the attachment
+can render before its completion overlay relinquishes input. The test now proves
+composer ownership by typing and observing its prompt before sending Ctrl+S.
 
 ## Backlog
 
