@@ -2837,6 +2837,23 @@ test with a replayed turn/end error before the commit; packed proof on
 each DSH leg with a fixture plugin that throws at turn start. Production
 source small (plugin.cjs). The DSH-side crash is diagnosed separately.
 
+### W-087 sessionbus-dsh: user message text is a string, proven in the durable log — status: open (owner roller-exec)
+Found live on the dsh host once the provider plugin was fixed: the
+lane's turn completed but the durable user/message carried
+content[0].text as a nested object ({text: "..."}) and the model
+answered "I received '[object Object]'". The plugin (plugin.cjs:158-160)
+builds the message with createUserMessage({content:[{type:'text',
+text: body}]}), which rc.2 nests. Scope: cite rc.2's createUserMessage
+signature and the user/message content schema (and alpha.1/alpha.2),
+fix every message-construction site in plugin.cjs to the exact shape;
+unit test on the emitted content; packed proof on every DSH leg reads
+the durable session log after the replayed turn and asserts
+content[0].type === 'text' and content[0].text equals the input string
+exactly, and that the replay provider's captured request contains it.
+This assertion was missing from the W-071 proofs and let the defect
+through. Production source small. Released together with W-086 as
+0.1.0-pre.7; the host runbook re-pins to it.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
