@@ -2948,7 +2948,7 @@ on rc.2, alpha.1 and alpha.2 shows a web peer with env-only groups in
 list with its native id, a surviving title change, and an answered
 message. 54 tests. Released as 0.1.0-pre.9.
 
-### W-090 sessionbus-dsh: the installer refuses a profile whose bundle already provides the row — status: open (owner roller-exec)
+### W-090 sessionbus-dsh: the installer refuses a profile whose bundle already provides the row — status: accepted 2026-09-20 (sessionbus-dsh PR #33 squash-merged; released as 0.1.0-pre.10)
 Found on the dsh host: dashi-app 0.1.0-alpha.20 ships the sessionbus
 row (product dashi, W-036) inside dashi-app, and the host runbook's
 section 4 still ran the installer on the dashi profile, which added a
@@ -2966,6 +2966,19 @@ needs no installer run from dashi-app 0.1.0-alpha.20 on (the product
 row and the plugin dependency ship with dashi-app; until dashi re-pins,
 the dashi product runs the plugin version dashi-app pins). Production
 source small (install.mjs).
+Accepted 2026-09-20 at 437498b, install.mjs +70/-14 and bin.mjs +1/-1
+(exit code): before any mutation the installer resolves the target
+profile's bundles in DSH's order (executing install first, then
+profile; rc.2 app-boot profile.ts:751-803) and refuses with exit 2 and
+one line naming profile, bundle and row when a bundle already provides
+the sessionbus or no-uploads row; every row it writes carries the
+comment `# sessionbus-dsh-install owned`, re-runs mark older
+installer rows, and `--remove` deletes only marked rows, refusing an
+unmarked matching id before pnpm runs. 57 tests; packed proof on
+rc.2, alpha.1 and alpha.2 with a real bundle fixture (refusal without
+change, then the bundle-composed profile boots and completes the
+existing proof). Docs: no installer run on the dashi profile from
+dashi-app 0.1.0-alpha.20 on; dashi-app owns its row and plugin pin.
 
 ### W-091 dashi-app pins the fixed plugin release — status: open (owner dsh-exec, after sessionbus-dsh W-089 and W-090 release)
 dashi-app 0.1.0-alpha.20 pins @sessionbus/dsh 0.1.0-pre.2 (W-036), so
