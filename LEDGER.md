@@ -2721,6 +2721,27 @@ asserts the kit spec stays an exact version. No plugin logic or input
 schema change; 49 tests; three DSH legs green. Released as 0.1.0-pre.4
 together with W-081 (0.1.0-pre.3 was tagged but never published).
 
+### W-084 sessionbus-dsh: dashi as the single registered product for lanes — status: open (owner roller-exec)
+Owner ruling 2026-09-20: a host with dashi installed registers one
+product, `dashi`, for peers and lanes. The daemon claims a lane only
+when the hello product equals the launched command, and the product
+comes from the profile row, so the lane profile's row must be able to
+say `product: dashi` when the dashi launcher is the registered command
+(the launcher already turns the launch token into `dsh --profile
+sessionbus`). Scope: `sessionbus-dsh-install` accepts `--product dashi`
+for the lane profile (W-077's rejection is narrowed to: the lane
+product must be either `sessionbus-dsh` or `dashi`); the row repair
+path keeps working; README and docs/HOST-INSTALL.md gain the
+one-product variant (register `dashi`; no `sessionbus-dsh` in
+SESSIONBUS_PRODUCTS; the drop-in PATH still needs the bin directory so
+`dashi` resolves `dsh`) beside the existing two-product form. Proof in
+the packed matrix on each DSH leg: the fake daemon launches
+`@antst/dashi-launcher`'s `dashi` bin with the launch token and asserts
+hello.product === 'dashi' and a completed lane turn, using the
+published launcher 0.1.0-alpha.20 (or newer exact) in the throwaway
+prefix; the `sessionbus-dsh` path stays proven. Production source
+small (installer only).
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
