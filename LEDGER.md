@@ -2819,6 +2819,24 @@ requires CLI 11.5.1+, docs.npmjs.com/trusted-publishers). Released as
 0.1.0-pre.6 together with W-084; 0.1.0-pre.3 and 0.1.0-pre.5 remain
 GitHub-only tags.
 
+### W-086 sessionbus-dsh: a turn that fails before the input commit ends the run as failed, not unavailable — status: open (owner roller-exec)
+Found on the dsh host's section 5: DSH threw at turn start in the lane
+composition (turn/end reason error, code UNKNOWN, "Cannot read
+properties of undefined (reading 'get')") before committing the
+user/message for the run. The plugin (0.1.0-pre.4) binds a run to its
+turn only after the user/message commit, so it ignored that turn/end
+and, when the agent went idle, retired the run as
+state unavailable, reason "DSH reached idle without turn/end", with no
+result. The caller thus lost the DSH error. Scope: when a turn/end with
+reason error arrives for the turn opened by the run's input before any
+user/message commit (or the agent goes idle after such a turn/end), the
+run terminates as done with result.outcome failed and
+native_stop_reason error carrying DSH's code and message; unavailable
+stays reserved for the case where no turn/end exists at all. Unit
+test with a replayed turn/end error before the commit; packed proof on
+each DSH leg with a fixture plugin that throws at turn start. Production
+source small (plugin.cjs). The DSH-side crash is diagnosed separately.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
