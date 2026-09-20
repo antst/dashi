@@ -2965,6 +2965,26 @@ host runbook then re-pins dashi-app on both hosts (profile add of the
 exact dashi-app version, graph check, boot heal, closure check, dashi
 roster check). Production source 0 beyond the manifest.
 
+### W-092 Release publish job builds and verifies tarball contents — status: open (owner dsh-exec)
+Found on the dsh host after the alpha.20 install: the dashi profile
+fails to boot with "Cannot find module .../@antst/dashi/lib/index.js";
+npm confirms @antst/dashi@0.1.0-alpha.20 has dist.fileCount 3 (no lib/)
+against 56 for alpha.18, and @antst/dsh-file-uploads-none@0.1.0-alpha.20
+likewise 3. Cause: W-072 moved `pnpm gate:docker` out of the publish
+job (the step that had built lib/ on the runner) and W-082 restored only
+the frozen install, so alpha.19 (partial) and alpha.20 were published
+without compiled output; the umka-dev1 host installed alpha.20 and is
+broken the same way. Scope: the publish job runs `pnpm build` after
+the frozen install, and a guard before the first publish runs a dry-run
+pack in each of the four packages and fails the job unless the file
+list contains the package's entry files (lib/index.js for dashi and
+dsh-file-uploads-none; the shipped entry files for dashi-app and
+dashi-launcher); nothing else. Proof: alpha.18 vs alpha.20 file counts
+from `npm view`, and the guard run on a fresh clone of the alpha.20 tag
+failing before build and passing after. Released as 0.1.0-alpha.21;
+0.1.0-alpha.20 is deprecated on npm with the reason; both hosts re-pin
+dashi-app to alpha.21.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
