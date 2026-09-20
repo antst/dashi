@@ -2837,7 +2837,7 @@ test with a replayed turn/end error before the commit; packed proof on
 each DSH leg with a fixture plugin that throws at turn start. Production
 source small (plugin.cjs). The DSH-side crash is diagnosed separately.
 
-### W-087 sessionbus-dsh: user message text is a string, proven in the durable log — status: open (owner roller-exec)
+### W-087 sessionbus-dsh: user message text is a string, proven in the durable log — status: accepted 2026-09-20 (sessionbus-dsh PR #26 squash-merged)
 Found live on the dsh host once the provider plugin was fixed: the
 lane's turn completed but the durable user/message carried
 content[0].text as a nested object ({text: "..."}) and the model
@@ -2853,6 +2853,15 @@ exactly, and that the replay provider's captured request contains it.
 This assertion was missing from the W-071 proofs and let the defect
 through. Production source small. Released together with W-086 as
 0.1.0-pre.7; the host runbook re-pins to it.
+Accepted 2026-09-20 at 11c770a, plugin.cjs +6/-1: the run seed is
+unwrapped per the kit contract (string; {text}; {delivery.body}), any
+other shape fails the run naming it; the seed is never stringified;
+delivery-backed runs report the injected receipt only after DSH has
+spliced the message. The shape has been the same since kit pre.3, so
+the defect dates from W-071; the missing text assertion hid it. Proofs:
+six unit cases; packed proof on rc.2, alpha.1 and alpha.2 runs an
+ordinary and a delivery-backed turn and asserts the exact text in the
+durable user/message and in the replay provider's captured request.
 
 ## Backlog
 
