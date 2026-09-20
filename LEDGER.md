@@ -2909,7 +2909,7 @@ executing package beside the realpath dsh bin at the target, headless
 boot and exact closure, with the hoisted top-level projection reported
 only (D-043 addendum).
 
-### W-089 sessionbus-dsh: peer re-hello keeps a valid identity against the real daemon — status: open (owner roller-exec)
+### W-089 sessionbus-dsh: peer re-hello keeps a valid identity against the real daemon — status: accepted 2026-09-20 (sessionbus-dsh PR #31 squash-merged; released as 0.1.0-pre.9)
 Found on the dsh host at 0.1.0-pre.7 with the real daemon: the web
 profile launched as a peer (launch token absent, groups only from
 SESSIONBUS_GROUPS) bound its native session after the first prompt,
@@ -2931,6 +2931,22 @@ appears in list with the native session id, groups and product, and
 answers a message from another peer. Production source small
 (plugin.cjs). Released as 0.1.0-pre.9; the runbook's web step is
 re-run on both hosts.
+Accepted 2026-09-20 at 4e35bea (sessionbus-dsh PR #31), plugin.cjs +11/-5: the
+peer is published only once the authoritative native session id
+exists (no provisional identity); title changes call the kit's
+rehello(undefined, name, info) with an omitted name when the title is
+empty; a changed durable session id goes through replace(fullIdentity)
+with product and groups unchanged. The failure text "invalid rehello
+identity" was thrown locally by the kit (sdk/js/index.js:222) because
+the plugin passed one object to rehello(signal, name, info); the
+signature was the same at kit pre.3, so the defect dates from W-071 and
+the fake daemon's unconditional acceptance hid it. The fake daemon now
+enforces schema-valid identities, immutable product and ordered-groups
+equality, serves the admitted peer in list and delivers a message from
+a second peer; unit mocks expose the real kit signature; packed proof
+on rc.2, alpha.1 and alpha.2 shows a web peer with env-only groups in
+list with its native id, a surviving title change, and an answered
+message. 54 tests. Released as 0.1.0-pre.9.
 
 ### W-090 sessionbus-dsh: the installer refuses a profile whose bundle already provides the row — status: open (owner roller-exec)
 Found on the dsh host: dashi-app 0.1.0-alpha.20 ships the sessionbus
