@@ -589,6 +589,17 @@ reproduction: 214 rc.1 to 231 rc.2, lockfile hash and unrelated
 packages unchanged); never a node_modules deletion. (3) The dsh host
 is an isolated-linker install and was physically uniform after the
 pins (26/26 host, 231/231 fallback at rc.2).
+Addendum 2026-09-20: the runbook revision at sessionbus-dsh 20628a7
+asserted one version for the host's top-level projection, which
+contradicts ruling (2) above and stopped umka's pre.7 re-pin on a
+hoisted install. The host section's mandatory assertions are: the
+lockfile uniform at the target; the executing install anchor at the
+target (resolve @deepseek-ai/dsh/package.json from the realpath
+directory of the launcher's dsh bin); headless boot exit 0 and the
+shared fallback closure exact. The top-level projection is reported
+(counts per version and the list), never asserted; the optional
+`--force` cleanup stays optional. Profiles keep their physical
+one-version assertion. Corrected in the W-088 runbook change.
 
 ## Work items
 
