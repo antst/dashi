@@ -3084,6 +3084,27 @@ rc.2 and alpha.1 through the version seam, five checks green. The
 alpha.21 release PR is rebased on the fix and re-gated; no re-run of
 a failed gate without a fix.
 
+### W-095 sessionbus-dsh: a live web root reaches the publication gate — status: open (owner roller-exec)
+At 0.1.0-pre.11 on the dsh host against the real daemon, the web
+profile launched as a peer (token and socket unset, groups from the
+environment) created a native root through the web RPC (durable log:
+header, permission/preset, sandbox/mode, approval/policy, no title)
+and still published nothing: no row, no connection attempt, and no
+`sessionbus:` stderr line, so present() was never reached; the W-093
+packed proof passes against the fake daemon, so it does not exercise
+the live path. Scope: reproduce live on the dsh host in a throwaway
+profile against the real daemon, creating the root the same way; add
+an env-gated trace (SESSIONBUS_DSH_TRACE=1, stderr, one line per
+event: mode, ready transitions, every agent/created and agent/disposed
+with scope, roots() membership at present(), the early-return reason)
+kept in the product, off by default; find the failing gate with
+plugin.cjs and DSH source citations; fix; make the packed proof fail
+without the fix by matching the live path (the RPC used, --port 0 and
+--host, app-ready ordering in the web bundle, the row's position);
+hand off with the live trace. Production source small. Released as
+0.1.0-pre.12; W-091 pins that release; the alpha.21 dashi release
+ships without W-091.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
