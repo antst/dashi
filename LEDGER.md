@@ -2871,6 +2871,23 @@ six unit cases; packed proof on rc.2, alpha.1 and alpha.2 runs an
 ordinary and a delivery-backed turn and asserts the exact text in the
 durable user/message and in the replay provider's captured request.
 
+### W-088 sessionbus-dsh: the installer merges into an existing profile manifest — status: open (owner roller-exec)
+Found on the dsh host's pre.7 re-pin: running the installer for the
+existing sessionbus lane profile rewrote the profile's package.json
+(dependencies and bundles) to only @sessionbus/dsh and dsh-base,
+dropping the provider plugin dsh-codex 0.3.0 that the parity step had
+added, so the Codex adapter no longer registered there; the patch file
+itself was repaired correctly. Scope: `sessionbus-dsh-install` adds or
+repairs only its own dependency entry and its own rows and bundle
+entries; every other dependency, bundle and field of an existing
+profile manifest is preserved byte-for-byte; unit test with a profile
+manifest carrying an extra dependency and an extra bundle; packed proof
+on each DSH leg installs into a pre-populated lane profile and asserts
+the extra entries survive and the provider still registers. Also the
+runbook: any check loop stops at the first failing profile. Production
+source small (install.mjs). Manual repair on an affected host: re-add
+the provider package to the profile with exact saving.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
