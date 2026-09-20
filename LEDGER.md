@@ -3128,6 +3128,24 @@ connect to the runtime socket, connected. 61 tests; three DSH legs
 green. Released as 0.1.0-pre.12. dsh host web peer PASS at pre.11 with
 a same-group observer and an answered message.
 
+### W-096 PTY suite: every negative assertion is region-scoped and follows an observed positive state — status: open (owner dsh-exec, after alpha.21)
+The alpha.21 release gate failed three times in three different PTY
+cases on different legs (W-094: jobs-and-subtask read before the child
+log; the tall model picker's frame helper kept only the footer once
+the header scrolled; the image-stash negative assertion matched the
+stash notice in the whole frame). Each was a test defect of the same
+family: an assertion on the whole frame, or a negative assertion made
+before the positive state that must precede it was observed. Scope:
+audit every `not.toContain` / negative expectation and every
+frame-level assertion in packages/dashi/tests/profile-pty.spec.ts and
+the other PTY specs; for each, either scope it to the region it means
+(composer, transcript, picker, status line) using the parsed frame,
+or precede it by a wait for the positive state that proves the repaint
+happened; no sleeps, no raw escapes, no widened or removed assertions;
+list every changed assertion with its reason in the handoff. Evidence:
+the full suite 3/3 green on all three DSH legs and macOS on the same
+head, and each changed case 20/20 under load. Production source 0.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
