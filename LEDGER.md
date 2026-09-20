@@ -2909,6 +2909,29 @@ executing package beside the realpath dsh bin at the target, headless
 boot and exact closure, with the hoisted top-level projection reported
 only (D-043 addendum).
 
+### W-089 sessionbus-dsh: peer re-hello keeps a valid identity against the real daemon — status: open (owner roller-exec)
+Found on the dsh host at 0.1.0-pre.7 with the real daemon: the web
+profile launched as a peer (launch token absent, groups only from
+SESSIONBUS_GROUPS) bound its native session after the first prompt,
+the plugin's title-triggered re-hello was refused with
+"sessionbus: invalid rehello identity", and the peer never appeared in
+the roster, so no discovery or reply was possible. The lane path is
+unaffected. The plugin's fake daemon accepts any re-hello, which is why
+the W-079 configuration proof passed. Scope: (1) record the exact
+identity difference between the first hello and the re-hello
+(session_id, name, product, groups, info) and the daemon's rule for
+what may change on one connection (from the daemon owner, source
+cited); (2) make the peer path conform: a re-hello changes only what
+the daemon allows, and a native session id that becomes known after
+the first hello is handled the way the daemon requires (re-hello with
+the id if allowed, otherwise a new connection); (3) the fake daemon
+enforces the real rule and a failing test is written first; (4) packed
+proof on each DSH leg: a web peer launched with env-only groups
+appears in list with the native session id, groups and product, and
+answers a message from another peer. Production source small
+(plugin.cjs). Released as 0.1.0-pre.9; the runbook's web step is
+re-run on both hosts.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
