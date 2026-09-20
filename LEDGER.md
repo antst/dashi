@@ -3104,6 +3104,17 @@ without the fix by matching the live path (the RPC used, --port 0 and
 hand off with the live trace. Production source small. Released as
 0.1.0-pre.12; W-091 pins that release; the alpha.21 dashi release
 ships without W-091.
+Amended 2026-09-20: re-scoped to hardening. The live reproduction on
+the dsh host (exact launch and HTTP session/create path, env-gated
+trace) shows the pre.11 plugin publishing correctly: agent/created
+seen globally, present, connect to the daemon's runtime socket,
+connected, and the row visible to an observer peer in the same group.
+The reported absence came from a caller in another group (`list` shows
+only peers sharing a group with the caller) and the "no connection"
+claim was an observation error. Scope now: keep the env-gated trace
+(off by default, documented); the packed proof and the runbook's
+web-peer step assert presence from a same-group observer and state the
+visibility rule; no behavior change. W-091 pins 0.1.0-pre.11.
 
 ## Backlog
 
