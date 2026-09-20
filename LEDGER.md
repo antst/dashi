@@ -3023,6 +3023,28 @@ clone the guard fails before build and passes after; in the alpha.18
 run the `pnpm gate:docker` step had installed and built on the
 runner, which W-072 removed from the publish job.
 
+### W-093 sessionbus-dsh: a web-client root publishes the peer — status: open (owner roller-exec)
+Found on the dsh host at 0.1.0-pre.9 with the real daemon: the web
+profile launched as a peer (token absent, groups from
+SESSIONBUS_GROUPS, SESSIONBUS_SOCKET set) connects, creates a native
+root through the web client, completes model turns, yet sends no hello
+and never appears in the roster. The W-079 packed proof created its
+root by another path and passed. Scope: identify the peer-mode
+publication trigger after W-089 and why a root created through the
+web client's session-controller path (possibly before the plugin's
+listener attaches, possibly untitled, possibly several roots) does not
+trigger it; state the design (first root publishes, or one identity
+per root) with the reason; reproduce in a unit test with a root
+created the web client's way; fix; packed proof on each DSH leg
+creates the root through the web client path and asserts the peer in
+list with its native session id, product and env-only groups, and an
+answered message. Also record the presence socket rule: whether the
+plugin's default socket path must follow the daemon's canonical
+location (a plugin fix) or the runbook exports SESSIONBUS_SOCKET for
+peer launches (a docs line), per the daemon owner's answer. Production
+source small (plugin.cjs). Released as 0.1.0-pre.11; W-091 pins that
+release.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
