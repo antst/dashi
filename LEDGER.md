@@ -2932,6 +2932,25 @@ answers a message from another peer. Production source small
 (plugin.cjs). Released as 0.1.0-pre.9; the runbook's web step is
 re-run on both hosts.
 
+### W-090 sessionbus-dsh: the installer refuses a profile whose bundle already provides the row — status: open (owner roller-exec)
+Found on the dsh host: dashi-app 0.1.0-alpha.20 ships the sessionbus
+row (product dashi, W-036) inside dashi-app, and the host runbook's
+section 4 still ran the installer on the dashi profile, which added a
+second row with the same id; `dashi` and `dashi --help` then failed
+with "plugin tree failed to load: duplicate loader entry id:
+sessionbus". Repair: `sessionbus-dsh-install --remove dashi`, which
+removes only the installer's rows and the profile-level package;
+dashi-app's own dependency and row stay. Scope: the installer detects a
+row id it would add that is already provided by one of the profile's
+bundles (read the bundle's patch as DSH composes it) and refuses with a
+one-line message naming the bundle, exit 2, no change; unit test with a
+bundle fixture carrying the row; packed proof on each DSH leg against
+a profile whose bundle provides the row. Runbook: the dashi profile
+needs no installer run from dashi-app 0.1.0-alpha.20 on (the product
+row and the plugin dependency ship with dashi-app; until dashi re-pins,
+the dashi product runs the plugin version dashi-app pins). Production
+source small (install.mjs).
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
