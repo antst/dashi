@@ -2882,7 +2882,7 @@ six unit cases; packed proof on rc.2, alpha.1 and alpha.2 runs an
 ordinary and a delivery-backed turn and asserts the exact text in the
 durable user/message and in the replay provider's captured request.
 
-### W-088 sessionbus-dsh: the installer merges into an existing profile manifest — status: open (owner roller-exec)
+### W-088 sessionbus-dsh: the installer merges into an existing profile manifest — status: accepted 2026-09-20 (sessionbus-dsh PR #29 squash-merged; released as 0.1.0-pre.8)
 Found on the dsh host's pre.7 re-pin: running the installer for the
 existing sessionbus lane profile rewrote the profile's package.json
 (dependencies and bundles) to only @sessionbus/dsh and dsh-base,
@@ -2898,6 +2898,16 @@ the extra entries survive and the provider still registers. Also the
 runbook: any check loop stops at the first failing profile. Production
 source small (install.mjs). Manual repair on an affected host: re-add
 the provider package to the profile with exact saving.
+Accepted 2026-09-20 at c74bf32, install.mjs +/- small: an existing
+sessionbus manifest is merged (the plugin entry, its rows and the
+dsh-base bundle added or repaired), never rebuilt; other dependencies,
+bundles and fields survive byte-for-byte (unit regression with an extra
+dependency, bundle and custom fields; packed proof on rc.2, alpha.1 and
+alpha.2 with a pre-populated lane profile). Runbook: check loops stop
+at the first failure; the host assertions are lock uniformity, the
+executing package beside the realpath dsh bin at the target, headless
+boot and exact closure, with the hoisted top-level projection reported
+only (D-043 addendum).
 
 ## Backlog
 
