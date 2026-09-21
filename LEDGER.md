@@ -3604,7 +3604,7 @@ Evidence: 3/3 green on all three DSH legs and macOS, each new case
 render change, in which case it is one transcript rule stated in the
 handoff.
 
-### W-102 sessionbus-dsh: parity remainder from the audit — status: open (owner dsh-exec, after W-100)
+### W-102 sessionbus-dsh: parity remainder from the audit — status: accepted 2026-09-21 (sessionbus-dsh PR #44 squash-merged, unreleased until the successor kit is published)
 Per D-045 ruling (5), the audit items not covered by W-099 to W-101:
 (a) advertise `supports_message_run` in hello so `idle_message: run`
 lanes are accepted (kit index.js:94 rejects with -32008 today; plugin
@@ -3623,6 +3623,20 @@ changelog per item, unit tests per item, packed legs. Evidence on the
 dsh host: a lane spawned with `idle_message: run` accepts a message
 while idle and runs; dashi started with the daemon stopped publishes
 within one reconnect after the daemon starts.
+Accepted 2026-09-21 (sessionbus-dsh PR #44, squash 6185ff0; ships in
+the unreleased 0.1.0-pre.14 with W-099 and W-100). (b) A failed
+socket attempt at start logs one line and leaves the peer record and
+the kit's reconnect loop in control (kit index.js:200-213, 239-249);
+unit proof observes two failures then admission on the next attempt;
+the packed web proof starts DSH before the daemon and publishes on
+the first reconnect on all three legs. (c) A non-empty open.arguments
+is rejected before any DSH call; never ignored. (d) The pre-execute
+grant allows only the sessionbus tool and delegates every other tool;
+README states native policy still applies. (e) A daemon-shaped trace
+copy delivered to an idle dashi is steered with the ordinary envelope
+and answered autonomously on rc.2, alpha.1, alpha.2. Manifest pre.14,
+kit 0.5.5 by ruling. Evidence: unit 70/70, peer floor, packed legs,
+run 35644397701 green. Verifier: sonnet eight-point review.
 
 ## Backlog
 
