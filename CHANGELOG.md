@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0 — 2026-09-21
+
+- First stable release, with the same production source as 0.1.0-alpha.21 and the PTY test hardening from W-096.
+- DSH 0.1.5-rc.2 remains the minimum supported version; CI tests 0.1.5-rc.2, 0.1.6-alpha.1, and 0.1.6-alpha.2 with exact, reproducible graphs.
+- Deprecates 0.1.0-alpha.19 and 0.1.0-alpha.20 because their compiled-package tarballs were empty.
+
 ## 0.1.0-alpha.21 — 2026-09-20
 
 - Supersedes 0.1.0-alpha.20 (and the partial alpha.19), whose @antst/dashi and @antst/dsh-file-uploads-none tarballs were published without compiled output; do not install alpha.20. The release job now builds and verifies each tarball's entry files before publishing (W-092).

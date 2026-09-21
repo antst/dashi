@@ -12,6 +12,7 @@ dsh plugin --profile dashi add @antst/dashi-app
 dashi
 ```
 
+dashi is stable from 0.1.0 onward, while DSH remains a prerelease dependency.
 Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.
 When upgrading DSH, remove `node_modules` and the lockfile before installing so
