@@ -3416,7 +3416,7 @@ Daemon, PRODUCTS and units unchanged. Runbook step for untracked
 nested directories: sessionbus-dsh PR #41 (main 2923235).
 Verifiers: haiku PR reviews (#40, #217), haiku host end-state check.
 
-### W-099 sessionbus-dsh: the sessionbus skill replaces the list command — status: accepted 2026-09-21 (sessionbus-dsh PR #42 squash-merged, unreleased until W-100)
+### W-099 sessionbus-dsh: the sessionbus skill replaces the list command — status: accepted 2026-09-21 (sessionbus-dsh PR #42 squash-merged, released as 0.1.0-pre.14)
 Per D-045 ruling (2). In antst/sessionbus-dsh: delete the `sessionbus`
 command (plugin.cjs:375-379) and register a DSH skill with
 `ctx.skills.register({ name: "sessionbus", description, content,
@@ -3452,7 +3452,7 @@ because deliver() passes the raw body, which W-100 fixes before the
 release. Evidence: unit 61/61, packed rc.2/alpha.1/alpha.2, run
 35630154316 green. Verifier: sonnet eight-point review.
 
-### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: accepted 2026-09-21 (sessionbus-dsh PR #43 squash-merged, unreleased until the successor kit is published)
+### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: accepted 2026-09-21 (sessionbus-dsh PR #43 squash-merged, released as 0.1.0-pre.14)
 Per D-045 ruling (1); supersedes the W-086 and W-098 readings that an
 idle interactive session stages a delivered message until the next human
 turn. Found: NativeSession.deliver (plugin.cjs:248-262) calls
@@ -3604,7 +3604,7 @@ Evidence: 3/3 green on all three DSH legs and macOS, each new case
 render change, in which case it is one transcript rule stated in the
 handoff.
 
-### W-102 sessionbus-dsh: parity remainder from the audit — status: accepted 2026-09-21 (sessionbus-dsh PR #44 squash-merged, unreleased until the successor kit is published)
+### W-102 sessionbus-dsh: parity remainder from the audit — status: accepted 2026-09-21 (sessionbus-dsh PR #44 squash-merged, released as 0.1.0-pre.14)
 Per D-045 ruling (5), the audit items not covered by W-099 to W-101:
 (a) advertise `supports_message_run` in hello so `idle_message: run`
 lanes are accepted (kit index.js:94 rejects with -32008 today; plugin
@@ -3638,7 +3638,7 @@ and answered autonomously on rc.2, alpha.1, alpha.2. Manifest pre.14,
 kit 0.5.5 by ruling. Evidence: unit 70/70, peer floor, packed legs,
 run 35644397701 green. Verifier: sonnet eight-point review.
 
-### W-103 sessionbus-dsh: pin the successor kit and make the lane boundary proof unconditional — status: open (owner dsh-exec, on pdev's registry binding for kit 0.5.7)
+### W-103 sessionbus-dsh: pin the successor kit and make the lane boundary proof unconditional — status: accepted 2026-09-21 (sessionbus-dsh PR #45 squash-merged; released as 0.1.0-pre.14)
 Per W-100 limits D1 and D2. The published kit 0.5.5 folds every
 ProtocolError except -32603 into a rejected receipt, so the lane
 NotRunning rule (-32004) is invisible at the wire, and CI never passes
@@ -3659,6 +3659,18 @@ acceptance on the permanent daemon after pdev's rollout: sessionbus
 and web profiles at pre.14 exact, a native dashi launch, an observer
 message answered with no keypress, `/sessionbus <text>` producing a
 model turn; umka at dev1's pace. W-101 follows on dashi.
+Accepted 2026-09-21 (sessionbus-dsh PR #45, squash df6f73b;
+released as 0.1.0-pre.14 with W-099, W-100 and W-102). @sessionbus/kit
+pinned exactly 0.5.7 (pdev root-verified: sha1 95360370, tarball
+sha256 3bb208a1, source tag 53c5f80; lockfile integrity equals the
+registry sha512); the candidate_kit override is gone and the packed
+proof runs the lane boundary steps unconditionally on rc.2, alpha.1,
+alpha.2; a serveWorker wire test shows the cut: kit 0.5.5 answered
+{disposition: rejected, reason: not_running}, kit 0.5.7 answers
+JSON-RPC error -32004. Evidence: unit 71/71, peer floor, packed legs,
+hosted run 35648568129 green. Release: tag v0.1.0-pre.14, run 35649085157,
+registry version present with dependencies kit 0.5.7 and
+dsh-file-uploads-none ^0.1.0. Verifier: sonnet review.
 
 ## Backlog
 
