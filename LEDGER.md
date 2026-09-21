@@ -620,6 +620,21 @@ pre.11, daemon untouched. Independent checks: haiku verifier on the dsh
 host (six checks), pdev root seal on umka. Remaining: the mac host
 (unscheduled); alpha.19 and alpha.20 empty tarballs are the owner's
 optional npm deprecate.
+Addendum 2026-09-21: profiles are hoisted installs (app-boot index.js
+:365-370 sets nodeLinker hoisted, autoInstallPeers false; `dsh plugin`
+forwards its arguments to pnpm verbatim, bin.js:105-115,
+plugin-*.js:101-113). When an in-place upgrade drops a nested
+dependency edge, pnpm 10.28.1 leaves the previously nested physical
+directory behind (found after dashi 0.1.1: node_modules/@antst/
+dashi-app/node_modules/@antst/dsh-file-uploads-none at 0.1.0, absent
+from the lock and from .modules.yaml); `pnpm prune` and
+`pnpm install --frozen-lockfile --force` do not remove it, and Node
+resolution from the dependent's real path picks it up, so it is
+behavioral, not cosmetic. Ruling: the profile physical one-version
+assertion covers nested node_modules directories; the repair is to
+remove only a nested directory that both a version guard and a lock
+grep prove untracked, followed by a frozen install that must be a
+no-op; never a node_modules deletion. Runbook step added under W-098.
 
 ### D-044 (2026-09-21) 0.1.0 is the first stable cut; stable is a dist-tag promise, not a DSH promise
 Owner ruling 2026-09-21: cut a stable release. Facts: develop 41f86a9
@@ -3279,7 +3294,7 @@ Lockfile finding: the three 0.1.0-alpha.18 records are owned by
 the shared fallback projection is the alpha.18 one; W-098 removes the
 duplicate. Verifiers: haiku seven-point PR review, haiku host check.
 
-### W-098 sessionbus-dsh: one copy of dsh-file-uploads-none on a stable host — status: open (owner dsh-exec, after 0.1.0 is on npm)
+### W-098 sessionbus-dsh: one copy of dsh-file-uploads-none on a stable host — status: accepted 2026-09-21 (sessionbus-dsh PR #40 and #41, dashi PR #217; released as plugin 0.1.0-pre.13 and dashi 0.1.1)
 Found in the W-097 handoff: @sessionbus/dsh 0.1.0-pre.12 declares
 `@antst/dsh-file-uploads-none` as an exact dependency at
 0.1.0-alpha.18, so a host with dashi-app 0.1.0 (which pins 0.1.0) and
@@ -3301,6 +3316,26 @@ package.json from the profile root reports 0.1.0, and the lane profile
 still boots with the sessionbus row (offline registration check of the
 runbook).
 Production source 0 lines in dashi; one manifest line in the plugin.
+Accepted 2026-09-21. Part 1: sessionbus-dsh PR #40 (main f024b49,
+released as 0.1.0-pre.13 with `@antst/dsh-file-uploads-none` at
+`^0.1.0`, runbook re-pinned). Part 2: dashi PR #217 (squash a920589,
+main and tag v0.1.1, run 35587549819; all four packages 0.1.1 under
+`latest`, fileCounts 55/4/4/5, alpha unchanged; dashi-app pins
+pre.13 exact; the three alpha.18 lock records gone). Correction to the
+scope text: the single copy is at 0.1.1, not 0.1.0, because all four
+packages move together. dsh-host evidence: dashi profile 0.1.1 exact,
+21/21 at rc.2, closure 479 exact, banner `dashi 0.1.1 on DSH
+0.1.5-rc.2`, roster row seen and gone; exactly one physical provider
+at 0.1.1 after the guarded removal of a stale nested 0.1.0 directory
+(D-043 addendum 2026-09-21), with resolution from the profile root and
+from dashi-app's real path landing on the same realpath. sessionbus and
+web profiles moved from pre.11 to pre.13: 11/11 at rc.2 each, closure
+479 exact, one provider 0.1.1, offline provider registration
+openai-codex on both, a real lane turn returned `lane hello`, and an
+idle web peer in group dsh answered a staged message on its next turn.
+Daemon, PRODUCTS and units unchanged. Runbook step for untracked
+nested directories: sessionbus-dsh PR #41 (main 2923235).
+Verifiers: haiku PR reviews (#40, #217), haiku host end-state check.
 
 ## Backlog
 
