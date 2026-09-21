@@ -227,7 +227,7 @@ async function firstFrame(output: string, columns = 80, rows = 24): Promise<stri
   const lines = Array.from({ length: terminal.rows }, (_, row) =>
     terminal.buffer.active.getLine(row)?.translateToString(true) ?? '')
   const header = lines.findIndex(line => line.includes('dashi'))
-  return lines.slice(header).join('\n')
+  return lines.slice(Math.max(0, header)).join('\n')
 }
 
 async function resizedFrame(
@@ -3664,7 +3664,20 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
         timeout: testCeiling(20_000),
       })
+      shell.write('image selected through at')
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).toContain('[image 1]')
+        expect(frame).toContain('image selected through at')
+      }, { timeout: testCeiling(20_000) })
       shell.write('\u0013')
+      await vi.waitFor(async () => {
+        const frame = await screen()
+        expect(frame).not.toContain('[image 1]')
+        expect(frame).not.toContain('image selected through at')
+      }, {
+        timeout: testCeiling(20_000),
+      })
       shell.write('stashed image draft')
       await vi.waitFor(async () => {
         const frame = await screen()
@@ -3678,11 +3691,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await vi.waitFor(async () => {
         const frame = await screen()
         expect(frame).toContain('[image 1]')
+        expect(frame).toContain('image selected through at')
         expect(frame).not.toContain('stashed image draft')
       }, {
         timeout: testCeiling(20_000),
       })
-      shell.write('image selected through at\r')
+      shell.write('\r')
       await shell.waitFor('Approval · bash', restoreAt)
       shell.write('\r')
       await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', restoreAt)
@@ -3963,6 +3977,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       child = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
       expect(child).not.toBe('')
       await shell.waitFor('Subagent · inspect W046 continuation ·', subtaskAt)
+      await vi.waitFor(() => {
+        expect(sessionEvents(child).some(event => event.type === 'user/message'
+          && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

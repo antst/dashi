@@ -3083,6 +3083,13 @@ name the DSH file:line first. Evidence: the test 20/20 under load on
 rc.2 and alpha.1 through the version seam, five checks green. The
 alpha.21 release PR is rebased on the fix and re-gated; no re-run of
 a failed gate without a fix.
+Builder note: the same macOS run exposed a W-080 frame-helper defect: once
+the 12-row picker scrolled the dashi header off screen, `slice(-1)` made the
+observed-state wait inspect only the footer. The fallback now returns all
+visible rows when no header is present.
+The third hosted run exposed the W-080 image input ordering race: the attachment
+can render before its completion overlay relinquishes input. The test now proves
+composer ownership by typing and observing its prompt before sending Ctrl+S.
 
 ### W-095 sessionbus-dsh: a live web root reaches the publication gate — status: accepted 2026-09-20 (sessionbus-dsh PR #37 squash-merged; released as 0.1.0-pre.12)
 At 0.1.0-pre.11 on the dsh host against the real daemon, the web
