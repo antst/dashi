@@ -3070,7 +3070,7 @@ answered message; the rc.2 leg launches without SESSIONBUS_SOCKET. The
 pre.9 live failure's transport error text is unrecoverable (it was
 discarded); a recurrence is now visible. Released as 0.1.0-pre.11.
 
-### W-094 PTY: jobs-and-subtask case races observed state on the alpha.1 leg — status: open (owner dsh-exec)
+### W-094 PTY: jobs-and-subtask case races observed state on the alpha.1 leg — status: accepted 2026-09-20 (PR #202 squash-merged)
 The 0.1.0-alpha.21 release gate (run 35537837198) failed once on the
 0.1.6-alpha.1 leg: profile-pty.spec.ts:3977 'reads and kills jobs and
 starts a continuable subtask through DSH', "expected false to be
@@ -3090,6 +3090,23 @@ visible rows when no header is present.
 The third hosted run exposed the W-080 image input ordering race: the attachment
 can render before its completion overlay relinquishes input. The test now proves
 composer ownership by typing and observing its prompt before sending Ctrl+S.
+Accepted 2026-09-20 at 55f4f35 (PR #202), production source 0. Three
+test defects of one family: (1) the jobs-and-subtask case read the
+child's durable user/message synchronously after the parent's
+"Subagent" repaint; it now waits on the child's durable log. (2) The
+W-080 frame helper used `slice(-1)` when the dashi header had scrolled
+off the 12-row picker, so the observed-state wait saw only the footer
+on the slower macOS runner; the fallback now returns all visible rows.
+(3) The image-stash case sent Ctrl+S while the completion overlay
+could still own input after rendering the attachment chip, so the
+stash was consumed outside the composer; the test now types and
+observes the prompt beside the attachment (composer ownership) before
+Ctrl+S, waits for both to leave, and for both to return on restore.
+Each case 20/20 under load on rc.2 and alpha.1 (alpha.1 through the
+version seam, 315/315 with the case expanded); three consecutive green
+hosted runs including macOS on this head. Not alpha.1 behavior
+differences. The alpha.21 release PR was rebased on it and re-gated;
+the audit of the whole family is W-096.
 
 ### W-095 sessionbus-dsh: a live web root reaches the publication gate — status: accepted 2026-09-20 (sessionbus-dsh PR #37 squash-merged; released as 0.1.0-pre.12)
 At 0.1.0-pre.11 on the dsh host against the real daemon, the web
