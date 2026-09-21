@@ -342,8 +342,8 @@ importers:
         specifier: '>=0.1.5-rc.2'
         version: 0.1.5-rc.2(2faf0849fbdc6ac5919de8226950d80c)
       '@sessionbus/dsh':
-        specifier: 0.1.0-pre.12
-        version: 0.1.0-pre.12(91a148a5b89a16f99a71395625ff8707)
+        specifier: 0.1.0-pre.13
+        version: 0.1.0-pre.13(91a148a5b89a16f99a71395625ff8707)
 
   packages/dashi-launcher: {}
 
@@ -369,11 +369,11 @@ packages:
       zod:
         optional: true
 
-  '@antst/dsh-file-uploads-none@0.1.0-alpha.18':
-    resolution: {integrity: sha512-5Ht6HmpkRIZ8lf0MgGGQ+yLhicg9LF7xQt4yN3IHREAJDEtT68Jue2Bxs0fOkt57CvI53gAt21sPyYz2yc+86A==}
+  '@antst/dsh-file-uploads-none@0.1.0':
+    resolution: {integrity: sha512-ukPklnE7Csxc//sNKbTea47IlZ5cLzhQGeZJnLIV5ddI+CwU1C6zs4RPTV5X3iSSR3Bi2NchG3IoeSHm0XBovQ==}
     engines: {node: ^22.19.0 || >=24.0.0}
     peerDependencies:
-      '@deepseek-ai/cordis': 4.0.2
+      '@deepseek-ai/cordis': ^4.0.2
 
   '@antst/roller@0.1.3':
     resolution: {integrity: sha512-JDD0cF6gABwVhuWYHzGHGIDiZuSGEbkJAP5bqb11j8T3PYQ5IRPlFYLNCX7CwtFuw6uMINlnSXMQRsfuxVoH2g==}
@@ -3130,8 +3130,8 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@sessionbus/dsh@0.1.0-pre.12':
-    resolution: {integrity: sha512-+X+YW9Wk6meXOAtzQ80hkV3DljtcAjfN67dbrr1BTi+u25zL28rrVQDYH4nDcSJehCQKvMa2m0cnFEYUEvixfQ==}
+  '@sessionbus/dsh@0.1.0-pre.13':
+    resolution: {integrity: sha512-cUbEOMNsMwE0xoFMfe4Hs7tVVuFy9kpIdX7DVwzpFxHMcnMzo9PPbuNPfQGTwsebTN2JYkhqiwvSPd0b7306Iw==}
     hasBin: true
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
@@ -4326,7 +4326,7 @@ snapshots:
     optionalDependencies:
       zod: 4.5.4
 
-  '@antst/dsh-file-uploads-none@0.1.0-alpha.18(@deepseek-ai/cordis@4.0.2)':
+  '@antst/dsh-file-uploads-none@0.1.0(@deepseek-ai/cordis@4.0.2)':
     dependencies:
       '@deepseek-ai/cordis': 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
 
@@ -7517,9 +7517,9 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@sessionbus/dsh@0.1.0-pre.12(91a148a5b89a16f99a71395625ff8707)':
+  '@sessionbus/dsh@0.1.0-pre.13(91a148a5b89a16f99a71395625ff8707)':
     dependencies:
-      '@antst/dsh-file-uploads-none': 0.1.0-alpha.18(@deepseek-ai/cordis@4.0.2)
+      '@antst/dsh-file-uploads-none': 0.1.0(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/cordis': 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
       '@deepseek-ai/cordis-plugin-loader': 1.0.3(@deepseek-ai/cordis@4.0.2)(node-addon-require-builtin@0.1.5)
       '@deepseek-ai/dsh-agent': 0.1.5-rc.2(6df6622855b87cb7fde1fe609a6d039a)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 — 2026-09-21
+
+- Fix dashi-app's @sessionbus/dsh pin so stable profiles resolve one @antst/dsh-file-uploads-none copy at 0.1.0 (W-098).
+
 ## 0.1.0 — 2026-09-21
 
 - First stable release, with the same production source as 0.1.0-alpha.21 and the PTY test hardening from W-096.
