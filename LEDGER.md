@@ -3638,6 +3638,28 @@ and answered autonomously on rc.2, alpha.1, alpha.2. Manifest pre.14,
 kit 0.5.5 by ruling. Evidence: unit 70/70, peer floor, packed legs,
 run 35644397701 green. Verifier: sonnet eight-point review.
 
+### W-103 sessionbus-dsh: pin the successor kit and make the lane boundary proof unconditional — status: open (owner dsh-exec, on pdev's registry binding for kit 0.5.7)
+Per W-100 limits D1 and D2. The published kit 0.5.5 folds every
+ProtocolError except -32603 into a rejected receipt, so the lane
+NotRunning rule (-32004) is invisible at the wire, and CI never passes
+the candidate kit, so the boundary steps never run there. Scope, on
+pdev's registry binding (exact version and integrity): package.json
+pins @sessionbus/kit at that version exactly, lockfile updated, the
+installed manifest and the registry integrity stated in the handoff;
+ci.yml and release.yml drop the candidate_kit parameter and
+prove-packed-install.sh runs the -32004 boundary steps
+unconditionally with the pinned kit; the lane ended-run unit test
+asserts -32004 reaches the kit reply as an RPC error, not a rejected
+disposition; one changelog line under the unreleased pre.14 entry.
+Evidence: unit, peer floor, packed legs, hosted run green. After
+ACCEPT the ops lane tags v0.1.0-pre.14 (trusted publish) and verifies
+on the registry: version present, dependencies kit == the pinned
+version and dsh-file-uploads-none ^0.1.0. Then the dsh-host installed
+acceptance on the permanent daemon after pdev's rollout: sessionbus
+and web profiles at pre.14 exact, a native dashi launch, an observer
+message answered with no keypress, `/sessionbus <text>` producing a
+model turn; umka at dev1's pace. W-101 follows on dashi.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
