@@ -2980,7 +2980,7 @@ change, then the bundle-composed profile boots and completes the
 existing proof). Docs: no installer run on the dashi profile from
 dashi-app 0.1.0-alpha.20 on; dashi-app owns its row and plugin pin.
 
-### W-091 dashi-app pins the fixed plugin release — status: open (owner dsh-exec, after sessionbus-dsh W-089 and W-090 release)
+### W-091 dashi-app pins the fixed plugin release — status: accepted 2026-09-21 (PR #208 squash-merged; released with 0.1.0-alpha.21)
 dashi-app 0.1.0-alpha.20 pins @sessionbus/dsh 0.1.0-pre.2 (W-036), so
 the dashi product runs a plugin without W-081 (default tool grant),
 W-083 (kit 0.5.5), W-086/W-087 (run result and text), W-088 (installer
@@ -2993,6 +2993,14 @@ launcher token and -g paths), and release dashi 0.1.0-alpha.21. The
 host runbook then re-pins dashi-app on both hosts (profile add of the
 exact dashi-app version, graph check, boot heal, closure check, dashi
 roster check). Production source 0 beyond the manifest.
+Accepted 2026-09-20 at ab1ef27 (PR #208): packages/dashi-app pins
+@sessionbus/dsh 0.1.0-pre.12 exactly (W-081 default tool grant, W-083
+kit 0.5.5, W-086/W-087 run result and text, W-088 installer merge,
+W-089 peer re-hello, W-090 bundle-row refusal, W-093 global root
+observation and socket discovery); the sibling row `product: dashi`
+unchanged; the shipped-profile PTY proves the row active and the
+launcher token and -g paths; no test hardcodes the plugin version.
+Released with 0.1.0-alpha.21; both hosts re-pin dashi-app.
 
 ### W-092 Release publish job builds and verifies tarball contents — status: accepted 2026-09-20 (PR #195 squash-merged; released as 0.1.0-alpha.21)
 Found on the dsh host after the alpha.20 install: the dashi profile
