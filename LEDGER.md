@@ -3239,7 +3239,7 @@ Evidence: run 35552192096 green on rc.2, alpha.1, alpha.2 and macOS in
 three attempts on head 378bddb; eight changed cases 20/20 under a
 concurrent full gate. Verifier: independent seven-point review.
 
-### W-097 Release 0.1.0 — status: open (owner dsh-exec; ops lane for main and tag)
+### W-097 Release 0.1.0 — status: accepted 2026-09-21 (PR #215 squash-merged; released as 0.1.0)
 Per D-044. Branch release/0.1.0 from develop 41f86a9. Changes: the
 four package.json versions to 0.1.0 (dashi, dashi-app, dashi-launcher,
 file-uploads-none; internal ranges stay workspace ranges); CHANGELOG
@@ -3262,6 +3262,45 @@ tag v0.1.0, and reports run id, dist-tags for all four packages
 55/4/4/5, and the GitHub release prerelease flag false. Then dsh-exec
 runs the dsh-host smoke of D-044 ruling (5) with exact 0.1.0 pins and
 reports expected vs actual. Acceptance: all of the above observed.
+Accepted 2026-09-21 (PR #215, squash 8b40e3d; main and tag v0.1.0 at
+the same SHA). Release run 35581614333 success; all four packages at
+0.1.0 under `latest` with fileCounts 55/4/4/5, `alpha` unchanged at
+0.1.0-alpha.21, GitHub release not prerelease. The ops lane's first
+npm query returned 404 about one minute after the publish log line;
+the packument carried 0.1.0 at 09:19:27Z, so release verification
+re-queries the registry directly for up to four minutes before a
+mismatch is declared. dsh-host smoke PASS: exact pins, profile 21/21
+at rc.2, anchor rc.2, closure 479 exact, banner `dashi 0.1.0 on DSH
+0.1.5-rc.2`, roster row product=dashi seen and gone after a clean
+exit; snapshot ~/.local/state/dsh-host-dashi-0.1.0/20260921T092253Z.
+Lockfile finding: the three 0.1.0-alpha.18 records are owned by
+@sessionbus/dsh 0.1.0-pre.12's exact dependency on
+@antst/dsh-file-uploads-none, so a stable host holds two copies and
+the shared fallback projection is the alpha.18 one; W-098 removes the
+duplicate. Verifiers: haiku seven-point PR review, haiku host check.
+
+### W-098 sessionbus-dsh: one copy of dsh-file-uploads-none on a stable host — status: open (owner dsh-exec, after 0.1.0 is on npm)
+Found in the W-097 handoff: @sessionbus/dsh 0.1.0-pre.12 declares
+`@antst/dsh-file-uploads-none` as an exact dependency at
+0.1.0-alpha.18, so a host with dashi-app 0.1.0 (which pins 0.1.0) and
+the plugin carries two copies of the package; on the dsh host after
+0.1.0 the profile-root symlink node_modules/@antst/dsh-file-uploads-none
+is the alpha.18 copy with 0.1.0 nested under dashi-app, and rows import
+relative to the profile root (D-043), so the stable provider is
+shadowed by the plugin's copy. Scope: in antst/sessionbus-dsh,
+change that dependency to `^0.1.0`, bump the plugin to 0.1.0-pre.13,
+changelog line, and re-pin docs/HOST-INSTALL.md to dashi 0.1.0 (launcher,
+dashi-app) and plugin pre.13; nothing else; the plugin's lane profile
+row and the installer are unchanged. Then dashi-app pins @sessionbus/dsh
+0.1.0-pre.13 exact (same shape as W-091) as a fix-only 0.1.1 release
+of dashi under D-044 ruling (4). Evidence: plugin gate green; dashi
+five checks green; on the dsh host after the 0.1.1 install the dashi
+profile's physical inventory shows exactly one
+@antst/dsh-file-uploads-none at 0.1.0, `require.resolve` of its
+package.json from the profile root reports 0.1.0, and the lane profile
+still boots with the sessionbus row (offline registration check of the
+runbook).
+Production source 0 lines in dashi; one manifest line in the plugin.
 
 ## Backlog
 
