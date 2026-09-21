@@ -746,6 +746,29 @@ every product on the tool grant. Items: W-099 skill, W-100 wake and
 envelope, W-101 dashi PTY gates, W-102 the remainder. None is closed
 by assertion.
 
+Host note 2026-09-21 (dsh host, dsh-exec): daemon upgraded in place
+to Sessionbus v0.5.7 (release 53c5f80, binary sha256 bcc5f564; unit,
+socket, PRODUCTS and service.env unchanged; all 19 peers reconnected;
+federation connected, no ForwardLost); sessionbus and web profiles at
+plugin 0.1.0-pre.14 with kit 0.5.7 exact, 11/11 at rc.2, closure
+479/479, no untracked nested directories; dashi profile left at
+pre.13 until W-101. Installed acceptance on the permanent daemon,
+issued from pdev's long-lived acceptance-controller (stable SDK
+0.5.7) under its own identity: a lane spawned without idle_message
+reported policy run, an idle delivery was injected and produced one
+completed record `lane hello`; a web root reached from a same-group
+observer answered `peer hello` autonomously with no prompt; rosters
+clean afterwards. Finding on the way: the first spawn from the
+builder's codex-peer broker returned -32002 not_connected; bound by
+`go version -m` to that broker's SDK 69c1024 (2026-09-14), whose
+closed LanePolicy schema rejects the `policy.trace` field the daemon
+has returned since v0.5.5 (directory.go:297-299), so the caller closed
+its own connection after Open committed; daemon and plugin exonerated
+(v0.5.7 source: -32002 on spawn only when the caller's attachment is
+gone). The three Codex peers on this host run that broker; pdev's
+signed successor (revision 1989c52, SDK 0.5.7) is verified on the
+host and installs at the owner's restart boundary.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
