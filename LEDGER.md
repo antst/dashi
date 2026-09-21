@@ -3482,6 +3482,20 @@ rendering of relay messages (W-027, transcript.ts:208-215) is untouched
 here; sender visibility in the rendered cell is W-101's finding.
 Production source in dashi 0.
 
+Amendment 2026-09-21: pdev reports the daemon's lane `stage` default
+(Sept 9, PR 48) was never owner-authorised and is being reversed to
+wake; the owner's rule is that a message wakes from the beginning.
+Item (a) of W-102 moves here: hello advertises
+`supports_message_run` (plugin.cjs:387; kit index.js:56,94 rejects
+`idle_message: run` with -32008 without it) and the lane path honours
+a daemon message-triggered run exactly like an explicit run (W-087
+seed rules, one terminal record, no duplicate turn while a run is in
+flight). Unit test: the lane hello carries the flag; a
+message-triggered run on an idle lane yields one completed record.
+Live proof on the dsh host: spawn sessionbus-dsh with `idle_message:
+run`, send while idle, collect the completed record. W-102 keeps
+(b)-(e).
+
 ### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
 Per D-045 ruling (3). dashi-app pins the plugin release that carries
 W-099 and W-100 (exact, same shape as W-091), version 0.1.2, changelog.
