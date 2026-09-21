@@ -674,6 +674,78 @@ with the packed file counts matching the last alpha (55/4/4/5 for
 on the dsh host (exact install, graph, closure, `dashi --help` banner,
 roster). umka and the mac host follow at their owners' pace.
 
+### D-045 (2026-09-21) A delivered peer message wakes an idle interactive session; `/sessionbus <text>` reaches the model
+Owner report 2026-09-21 on umka (dashi 0.1.1, plugin pre.13): typing
+`/sessionbus test messaging with dsh-architect@dsh` printed the `list`
+JSON regardless of the text, and a message sent to that dashi over the
+bus rendered only as `Context · ...` with no model turn until the human
+typed again. Both were live gaps in the acceptance evidence: W-098's
+web-peer step recorded "an idle web peer stages a delivered message and
+answers it on its next turn" as expected, and the architect accepted
+it. That reading is withdrawn; evidence that documents the absence of
+either behaviour is a failure. Contract (pdev, Sessionbus v0.5.6
+4d572a6, peers v0.5.2 a1af0c1): the DSH product requirement already
+states "Agent.steer delivers ordinary inbound messages at the next
+step boundary or starts work while idle"
+(docs/designs/DSH-TUI-REQUIREMENTS.md:17-19); interactive wake is
+product-owned (UNIVERSAL-SESSION-PROTOCOL.md:1965); `idle_message` is
+LanePolicy only and the daemon never drives an interactive peer's
+turns (protocol/types.go:85-95, daemon/session.go:279-292,
+directory.go:446-461); receipts name the admission boundary, not model
+completion: `injected` = native admission acknowledged on the
+wake-capable path, `queued_for_next_turn` = demonstrated staging,
+`written` = local write only (UNIVERSAL-SESSION-PROTOCOL.md:237-260,
+handlers.go:375-389); the kit's connectPeer delivery callback returns
+exactly one result and no further ack (bus/sdk/js/index.js:244-256);
+the daemon owns trace copies and settled-delivery aggregation.
+Slash command facts: the plugin registers `sessionbus` at
+plugin.cjs:375-379 with no `input` hint and a handler that ignores
+`invocation.rawInput` and always calls `list`; dashi forwards the whole
+line to `ctx.commands.execute` (session-runtime.ts:388) and DSH hands
+the trailing text over as `rawInput` (dsh-commands CommandInvocation),
+so the drop is plugin-side only. Rulings: (1) The completeness bar is
+Claude Code interactive mode and the DSH product contract above: an
+idle interactive dashi starts a model turn on a delivered message
+through DSH's own scheduler (Agent.steer or the API the builder
+proves equivalent), a running session receives it at the next step
+boundary, lanes keep the daemon's LanePolicy. The receipt settles at
+native admission (`injected`), never at model completion; a failure
+before submission is `rejected`; an uncertain submission is
+ProtocolError -32603 with uncertainty data, never a generic error.
+Enqueue and wake are serialised against active/idle transitions and
+root disposal so concurrent messages cannot start duplicate turns or
+land on a replacement root; no second scheduler, no timers, no
+polling. The plugin manufactures no trace copies and no extra acks; a
+reply is an ordinary send. (2) The plugin ships a DSH skill named
+`sessionbus` carrying the canonical guidance (self_info, send fields,
+dispositions, lane policies, ack discipline, trace) and no command:
+DSH core already implements `/<skill> <free text>` by riding the typed
+line as the user message and injecting the skill body as instructions
+(dsh-skill index.d.ts:116-129, dsh-tool-skill index.js:168-201), dashi
+already completes user-invocable skills as `/name`, and every other
+product ships a skill only; the command is deleted because
+ctx.commands.execute runs first and swallows the gesture. The `list`
+shortcut is gone; the model lists. (3) Acceptance evidence for anything
+sessionbus is a human-visible interaction in dashi against a live
+daemon: a delivered message to an idle dashi yields an autonomous
+reply over the bus with no keypress; `/sessionbus <text>` yields a
+model turn containing the text. Receipts and dispositions are
+diagnostics. (4) Every delivered message carries the shared
+envelope (`<cross-session-message from= from-session=>`, a
+`[sessionbus-metadata: ...]` line, the body, the closing tag;
+opencode delivery.mjs:10-17 is the template, byte-identical to the
+Claude wrapper), so the sender is visible to the human and usable by
+the model as the reply target. (5) The completeness audit of
+2026-09-21 (ten areas against the Claude, codex, opencode, qwen and
+grok integrations) found the plugin MISSING on guidance, slash text,
+idle wake, receipts and envelope, PARTIAL on completion pointers
+(supports_message_run never advertised, so `idle_message: run` lanes
+are rejected), presence (no reconnect retry after a failed connect),
+trace (inherits the wake gap) and open.arguments, and broader than
+every product on the tool grant. Items: W-099 skill, W-100 wake and
+envelope, W-101 dashi PTY gates, W-102 the remainder. None is closed
+by assertion.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -3343,6 +3415,116 @@ idle web peer in group dsh answered a staged message on its next turn.
 Daemon, PRODUCTS and units unchanged. Runbook step for untracked
 nested directories: sessionbus-dsh PR #41 (main 2923235).
 Verifiers: haiku PR reviews (#40, #217), haiku host end-state check.
+
+### W-099 sessionbus-dsh: the sessionbus skill replaces the list command — status: open (owner dsh-exec)
+Per D-045 ruling (2). In antst/sessionbus-dsh: delete the `sessionbus`
+command (plugin.cjs:375-379) and register a DSH skill with
+`ctx.skills.register({ name: "sessionbus", description, content,
+invocation })` (dsh-skill lib/types/index.d.ts:80-86,100) so that
+`/sessionbus <text>` rides the text as the user's message with the
+skill body injected as instructions by DSH core (dsh-skill
+index.d.ts:116-129; dsh-tool-skill index.js:168-201, gesture :373).
+Content: the canonical guidance adapted to the DSH tool, derived from
+the opencode and Claude SKILL.md files installed locally (cite the
+source file and plugin version); it keeps self_info, the send field
+set including "there is no summary field", the dispositions and their
+limits, lane policy independence, ack/done/unavailable/running
+discipline, trace, and the envelope reply idiom (copy `from` as the
+target). Lengthen the tool description (plugin.cjs:370, 179 chars) to
+one paragraph naming the action enum and the skill. Bump to
+0.1.0-pre.14, changelog. Evidence: unit tests that the skill registers
+with that name and user invocation, that no command named sessionbus
+remains, and that the content contains the required sections; packed
+install on the three DSH legs; the dashi PTY case is W-101. Production
+source in dashi 0.
+
+### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: open (owner dsh-exec)
+Per D-045 ruling (1); supersedes the W-086 and W-098 readings that an
+idle interactive session stages a delivered message until the next human
+turn. Found: NativeSession.deliver (plugin.cjs:248-262) calls
+`agent.steer(message)` only when `agent.status === "running"`; when idle
+it calls `agent.session.append("user/message", ...)`, a log write that
+opens no turn, and returns `injected` for both branches; the plugin's
+own test "delivery appends while idle and waits for steer receipt while
+running" (plugin.test.cjs:658) encodes that. DSH rc.2 Agent (dsh-agent
+runtime-types.d.ts:186-209): `steer` "an idle driver starts a turn; a
+running driver consumes it at its next step boundary", `followup` always
+starts a turn, `inject` never wakes; DSH's own session/prompt RPC uses
+steer/followup, never append (dsh-api-session-controller
+index.js:736-786). Codex's wrapper calls turn/start when idle and
+turn/steer when active; opencode submits a new message when idle; qwen
+stages, the same gap. Scope: remove the idle/running branch and call
+`agent.steer(message)` for every interactive delivery (the contract's
+own verb, one call for both states); settle the receipt from the steer
+admission receipt in both states; flip the test above to assert the idle
+turn; wrap the body in the shared envelope of D-045 ruling (4) built
+from the daemon's delivery fields (from, from-session, fromProduct,
+messageId, groups), never from the text, escaping a closing tag inside
+the body as the other wrappers do, rendered once (plugin.cjs:161-163
+today passes the raw body). Return `injected` when the native API
+acknowledges admission, `rejected` on failure before submission or an
+observed native refusal, and ProtocolError -32603 with uncertainty data
+when submission may have happened without acknowledgment; the callback
+returns exactly one result, no extra ack, no trace copies. Serialise
+enqueue/wake against active/idle transitions and root disposal (D-045:
+no duplicate turns, no delivery to a replacement root, no second
+scheduler, no timers). Lanes keep LanePolicy. Bump to the next
+pre-release with a changelog line. Evidence: unit tests for idle
+interactive (turn starts), running interactive (next boundary), lane
+(unchanged), concurrent delivery during an idle→active transition, and
+delivery during root disposal (rejected or ProtocolError, never a turn
+on the new root); packed install on the three DSH legs; and the live
+proof on the dsh host: send from a same-group observer to an idle dashi
+and, with no keypress, observe the model turn and the autonomous reply
+arriving at the observer over the bus, plus the running-turn case. The
+dashi PTY case against a real daemon is W-101's second half. dashi's
+rendering of relay messages (W-027, transcript.ts:208-215) is untouched
+here; sender visibility in the rendered cell is W-101's finding.
+Production source in dashi 0.
+
+### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
+Per D-045 ruling (3). dashi-app pins the plugin release that carries
+W-099 and W-100 (exact, same shape as W-091), version 0.1.2, changelog.
+New PTY fixture: a real sessionbus daemon started per test on a
+private socket (SESSIONBUS_SOCKET) with dashi registered as its only
+product, the shipped profile, the recorded model, and a kit observer in
+the same group. Cases: (a) type `/sessionbus reply with exactly: slash
+ok`; observe the skill-invocation context cell and a model turn whose
+output contains `slash ok`; (b) with dashi idle, the observer sends
+`reply over the bus with exactly: pong`; with no keypress observe the
+delivered cell showing the observer's name from the envelope, a model
+turn, and `pong` arriving at the observer; (c) during a running turn
+the observer sends a message; observe it consumed at a step boundary
+and answered; (d) the user's own prior text and a peer message are
+visually distinct (sender line present on the peer cell only).
+Waits are on observed state, no sleeps, no raw escapes; the daemon
+binary path comes from the environment with the case skipped only by
+an explicit CI marker that fails the gate on the DSH legs where the
+daemon is provisioned (state how it is provisioned in the handoff).
+Evidence: 3/3 green on all three DSH legs and macOS, each new case
+20/20 under load. Production source 0 unless the sender line needs a
+render change, in which case it is one transcript rule stated in the
+handoff.
+
+### W-102 sessionbus-dsh: parity remainder from the audit — status: open (owner dsh-exec, after W-100)
+Per D-045 ruling (5), the audit items not covered by W-099 to W-101:
+(a) advertise `supports_message_run` in hello so `idle_message: run`
+lanes are accepted (kit index.js:94 rejects with -32008 today; plugin
+hello at plugin.cjs:387) and honour it in the lane path; (b) presence
+retry: a failed connect at start deletes the peer and never retries
+(plugin.cjs:300-310); use the kit's reconnect path so the session
+publishes once the daemon is reachable, with one line per failure;
+(c) `open.arguments` accepted by the schema (plugin.cjs:21) but not
+passed to the product; pass it or reject it, not ignore it; (d) the
+default tool grant (plugin.cjs:365-366) is an unconditional allow;
+narrow it to the `sessionbus` tool only if it is not already, and
+document that native policy still applies; (e) trace envelopes: once
+W-100 lands, prove a `trace: content` copy delivered to a dashi parent
+wakes it and renders with its envelope. One PR, one pre-release,
+changelog per item, unit tests per item, packed legs. Evidence on the
+dsh host: a lane spawned with `idle_message: run` accepts a message
+while idle and runs; dashi started with the daemon stopped publishes
+within one reconnect after the daemon starts.
 
 ## Backlog
 
