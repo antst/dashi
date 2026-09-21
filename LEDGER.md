@@ -3528,6 +3528,30 @@ phase is still running (:188-196); no event boundary exists there,
 so the plugin adds no workaround; the two observable boundaries are
 tested and the gap goes upstream as a report on the owner's go.
 
+Amendment 3 (2026-09-21, corrected): the steer-strand window is
+reachable only from a queued promise reaction. turn() reads
+inbox.hasPending at agent-loop agent.ts:344, kick() resumes across
+`await this.turn()` (:227) and settles idle synchronously at
+:232-235; that promise-reaction boundary is the only suspension
+point. No public wake-only primitive exists (Agent: cancel,
+whenIdle, runMaintenance, send, followup, steer, inject; wakeDriver
+private); pending state is observable through agent.inbox; a
+re-steer would duplicate the durable splice. The kit invokes the
+plugin's deliver callback from a queued microtask (kit index.js:82
+queueMicrotask; Peer._handle :254 Promise.resolve().then), so a
+synchronous block inside the callback is itself a microtask reaction
+and can interleave with DSH's idle transition (pdev). Ruling: the
+builder traces the real ordering; if reachable, deliver() defers the
+check-and-steer by one macrotask hop (setImmediate, a task boundary,
+not a timer or polling) and then runs the lane NotRunning check and
+agent.steer as one synchronous block, so DSH's microtasks drain
+before the steer; the receipt stays one result from the callback
+promise, FIFO order across deferred deliveries holds, and root
+disposal between deferral and steer is caught by the synchronous
+check. Tests: the strand reproduced without the deferral and absent
+with it, FIFO, disposal. No replay. The residual, if any, is
+DSH-internal and reported upstream as such.
+
 ### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
 Per D-045 ruling (3). dashi-app pins the plugin release that carries
 W-099 and W-100 (exact, same shape as W-091), version 0.1.2, changelog.
