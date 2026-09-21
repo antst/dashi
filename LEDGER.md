@@ -3416,7 +3416,7 @@ Daemon, PRODUCTS and units unchanged. Runbook step for untracked
 nested directories: sessionbus-dsh PR #41 (main 2923235).
 Verifiers: haiku PR reviews (#40, #217), haiku host end-state check.
 
-### W-099 sessionbus-dsh: the sessionbus skill replaces the list command — status: open (owner dsh-exec)
+### W-099 sessionbus-dsh: the sessionbus skill replaces the list command — status: accepted 2026-09-21 (sessionbus-dsh PR #42 squash-merged, unreleased until W-100)
 Per D-045 ruling (2). In antst/sessionbus-dsh: delete the `sessionbus`
 command (plugin.cjs:375-379) and register a DSH skill with
 `ctx.skills.register({ name: "sessionbus", description, content,
@@ -3437,6 +3437,20 @@ with that name and user invocation, that no command named sessionbus
 remains, and that the content contains the required sections; packed
 install on the three DSH legs; the dashi PTY case is W-101. Production
 source in dashi 0.
+
+Accepted 2026-09-21 (sessionbus-dsh PR #42, squash 27d224b; not yet
+released, pre.14 is tagged only after W-100 merges). The command is
+gone; one runtime skill `sessionbus` (source runtime, model- and
+user-invocable, content from skills/sessionbus.md) registers through
+dsh-skill's SkillRegistration and is disposed on close; the tool
+description names all thirteen actions and the skill; peer
+dsh-commands replaced by dsh-skill at the floor. Skill text covers
+self_info, the send field set with no summary field, dispositions and
+limits, ack discipline, lane policies, trace, and the envelope reply
+idiom; the reviewer noted that idiom is not yet true at this commit
+because deliver() passes the raw body, which W-100 fixes before the
+release. Evidence: unit 61/61, packed rc.2/alpha.1/alpha.2, run
+35630154316 green. Verifier: sonnet eight-point review.
 
 ### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: open (owner dsh-exec)
 Per D-045 ruling (1); supersedes the W-086 and W-098 readings that an
