@@ -769,6 +769,13 @@ gone). The three Codex peers on this host run that broker; pdev's
 signed successor (revision 1989c52, SDK 0.5.7) is verified on the
 host and installs at the owner's restart boundary.
 
+Qualification (pdev review of the sealed packet, root 3b88ae96): the
+schema-rejection mechanism is source-proven and reproduced for that
+SDK revision and strongly supported here by the bound broker version
+and the -32002 classification, but the journal and comms capture on
+the dsh host lack the originating decode error itself; the evidence
+is kept immutable with this qualification alongside.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
