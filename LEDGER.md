@@ -3452,7 +3452,7 @@ because deliver() passes the raw body, which W-100 fixes before the
 release. Evidence: unit 61/61, packed rc.2/alpha.1/alpha.2, run
 35630154316 green. Verifier: sonnet eight-point review.
 
-### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: open (owner dsh-exec)
+### W-100 sessionbus-dsh: a delivered message wakes an idle interactive dashi — status: accepted 2026-09-21 (sessionbus-dsh PR #43 squash-merged, unreleased until the successor kit is published)
 Per D-045 ruling (1); supersedes the W-086 and W-098 readings that an
 idle interactive session stages a delivered message until the next human
 turn. Found: NativeSession.deliver (plugin.cjs:248-262) calls
@@ -3551,6 +3551,34 @@ disposal between deferral and steer is caught by the synchronous
 check. Tests: the strand reproduced without the deferral and absent
 with it, FIFO, disposal. No replay. The residual, if any, is
 DSH-internal and reported upstream as such.
+Accepted 2026-09-21 (sessionbus-dsh PR #43, squash cde945a; not yet
+released, pre.14 waits for the published successor kit). Every
+interactive delivery is steered; injected is returned only on the
+agent/inbox/spliced event correlated by message id and session,
+rejected before submission, ProtocolError -32603 with message_id when
+admission is lost; admission is deferred exactly one setImmediate hop
+then runs as one synchronous check-and-steer, FIFO, with root
+liveness checked inside the block; the envelope is byte-identical to
+the opencode template and built from daemon fields; hello advertises
+supports_message_run and the lane path returns -32004 before steering
+when the run has ended with nothing admitted. Evidence: unit 68/68;
+packed proof on rc.2, alpha.1, alpha.2 including an ordinary idle
+delivery after turn/end (injected, exactly two turn/start, envelope,
+autonomous reply, no second prompt) and a strand reproduction against
+the installed production AgentLoop (microtask steer stranded at idle;
+one hop consumed in turn 2); run 35641343549 green; private proof on
+pdev's 0074 daemon (SOURCE 0074469, packet root 84f5a8ae, binary sha
+55a6691d): lane with no idle_message ran on an idle send, legacy
+stage record resumed as run, an idle dashi answered two observer
+messages autonomously. Recorded limits: D1 published kit 0.5.5 folds
+every ProtocolError except -32603 into a rejected receipt (kit
+index.js:179-182), so -32004 is observable only on the successor kit;
+D2 CI never passes candidate_kit (ci.yml:38, release.yml:38), so the
+-32004 wire evidence exists only in the manual candidate run until
+the re-pin PR makes the boundary steps unconditional; D5 the
+admission wait is bounded only by the caller's cancel signal, a
+deliberate dependency on daemon cancellation, not a timer. Verifiers:
+opus contract review of 2e7da64, sonnet delta review of 2fecabd.
 
 ### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
 Per D-045 ruling (3). dashi-app pins the plugin release that carries
