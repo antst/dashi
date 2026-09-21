@@ -3510,6 +3510,24 @@ Live proof on the dsh host: spawn sessionbus-dsh with `idle_message:
 run`, send while idle, collect the completed record. W-102 keeps
 (b)-(e).
 
+Amendment 2 (2026-09-21, pdev rule): lane path only. An ordinary
+deliver without run_id that crosses an active→idle boundary checks,
+immediately before the native steer and under the lock protecting the
+native active turn, whether that turn has ended with nothing admitted;
+if so it returns ProtocolError(-32004, NotRunning) and does not steer,
+so the daemon keeps the delivery RPC pending and seeds a fresh managed
+Run after turn.ready and the run record stays daemon-owned; no
+product-local FIFO, no reliance on DSH's post-turn/end new-turn
+behaviour for lanes. If the native steer already admitted it, the
+truthful receipt is returned, never NotRunning, never replay.
+Interactive peers steer directly while idle; no NotRunning, no
+reseed. Also found (dsh-exec): DSH rc.2 strands a steer that lands
+between the inbox check after turn/end (agent-loop agent.ts:344) and
+the idle transition (:232-235) because wakeDriver returns while the
+phase is still running (:188-196); no event boundary exists there,
+so the plugin adds no workaround; the two observable boundaries are
+tested and the gap goes upstream as a report on the owner's go.
+
 ### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
 Per D-045 ruling (3). dashi-app pins the plugin release that carries
 W-099 and W-100 (exact, same shape as W-091), version 0.1.2, changelog.
