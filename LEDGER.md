@@ -3180,7 +3180,7 @@ connect to the runtime socket, connected. 61 tests; three DSH legs
 green. Released as 0.1.0-pre.12. dsh host web peer PASS at pre.11 with
 a same-group observer and an answered message.
 
-### W-096 PTY suite: every negative assertion is region-scoped and follows an observed positive state — status: open (owner dsh-exec, after alpha.21)
+### W-096 PTY suite: every negative assertion is region-scoped and follows an observed positive state — status: accepted 2026-09-21 (PR #212 squash-merged)
 The alpha.21 release gate failed three times in three different PTY
 cases on different legs (W-094: jobs-and-subtask read before the child
 log; the tall model picker's frame helper kept only the footer once
@@ -3197,6 +3197,16 @@ happened; no sleeps, no raw escapes, no widened or removed assertions;
 list every changed assertion with its reason in the handoff. Evidence:
 the full suite 3/3 green on all three DSH legs and macOS on the same
 head, and each changed case 20/20 under load. Production source 0.
+Accepted 2026-09-21 (PR #212, squash 48d4467). Test-only: one
+parsed-frame helper (header, transcript, overlay, composer,
+attachments, status regions) and 27 whole-frame or premature
+expectations rewritten as region-scoped assertions that follow an
+observed positive state; the exit-arm case's fixed 2500 ms sleep
+replaced by a wait on the status region; negatives 62 before and after,
+expects 315 to 316, none removed, no raw escapes, production source 0.
+Evidence: run 35552192096 green on rc.2, alpha.1, alpha.2 and macOS in
+three attempts on head 378bddb; eight changed cases 20/20 under a
+concurrent full gate. Verifier: independent seven-point review.
 
 ## Backlog
 
