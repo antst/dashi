@@ -1,6 +1,6 @@
 {
   "name": "@antst/dsh-file-uploads-none",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "No-upload file service for DeepSeek Harness terminal profiles",
   "publishConfig": {
     "access": "public"

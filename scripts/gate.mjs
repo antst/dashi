@@ -13,6 +13,13 @@ if (typeof dshPolicy.minimum !== 'string' || !testedVersions.includes(testedVers
   console.error(`gate: DSH ${String(testedVersion)} is not in the tested matrix`)
   process.exit(1)
 }
+if (process.env.SESSIONBUS_DAEMON_BIN === undefined) {
+  const provision = spawnSync(process.execPath, [join(root, 'scripts/provision-sessionbus.mjs')], {
+    cwd: root, stdio: 'inherit',
+  })
+  if (provision.status !== 0) process.exit(provision.status ?? 1)
+  process.env.SESSIONBUS_DAEMON_BIN = join(root, '.cache/sessionbus/bin/sessionbus')
+}
 const checks = [
   ['typecheck', ['run', 'typecheck']],
   ['build', ['run', 'build']],

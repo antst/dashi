@@ -164,6 +164,9 @@ importers:
       '@deepseek-ai/dsh-workflow':
         specifier: 'catalog:'
         version: 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.5-rc.2(6df6622855b87cb7fde1fe609a6d039a))(@deepseek-ai/dsh-brand@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-llm@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-session@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))))
+      '@sessionbus/kit':
+        specifier: 0.5.7
+        version: 0.5.7
       '@types/node':
         specifier: 22.20.0
         version: 22.20.0
@@ -342,8 +345,8 @@ importers:
         specifier: '>=0.1.5-rc.2'
         version: 0.1.5-rc.2(2faf0849fbdc6ac5919de8226950d80c)
       '@sessionbus/dsh':
-        specifier: 0.1.0-pre.13
-        version: 0.1.0-pre.13(91a148a5b89a16f99a71395625ff8707)
+        specifier: 0.1.0-pre.14
+        version: 0.1.0-pre.14(1927ca41fc1374d27c96a42f036e931e)
 
   packages/dashi-launcher: {}
 
@@ -3130,8 +3133,8 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@sessionbus/dsh@0.1.0-pre.13':
-    resolution: {integrity: sha512-cUbEOMNsMwE0xoFMfe4Hs7tVVuFy9kpIdX7DVwzpFxHMcnMzo9PPbuNPfQGTwsebTN2JYkhqiwvSPd0b7306Iw==}
+  '@sessionbus/dsh@0.1.0-pre.14':
+    resolution: {integrity: sha512-t5uFxQ/mQH7wXZDi26Iw3pbfAVhfTXE819WJRRDWx9dG4VnZn0nqQDf27YH3yREG6Dxb0/y4/lykHDNf00YrQQ==}
     hasBin: true
     peerDependencies:
       '@deepseek-ai/cordis': ^4.0.2
@@ -3139,17 +3142,17 @@ packages:
       '@deepseek-ai/dsh-agent': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-api-session-controller': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-cmdline': '>=0.1.5-rc.2'
-      '@deepseek-ai/dsh-commands': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-launch-environment': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-llm': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-permission-presets': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-session': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-session-title': '>=0.1.5-rc.2'
+      '@deepseek-ai/dsh-skill': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-tools': '>=0.1.5-rc.2'
       '@deepseek-ai/dsh-workspace': '>=0.1.5-rc.2'
 
-  '@sessionbus/kit@0.5.5':
-    resolution: {integrity: sha512-3yPePaFxPKYZeD7NycYxjLMbj1Ei2l6kwVbedI2V2Ox0XuuLL7aELsbOz6ylazscMiFfz0Op/z0oHY73uiDMwQ==}
+  '@sessionbus/kit@0.5.7':
+    resolution: {integrity: sha512-HCl/8ZuqiA0lwTxyTpT7pfpyTygi/gVJPg5rJlkXasjgGV+eSZYJnSFjWFz2P1RsUZscSUAQnTdhA6mEqy/wtw==}
 
   '@smithy/core@3.33.3':
     resolution: {integrity: sha512-CsOeKq/9kA3y6VJHt+/+VTCtBaxJ4OTFpgrjIUhPpDIKxBci1k2bJaQASF2h/ELWrulGp+t97DZ0mevfAD8idg==}
@@ -7517,7 +7520,7 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@sessionbus/dsh@0.1.0-pre.13(91a148a5b89a16f99a71395625ff8707)':
+  '@sessionbus/dsh@0.1.0-pre.14(1927ca41fc1374d27c96a42f036e931e)':
     dependencies:
       '@antst/dsh-file-uploads-none': 0.1.0(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/cordis': 4.0.2(@deepseek-ai/cordis-plugin-include@1.0.7)(@deepseek-ai/cordis-plugin-loader@1.0.3)
@@ -7525,17 +7528,17 @@ snapshots:
       '@deepseek-ai/dsh-agent': 0.1.5-rc.2(6df6622855b87cb7fde1fe609a6d039a)
       '@deepseek-ai/dsh-api-session-controller': 0.1.5-rc.2(883c9f9a8d1cfee32cf13dea21eef4ec)
       '@deepseek-ai/dsh-cmdline': 0.1.5-rc.2(@deepseek-ai/cordis-plugin-loader@1.0.3)(@deepseek-ai/cordis@4.0.2)
-      '@deepseek-ai/dsh-commands': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.5-rc.2(6df6622855b87cb7fde1fe609a6d039a))(@deepseek-ai/dsh-attachment@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-brand@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-brand@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-llm@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)))(@deepseek-ai/dsh-session@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))))(@deepseek-ai/dsh-typert-protocol@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))
       '@deepseek-ai/dsh-launch-environment': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/dsh-llm': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)
       '@deepseek-ai/dsh-permission-presets': 0.1.5-rc.2(d3ec05aa57fac9ae9002112395c1fa26)
       '@deepseek-ai/dsh-session': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)))
       '@deepseek-ai/dsh-session-title': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-agent@0.1.5-rc.2(6df6622855b87cb7fde1fe609a6d039a))(@deepseek-ai/dsh-brand@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-llm@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-session-projection@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-session@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)))))(@deepseek-ai/dsh-session@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))))
+      '@deepseek-ai/dsh-skill': 0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-llm@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2))(@deepseek-ai/dsh-scope@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)(@deepseek-ai/dsh-invariants@0.1.5-rc.2(@deepseek-ai/cordis@4.0.2)))
       '@deepseek-ai/dsh-tools': 0.1.5-rc.2(7f9e302786cf21e030eafe960666842c)
       '@deepseek-ai/dsh-workspace': 0.1.5-rc.2(2faf0849fbdc6ac5919de8226950d80c)
-      '@sessionbus/kit': 0.5.5
+      '@sessionbus/kit': 0.5.7
 
-  '@sessionbus/kit@0.5.5': {}
+  '@sessionbus/kit@0.5.7': {}
 
   '@smithy/core@3.33.3':
     dependencies:

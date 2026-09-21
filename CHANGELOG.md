@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-09-21
+
+- Sessionbus 0.1.0-pre.14 adds the `/sessionbus` skill, wakes idle sessions for peer messages, and identifies the sender in a durable message envelope (W-101).
+
 ## 0.1.1 — 2026-09-21
 
 - Fix dashi-app's @sessionbus/dsh pin so stable profiles resolve one @antst/dsh-file-uploads-none copy at 0.1.0 (W-098).
