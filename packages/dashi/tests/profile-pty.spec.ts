@@ -221,13 +221,44 @@ async function waitForTerminalMode(shell: PtyShell, marker: string, start: numbe
   return mode
 }
 
-async function firstFrame(output: string, columns = 80, rows = 24): Promise<string> {
-  const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: columns, rows })
-  await new Promise<void>(resolveWrite => { terminal.write(output, resolveWrite) })
+interface ParsedFrame {
+  readonly attachments: string
+  readonly composer: string
+  readonly overlay: string
+  readonly status: string
+  readonly text: string
+  readonly transcript: string
+}
+
+function parseFrame(terminal: HeadlessTerminal): ParsedFrame {
   const lines = Array.from({ length: terminal.rows }, (_, row) =>
     terminal.buffer.active.getLine(row)?.translateToString(true) ?? '')
-  const header = lines.findIndex(line => line.includes('dashi'))
-  return lines.slice(Math.max(0, header)).join('\n')
+  const header = Math.max(0, lines.findIndex(line => line.includes('dashi')))
+  const rules = lines.flatMap((line, index) => /^[─━═]+$/u.test(line.trim()) ? [index] : [])
+  const composerBottom = rules.at(-1) ?? -1
+  const composerTop = rules.at(-2) ?? -1
+  const bodyEnd = composerTop > header ? composerTop : lines.length - 1
+  const body = lines.slice(header, bodyEnd)
+  return {
+    attachments: body.filter(line => /\[image \d+\]/u.test(line)).join('\n'),
+    composer: composerTop >= 0 && composerBottom > composerTop
+      ? lines.slice(composerTop + 1, composerBottom).join('\n')
+      : lines.at(-3) ?? '',
+    overlay: lines.slice(header, -1).join('\n'),
+    status: lines.at(-1) ?? '',
+    text: lines.slice(header).join('\n'),
+    transcript: body.filter(line => !/\[image \d+\]/u.test(line)).join('\n'),
+  }
+}
+
+async function parsedFrame(output: string, columns = 80, rows = 24): Promise<ParsedFrame> {
+  const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: columns, rows })
+  await new Promise<void>(resolveWrite => { terminal.write(output, resolveWrite) })
+  return parseFrame(terminal)
+}
+
+async function firstFrame(output: string, columns = 80, rows = 24): Promise<string> {
+  return (await parsedFrame(output, columns, rows)).text
 }
 
 async function resizedFrame(
@@ -884,12 +915,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(resumed,
         `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)}`)
       await resumed.waitFor('idle ·', start)
-      const frame = await firstFrame(resumed.output.slice(start))
-      const context = frame.indexOf('Context · instructions · Workspace instructions · 18 lines')
-      const prompt = frame.indexOf('VISIBLE_CONTEXT_PROMPT')
+      const transcript = (await parsedFrame(resumed.output.slice(start))).transcript
+      const context = transcript.indexOf('Context · instructions · Workspace instructions · 18 lines')
+      const prompt = transcript.indexOf('VISIBLE_CONTEXT_PROMPT')
       expect(context).toBeGreaterThanOrEqual(0)
       expect(prompt).toBeGreaterThan(context)
-      expect(frame).not.toContain('CONTEXT_BODY_18')
+      expect(transcript).not.toContain('CONTEXT_BODY_18')
       const releasedAt = resumed.output.length
       resumed.write('\u0004\u0004')
       await resumed.waitFor('\u001B[?1049l', releasedAt)
@@ -1796,8 +1827,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const armedAt = shell.output.length
       shell.write('\u0004')
       await shell.waitFor('Ctrl+C or Ctrl+D again to exit', armedAt)
-      await new Promise(resolveDelay => { setTimeout(resolveDelay, 2_500) })
-      expect(await firstFrame(shell.output)).not.toContain('Ctrl+C or Ctrl+D again to exit')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output)).status).not.toContain('Ctrl+C or Ctrl+D again to exit')
+      }, { timeout: testCeiling(5_000), interval: 20 })
       const rearmedAt = shell.output.length
       shell.write('\u0004')
       await shell.waitFor('Ctrl+C or Ctrl+D again to exit', rearmedAt)
@@ -1860,10 +1892,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       let overlayAt = shell.output.length
       shell.write('/history\r')
       await shell.waitFor('History', overlayAt)
-      const history = await firstFrame(shell.output.slice(start))
-      expect(history).toContain('open prompt')
-      expect(history).not.toContain('outcome · interrupted')
-      expect(history).not.toMatch(/[\u2800-\u28ff]/u)
+      await vi.waitFor(async () => {
+        const history = (await parsedFrame(shell.output.slice(start))).overlay
+        expect(history).toContain('open prompt')
+        expect(history).not.toContain('outcome · interrupted')
+        expect(history).not.toMatch(/[\u2800-\u28ff]/u)
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const closedAt = shell.output.length
       shell.write('\u001B')
       await shell.waitFor('idle ·', closedAt)
@@ -2461,9 +2495,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(shell.output.slice(start)).not.toContain('Slow fixture complete.')
       expect(shell.output.slice(start)).toMatch(/[\u2800-\u28ff] \/dashi-slow-fixture · 0s/u)
       await shell.waitFor('Slow fixture complete.', start)
-      const screen = await firstFrame(shell.output.slice(start))
-      expect(screen).toContain('◆ /dashi-slow-fixture')
-      expect(screen).not.toContain('running /dashi-slow-fixture')
+      await vi.waitFor(async () => {
+        const transcript = (await parsedFrame(shell.output.slice(start))).transcript
+        expect(transcript).toContain('◆ /dashi-slow-fixture')
+        expect(transcript).not.toContain('running /dashi-slow-fixture')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -2497,7 +2533,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       DSH_DASHI_PRE_STEP_EVENTS: preStepEvents,
     })
     const canonicalSkillFile = realpathSync(skillFile)
-    shell.resize(Math.max(240, canonicalSkillFile.length + 140), 30)
+    const columns = Math.max(240, canonicalSkillFile.length + 140)
+    shell.resize(columns, 30)
     let id = ''
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
@@ -2511,8 +2548,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const filteredAt = shell.output.length
       shell.write('/skills project skill discovery\r')
       await shell.waitFor('/workspace-proof', filteredAt)
-      const filtered = await firstFrame(shell.output.slice(filteredAt))
-      expect(filtered).not.toContain('/dashi-fixture-skill')
+      await vi.waitFor(async () => {
+        const filtered = (await parsedFrame(shell.output.slice(filteredAt), columns, 30)).overlay
+        expect(filtered).toContain('/workspace-proof')
+        expect(filtered).not.toContain('/dashi-fixture-skill')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       shell.write('\r')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
       shell.write('use the fixture\r')
@@ -2906,19 +2946,19 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         `${quote(dsh)} --profile dashi --patch ${quote(tallModelCatalogPatch())} --fullscreen`)
       id = sessionId(shell.output, start)
       shell.write('/model\r')
-      let frame = ''
+      let picker = ''
       await vi.waitFor(async () => {
-        frame = await firstFrame(shell.output.slice(start), 100, 12)
-        expect(frame).toContain('↓ 53 more')
-        expect(frame).toContain('W054 provider · W054 row 00')
+        picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
+        expect(picker).toContain('↓ 53 more')
+        expect(picker).toContain('W054 provider · W054 row 00')
       }, { timeout: testCeiling(20_000), interval: 20 })
-      expect(frame).not.toContain('W054 row 59')
+      expect(picker).not.toContain('W054 row 59')
 
       shell.write('\u001B[B'.repeat(59))
       await vi.waitFor(async () => {
-        frame = await firstFrame(shell.output.slice(start), 100, 12)
-        expect(frame).toContain('↑ 53 more')
-        expect(frame).toContain('W054 provider · W054 row 59')
+        picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
+        expect(picker).toContain('↑ 53 more')
+        expect(picker).toContain('W054 provider · W054 row 59')
       }, { timeout: testCeiling(20_000), interval: 20 })
       const selectedAt = shell.output.length
       shell.write('\r')
@@ -3440,16 +3480,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         shell.write(`${'\u001B[B'.repeat(action)}\r`)
         child = await waitForOtherSession(shell, parent, actionAt)
         await vi.waitFor(async () => {
-          expect((await firstFrame(shell.output.slice(start))).split('\n')[21])
-            .toContain('headerless default model prompt')
+          const frame = await parsedFrame(shell.output.slice(start))
+          expect(frame.composer).toContain('headerless default model prompt')
+          expect(frame.transcript).not.toContain('the current session has no durable model selection')
         }, { timeout: testCeiling(20_000) })
-        expect(await firstFrame(shell.output.slice(start)))
-          .not.toContain('the current session has no durable model selection')
 
         const clearAt = shell.output.length
         shell.write('\u0003')
         await vi.waitFor(async () => {
-          expect((await firstFrame(shell.output.slice(start))).split('\n')[21]?.trim()).toBe('')
+          expect((await parsedFrame(shell.output.slice(start))).composer.trim()).toBe('')
         }, { timeout: testCeiling(20_000) })
         shell.write('\u0004\u0004')
         await shell.waitFor('\u001B[?1049l', clearAt)
@@ -3644,7 +3683,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
-      const screen = (): Promise<string> => firstFrame(shell.output.slice(start))
+      const screen = (): Promise<ParsedFrame> => parsedFrame(shell.output.slice(start))
       const listAt = shell.output.length
       shell.write('@\t')
       await shell.waitFor('Complete', listAt)
@@ -3654,35 +3693,35 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       shell.write('\u0003')
       await vi.waitFor(async () => {
-        expect((await screen()).split('\n')[21]?.trim()).toBe('')
+        expect((await screen()).composer.trim()).toBe('')
       }, { timeout: testCeiling(20_000) })
 
       const attachAt = shell.output.length
       shell.write('@screens/shot\t')
       await shell.waitFor('screens/shot.png', attachAt)
       shell.write('\r')
-      await vi.waitFor(async () => { expect(await screen()).toContain('[image 1]') }, {
+      await vi.waitFor(async () => { expect((await screen()).attachments).toContain('[image 1]') }, {
         timeout: testCeiling(20_000),
       })
       shell.write('image selected through at')
       await vi.waitFor(async () => {
         const frame = await screen()
-        expect(frame).toContain('[image 1]')
-        expect(frame).toContain('image selected through at')
+        expect(frame.attachments).toContain('[image 1]')
+        expect(frame.composer).toContain('image selected through at')
       }, { timeout: testCeiling(20_000) })
       shell.write('\u0013')
       await vi.waitFor(async () => {
         const frame = await screen()
-        expect(frame).not.toContain('[image 1]')
-        expect(frame).not.toContain('image selected through at')
+        expect(frame.attachments).not.toContain('[image 1]')
+        expect(frame.composer).not.toContain('image selected through at')
       }, {
         timeout: testCeiling(20_000),
       })
       shell.write('stashed image draft')
       await vi.waitFor(async () => {
         const frame = await screen()
-        expect(frame).toContain('stashed image draft')
-        expect(frame).not.toContain('[image 1]')
+        expect(frame.composer).toContain('stashed image draft')
+        expect(frame.attachments).not.toContain('[image 1]')
       }, {
         timeout: testCeiling(20_000),
       })
@@ -3690,9 +3729,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u0013')
       await vi.waitFor(async () => {
         const frame = await screen()
-        expect(frame).toContain('[image 1]')
-        expect(frame).toContain('image selected through at')
-        expect(frame).not.toContain('stashed image draft')
+        expect(frame.attachments).toContain('[image 1]')
+        expect(frame.composer).toContain('image selected through at')
+        expect(frame.composer).not.toContain('stashed image draft')
       }, {
         timeout: testCeiling(20_000),
       })
