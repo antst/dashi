@@ -621,6 +621,37 @@ host (six checks), pdev root seal on umka. Remaining: the mac host
 (unscheduled); alpha.19 and alpha.20 empty tarballs are the owner's
 optional npm deprecate.
 
+### D-044 (2026-09-21) 0.1.0 is the first stable cut; stable is a dist-tag promise, not a DSH promise
+Owner ruling 2026-09-21: cut a stable release. Facts: develop 41f86a9
+carries the same production source as 0.1.0-alpha.21 (b01f293); the
+only change since is W-096, test-only. release.yml derives the npm
+dist-tag from the version string (release.yml:96-103): a version with
+no prerelease suffix publishes under `latest` and creates a
+non-prerelease GitHub release, so no workflow change is needed. On npm
+`latest` still points at the first manual publish (alpha.5 for dashi,
+dashi-app, dashi-launcher; alpha.18 for dsh-file-uploads-none, W-033).
+Rulings: (1) The first stable dashi release is 0.1.0, cut from develop
+41f86a9 with a version bump and changelog entry only (W-097); no source
+change rides on the release commit. (2) Stable means dashi's own
+contract: the `latest` dist-tag, the completeness bar of AGENTS.md rule
+1 for the shipped feature set, and semver for dashi's four packages
+from here on. It does not promise a stable DSH: the DSH floor stays
+`>=0.1.5-rc.2` (D-041) and the tested matrix stays as published in
+validated-dsh-versions.json; README states both. Prerelease upstreams
+are admitted in a stable dashi only as an exact pin (@sessionbus/dsh
+0.1.0-pre.12, W-091) or a floor (D-041). (3) Release mechanics are
+unchanged (W-033, README Development): bump PR against develop titled
+`Release X.Y.Z`, squash, fast-forward main, push tag `vX.Y.Z`; the
+ops lane fast-forwards and tags, the builder never pushes to main.
+(4) After 0.1.0, feature work targets 0.2.0 and its prereleases are
+`0.2.0-alpha.N` under the `alpha` dist-tag; a fix-only release on the
+0.1 line is `0.1.N`. (5) Acceptance evidence for a stable cut is the
+release run green, `latest` at the new version on all four packages
+with the packed file counts matching the last alpha (55/4/4/5 for
+0.1.0), the GitHub release not marked prerelease, and one host smoke
+on the dsh host (exact install, graph, closure, `dashi --help` banner,
+roster). umka and the mac host follow at their owners' pace.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -3207,6 +3238,30 @@ expects 315 to 316, none removed, no raw escapes, production source 0.
 Evidence: run 35552192096 green on rc.2, alpha.1, alpha.2 and macOS in
 three attempts on head 378bddb; eight changed cases 20/20 under a
 concurrent full gate. Verifier: independent seven-point review.
+
+### W-097 Release 0.1.0 — status: open (owner dsh-exec; ops lane for main and tag)
+Per D-044. Branch release/0.1.0 from develop 41f86a9. Changes: the
+four package.json versions to 0.1.0 (dashi, dashi-app, dashi-launcher,
+file-uploads-none; internal ranges stay workspace ranges); CHANGELOG
+entry `## 0.1.0 — 2026-09-21` stating: first stable release, same
+production source as 0.1.0-alpha.21, W-096 test hardening, DSH floor
+0.1.5-rc.2 with the tested matrix, alpha.19 and alpha.20 deprecated as
+empty tarballs; README install text checked so a plain
+`@antst/dashi-launcher` install (now `latest`) matches the documented
+DSH floor, and one sentence that dashi is stable while DSH is a
+prerelease. Explain the three `0.1.0-alpha.18` references in
+pnpm-lock.yaml (lines 372, 4329, 7522 on develop): if they resolve an
+@antst package from the registry instead of the workspace, fix the
+range so the workspace link is used; if they are legitimate, say why
+in the handoff and leave them. Nothing else changes; production source
+0 lines. PR against develop titled `Release 0.1.0`; all five required
+checks green; handoff with the diff summary and the lockfile finding.
+After ACCEPT the ops lane squash-merges, fast-forwards main, pushes
+tag v0.1.0, and reports run id, dist-tags for all four packages
+(latest=0.1.0, alpha unchanged at 0.1.0-alpha.21), fileCounts
+55/4/4/5, and the GitHub release prerelease flag false. Then dsh-exec
+runs the dsh-host smoke of D-044 ruling (5) with exact 0.1.0 pins and
+reports expected vs actual. Acceptance: all of the above observed.
 
 ## Backlog
 
