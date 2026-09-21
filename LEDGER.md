@@ -635,6 +635,13 @@ assertion covers nested node_modules directories; the repair is to
 remove only a nested directory that both a version guard and a lock
 grep prove untracked, followed by a frozen install that must be a
 no-op; never a node_modules deletion. Runbook step added under W-098.
+Umka 2026-09-21 (pdev/dev1, root-sealed packet 968472f1, 158
+payloads): the same stale nested provider directory appeared under
+dashi-app after the in-place 0.1.1 add, survived frozen `--force` and
+`prune` on an isolated exact copy, and was removed with the
+generation-bound targeted removal plus a no-op frozen install; dashi
+0.1.1 and plugin pre.13 on all profiles, rc.2 anchor, closure 479,
+lane and web replies exact, daemon unchanged. Both hosts are current.
 
 ### D-044 (2026-09-21) 0.1.0 is the first stable cut; stable is a dist-tag promise, not a DSH promise
 Owner ruling 2026-09-21: cut a stable release. Facts: develop 41f86a9
