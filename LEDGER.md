@@ -600,6 +600,26 @@ shared fallback closure exact. The top-level projection is reported
 (counts per version and the list), never asserted; the optional
 `--force` cleanup stays optional. Profiles keep their physical
 one-version assertion. Corrected in the W-088 runbook change.
+Closing note 2026-09-21: both hosts finished the DSH 0.1.5-rc.2 move
+under this ruling and the runbook at sessionbus-dsh main 101e234. dsh
+host (dsh-exec): dashi profile dashi-app 0.1.0-alpha.21 exact,
+launcher 0.1.0-alpha.21 exact, profile lock 21/21 at rc.2, executing
+anchor rc.2, headless heal, closure 479 exact, `dashi --help` exit 0
+with the alpha.21 banner, same-group roster row product=dashi seen and
+gone after a clean exit; no installer run on the dashi profile;
+dashi-app carries @sessionbus/dsh 0.1.0-pre.12 as its own exact pin;
+pre-change snapshot ~/.local/state/dsh-host-dashi-alpha21/20260921T005310Z.
+umka (pdev/dev1, root-sealed packet
+/home/antst/sessionbus-evidence/dsh-umka-dashi-alpha21-dev1-20260921,
+SHA256SUMS d71225ec, 84 payloads): the pre.7 installer-owned row
+removed with provenance, dashi-app and launcher alpha.21 exact,
+profile 11/11 at rc.2, executing anchor rc.2, headless heal, closure
+479 exact, alpha.21 banner, same-group roster row product=dashi then
+clean shutdown with no survivors; host/sessionbus/web profiles stay at
+pre.11, daemon untouched. Independent checks: haiku verifier on the dsh
+host (six checks), pdev root seal on umka. Remaining: the mac host
+(unscheduled); alpha.19 and alpha.20 empty tarballs are the owner's
+optional npm deprecate.
 
 ## Work items
 
