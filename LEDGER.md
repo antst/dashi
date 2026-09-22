@@ -3730,6 +3730,23 @@ hosted run 35648568129 green. Release: tag v0.1.0-pre.14, run 35649085157,
 registry version present with dependencies kit 0.5.7 and
 dsh-file-uploads-none ^0.1.0. Verifier: sonnet review.
 
+### W-104 sessionbus-dsh: runbook re-pin to dashi 0.1.2 and plugin pre.14 — status: open (owner dsh-exec, docs only)
+docs/HOST-INSTALL.md (sessionbus-dsh main) still pins dashi 0.1.0
+and plugin 0.1.0-pre.13 with kit 0.5.5 and daemon v0.5.5. Update the
+active pins to dashi-launcher 0.1.2, dashi-app 0.1.2, @sessionbus/dsh
+0.1.0-pre.14, kit 0.5.7, daemon v0.5.7 (release 53c5f80), and add
+the two facts learned on 2026-09-21: the lane and interactive wake
+contract (a message delivered to an idle session starts a turn; the
+`/sessionbus <text>` skill), and the originating-caller requirement
+(spawns must come from a caller on SDK 0.5.7 or later; an older
+closed-schema SDK surfaces -32002 not_connected after Open commits).
+Keep the installed-acceptance steps aligned with what was actually
+run on the dsh host (controller-issued lane and web cells, native
+dashi launch for the two human-visible checks). Docs only; grep for
+stale `0.1.0`, `pre.13`, `0.5.5`, `alpha.21` literals must return
+nothing outside the changelog-style history section. PR against
+main, gate green, handoff.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
