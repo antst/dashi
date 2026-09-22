@@ -3662,6 +3662,29 @@ step-indexed user/message inside turn 1. Verifiers: opus nine-point
 review of 4fcfcb0, sonnet delta review of 6104009. The dsh host's dashi
 profile then moves to 0.1.2 and the owner's two commands from the
 morning are the final acceptance.
+
+Host note 2026-09-22 (dsh host, dsh-exec): dashi profile at
+dashi-app 0.1.2 and launcher 0.1.2 exact, one copy each of
+@sessionbus/dsh 0.1.0-pre.14, kit 0.5.7 and dsh-file-uploads-none
+0.1.2, DSH 21/21 at rc.2, closure 479 exact, banner `dashi 0.1.2 on
+DSH 0.1.5-rc.2`. Human-visible acceptance on the permanent v0.5.7
+daemon with a native launch in group dsh: a typed `/sessionbus ...
+slash ok` produced the skill invocation, a model turn and an injected
+bus send that reached the observer; a request sent to the idle dashi
+by pdev's controller produced an unprompted turn, the rendered sender
+envelope and an injected reply that reached the observer with no PTY
+input; clean exit. Two detours on the way, both recorded: the first
+profile add hit registry tarball lag on dashi-0.1.2.tgz (404 for
+about six minutes after publish), recovered by a byte-for-byte
+manifest and lock restore, one frozen relink, one no-op frozen
+install and a graph recheck before the retry; and the architect's
+brief named the controller as the receiving observer although it
+rejects deliveries by design (controller_not_a_model), so the receiver
+became the builder's persistent codex session. Both are runbook rules
+under W-104. Packet
+/home/antst/sessionbus-evidence/dsh-host-dashi-012-acceptance-20260922,
+SHA256(SHA256SUMS) 90ae5f59, 15 members, re-verified by the architect.
+umka follows at dev1's pace after its daemon upgrade.
 ### W-102 sessionbus-dsh: parity remainder from the audit — status: accepted 2026-09-21 (sessionbus-dsh PR #44 squash-merged, released as 0.1.0-pre.14)
 Per D-045 ruling (5), the audit items not covered by W-099 to W-101:
 (a) advertise `supports_message_run` in hello so `idle_message: run`
