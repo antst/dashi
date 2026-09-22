@@ -3826,7 +3826,7 @@ haiku five-point review of #237; run 35736658657 green on rc.2, alpha.1,
 alpha.2 and preview, macos-gate green on its single permitted rerun,
 attempt 1 failure saved under scratchpad w105-macos-flake-35736658657 as
 the W-106 input.
-### W-106 PTY: the resized inline decision case reads the frame before the overlay repaint — status: open (owner dsh-exec, W-096 family)
+### W-106 PTY: the resized inline decision case reads the frame before the overlay repaint — status: accepted 2026-09-22 (PR #240 squash-merged)
 Seen on the W-105 dashi PR (macos-gate, head db4e586): the case
 "keeps a resized decision answerable in inline mode"
 (profile-pty.spec.ts:1901) found transcript in the frame after the
@@ -3843,6 +3843,24 @@ each changed assertion with its reason. Evidence: the saved failing
 frame and job log from the W-105 run attached to the handoff; the
 changed cases 20/20 under load; 3/3 green on the three DSH legs and
 macOS on the same head. Production source 0.
+Accepted 2026-09-22 (PR #240, squash 29232fc; test-only, production
+source 0). Root cause was in the test helper, not only the wait:
+parseFrame read rows from line 0 of the xterm buffer, which in inline
+mode after a resize is scrollback, so the parsed "overlay" was the old
+transcript; it now anchors at buffer.active.viewportY. The resized
+decision case waits for `Approval · bash` and `Allow once` in the parsed
+overlay region before each resize and before Enter; the streaming resize
+case waits for its stream markers in the transcript region and `idle ·`
+in the status region; replacement-character negatives are scoped to the
+text region; the two raw synchronized-output waits are gone; no
+assertion removed or widened. Audit: these two are the only cases that
+assert a frame after a live resize; other resize calls set dimensions
+before launch or assert durable outcomes. Evidence: the W-105 macOS
+failure frame and log saved; changed cases 20/20 under four-worker load
+with hashed logs; run 35743212202 green on rc.2, alpha.1, alpha.2 and
+macOS in three attempts. Verifier: sonnet nine-point review; one
+cosmetic nit left as is (an initial resizedFrame call before each
+vi.waitFor is overwritten on the first iteration).
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
