@@ -3753,7 +3753,7 @@ hosted run 35648568129 green. Release: tag v0.1.0-pre.14, run 35649085157,
 registry version present with dependencies kit 0.5.7 and
 dsh-file-uploads-none ^0.1.0. Verifier: sonnet review.
 
-### W-104 sessionbus-dsh: runbook re-pin to dashi 0.1.2 and plugin pre.14 — status: open (owner dsh-exec, docs only)
+### W-104 sessionbus-dsh: runbook re-pin to dashi 0.1.2 and plugin pre.14 — status: accepted 2026-09-22 (sessionbus-dsh PR #46 squash-merged, docs only)
 docs/HOST-INSTALL.md (sessionbus-dsh main) still pins dashi 0.1.0
 and plugin 0.1.0-pre.13 with kit 0.5.5 and daemon v0.5.5. Update the
 active pins to dashi-launcher 0.1.2, dashi-app 0.1.2, @sessionbus/dsh
@@ -3770,6 +3770,19 @@ stale `0.1.0`, `pre.13`, `0.5.5`, `alpha.21` literals must return
 nothing outside the changelog-style history section. PR against
 main, gate green, handoff.
 
+Accepted 2026-09-22 (sessionbus-dsh PR #46, squash 018a493; docs
+only). Active pins are dashi 0.1.2 (launcher, app, dashi,
+file-uploads-none), plugin 0.1.0-pre.14, kit 0.5.7, daemon v0.5.7 at
+53c5f80; the four-tarball HEAD-until-200 gate and the failed-add
+recovery sequence are written down; the wake contract and the
+`/sessionbus <text>` skill are described; the originating-caller
+requirement (SDK 0.5.7+, persistent identity, the -32002 symptom of
+an older closed-schema caller) is stated; lane, web and dashi
+acceptance steps match what was run on the dsh host with a long-lived
+controller, never the one-shot client. Stale-literal audit empty
+outside the labelled history paragraph. Gate: unit 71/71, packed
+legs, peer floor, run 35674637293 green. Verifier: haiku six-point
+review.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
