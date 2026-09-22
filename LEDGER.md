@@ -776,6 +776,18 @@ and the -32002 classification, but the journal and comms capture on
 the dsh host lack the originating decode error itself; the evidence
 is kept immutable with this qualification alongside.
 
+Repository move 2026-09-22 (owner-directed, executed by pdev): the
+Sessionbus repositories moved into the GitHub organisation:
+github.com/sessionbus/sessionbus, github.com/sessionbus/sessionbus-peers
+and github.com/sessionbus/sessionbus-dsh (same repository ids, refs and
+releases byte-identical, old antst URLs redirect; the old names are
+never recreated). dashi and roller stay under antst. Consequences:
+plugin tags and releases stay on hold until the owner rebinds the npm
+trusted publisher for @sessionbus/dsh to sessionbus/sessionbus-dsh
+with workflow release.yml; dashi's daemon download URL and the
+runbook's repository references are re-pinned to the organisation in
+W-105; lane clones and remotes are updated to the new URL.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -3783,6 +3795,21 @@ controller, never the one-shot client. Stale-literal audit empty
 outside the labelled history paragraph. Gate: unit 71/71, packed
 legs, peer floor, run 35674637293 green. Verifier: haiku six-point
 review.
+
+### W-105 dashi and sessionbus-dsh: repository references follow the organisation move — status: open (owner dsh-exec, after the trusted publisher is rebound)
+Per the D-045 repository-move note. dashi (develop): the daemon
+download base in scripts/provision-sessionbus.mjs and any workflow or
+README reference to github.com/antst/sessionbus point at
+github.com/sessionbus/sessionbus; pinned checksums unchanged; the
+gate must pass without relying on the redirect (verify with the
+new URL only). sessionbus-dsh (main): README, docs/HOST-INSTALL.md
+and package.json repository/bugs/homepage fields point at
+github.com/sessionbus/sessionbus-dsh and the daemon release at
+github.com/sessionbus/sessionbus; no version bump in the plugin (docs
+and metadata only) unless the owner tags a release afterwards. One
+PR per repository; gates green; handoffs. Evidence: grep for
+`github.com/antst/sessionbus` returns nothing in either repository
+outside labelled history text.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
