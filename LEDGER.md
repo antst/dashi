@@ -3610,7 +3610,7 @@ admission wait is bounded only by the caller's cancel signal, a
 deliberate dependency on daemon cancellation, not a timer. Verifiers:
 opus contract review of 2e7da64, sonnet delta review of 2fecabd.
 
-### W-101 dashi: PTY gates for the sessionbus integration — status: open (owner dsh-exec, after pre.15 is on npm)
+### W-101 dashi: PTY gates for the sessionbus integration — status: accepted 2026-09-22 (PR #231 squash-merged; released as 0.1.2)
 Per D-045 ruling (3). dashi-app pins the plugin release that carries
 W-099 and W-100 (exact, same shape as W-091), version 0.1.2, changelog.
 New PTY fixture: a real sessionbus daemon started per test on a
@@ -3634,6 +3634,34 @@ Evidence: 3/3 green on all three DSH legs and macOS, each new case
 render change, in which case it is one transcript rule stated in the
 handoff.
 
+Accepted 2026-09-21 (PR #231, squash 608c30f; released as 0.1.2, main
+and tag v0.1.2 at the same SHA, run 35670745586). dashi-app pins
+@sessionbus/dsh 0.1.0-pre.14 exact; the test harness pins
+@sessionbus/kit 0.5.7 exact; lockfile moves pre.13→pre.14, kit
+0.5.5→0.5.7 and the plugin's peer edge dsh-commands→dsh-skill, nothing
+else. scripts/provision-sessionbus.mjs downloads the v0.5.7 release
+archive per platform, verifies it against the published SHA256SUMS and a
+pinned checksum, and fails the gate on any failure; CI, release
+verification and the version-gate container all require it.
+sessionbus-harness.ts runs a private v0.5.7 daemon per test with dashi
+as the only product and a kit 0.5.7 observer in the same group.
+profile-pty.spec.ts proves the four cases: `/sessionbus <text>` renders
+the skill invocation and the model turn carries the text; an idle dashi
+answers an observer's message with no keypress and the reply reaches the
+observer; a message during a running turn is consumed at the next step
+boundary; human input and the sender envelope render as distinct cells.
+The old "at most one sessionbus line" assertion was replaced by a
+positive check that every diagnostic for an absent private socket is
+connect ENOENT, because W-102 made presence retry. Production source 0.
+Evidence: gate 26 files / 300 tests, five changed cases 20/20 under
+load, run 35666991525 green on rc.2, alpha.1, alpha.2 and macOS in three
+attempts; the first head's review sent back two under-asserting cases
+(composer echo satisfying the slash wait; running-turn injection
+unasserted), fixed at 6104009 with a durable assistant event and a
+step-indexed user/message inside turn 1. Verifiers: opus nine-point
+review of 4fcfcb0, sonnet delta review of 6104009. The dsh host's dashi
+profile then moves to 0.1.2 and the owner's two commands from the
+morning are the final acceptance.
 ### W-102 sessionbus-dsh: parity remainder from the audit — status: accepted 2026-09-21 (sessionbus-dsh PR #44 squash-merged, released as 0.1.0-pre.14)
 Per D-045 ruling (5), the audit items not covered by W-099 to W-101:
 (a) advertise `supports_message_run` in hello so `idle_message: run`
