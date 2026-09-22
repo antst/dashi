@@ -22,7 +22,7 @@ const directory = join(root, '.cache', 'sessionbus')
 const asset = `sessionbus-host-${platform.replace('-x64', '-amd64')}.tar.gz`
 const archive = join(directory, asset)
 const binary = join(directory, 'bin', 'sessionbus')
-const base = `https://github.com/antst/sessionbus/releases/download/v${version}`
+const base = `https://github.com/sessionbus/sessionbus/releases/download/v${version}`
 mkdirSync(directory, { recursive: true })
 
 if (!existsSync(archive)) {
