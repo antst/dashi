@@ -8,6 +8,7 @@ import { prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
+import { connectTestObserver, startTestDaemon, type TestObserver } from './sessionbus-harness.js'
 import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
 
@@ -433,6 +434,63 @@ function currentReplayFixture(rows: Record<string, unknown>[]): string {
   return prepareSessionSnapshotFixtureForComparison(`${[header, ...events].map(row => JSON.stringify(row)).join('\n')}\n`)
 }
 
+function replayText(turn: number, step: number, text: string): Record<string, unknown> {
+  return { type: 'assistant/attempt', data: { turn, step, stream: [
+    { type: 'chunk', time: 0, chunk: { type: 'block-start', index: 0, blockType: 'text' } },
+    { type: 'text-chunks', time0: 0, index: 0, dt: [], texts: [text] },
+    { type: 'chunk', time: 0, chunk: { type: 'block-end', index: 0, block: { type: 'text', text } } },
+    { type: 'chunk', time: 0, chunk: { type: 'finish', reason: { kind: 'stop' } } },
+  ] } }
+}
+
+function replayTool(turn: number, step: number, id: string, action: string,
+  args: Record<string, unknown>): Record<string, unknown> {
+  const parameters = JSON.stringify({ action, arguments: args })
+  return { type: 'assistant/attempt', data: { turn, step, stream: [
+    { type: 'chunk', time: 0, chunk: { type: 'block-start', index: 0, blockType: 'tool-call' } },
+    { type: 'tool-call-chunks', time0: 0, index: 0, dt: [], id, name: 'sessionbus', args: [parameters] },
+    { type: 'chunk', time: 0, chunk: {
+      type: 'block-end', index: 0, block: { type: 'tool-call', id, name: 'sessionbus', arguments: parameters },
+    } },
+    { type: 'chunk', time: 0, chunk: { type: 'finish', reason: { kind: 'tool-calls' } } },
+  ] } }
+}
+
+function replayStreamingList(turn: number, step: number): Record<string, unknown> {
+  const texts = ['ACTIVE_STREAM_MARKER ', ...Array.from({ length: 16 }, () => '. ')]
+  const complete = texts.join('')
+  const parameters = JSON.stringify({ action: 'list', arguments: {} })
+  return { type: 'assistant/attempt', data: { turn, step, stream: [
+    { type: 'chunk', time: 0, chunk: { type: 'block-start', index: 0, blockType: 'text' } },
+    { type: 'text-chunks', time0: 0, index: 0, dt: Array.from({ length: texts.length - 1 }, () => 0), texts },
+    { type: 'chunk', time: 0, chunk: { type: 'block-end', index: 0, block: { type: 'text', text: complete } } },
+    { type: 'chunk', time: 0, chunk: { type: 'block-start', index: 1, blockType: 'tool-call' } },
+    { type: 'tool-call-chunks', time0: 0, index: 1, dt: [], id: 'active-list', name: 'sessionbus', args: [parameters] },
+    { type: 'chunk', time: 0, chunk: {
+      type: 'block-end', index: 1, block: { type: 'tool-call', id: 'active-list', name: 'sessionbus', arguments: parameters },
+    } },
+    { type: 'chunk', time: 0, chunk: { type: 'finish', reason: { kind: 'tool-calls' } } },
+  ] } }
+}
+
+function sessionbusReplay(name: string, rows: Record<string, unknown>[]): string {
+  const path = join(testDir, `${name}.jsonl`)
+  writeFileSync(path, currentReplayFixture([
+    { type: 'session', version: 3, id: name, createdAt: 1, cwd: '/recorded', isSeeded: false, delegationDepth: 0 },
+    ...rows,
+  ]))
+  return path
+}
+
+async function waitForDashiPeer(observer: TestObserver): Promise<{ session_id: string }> {
+  let peer: { session_id: string } | undefined
+  await vi.waitFor(async () => {
+    peer = (await observer.list()).sessions.find(session => session.product === 'dashi')
+    expect(peer).toBeDefined()
+  }, { timeout: testCeiling(20_000), interval: 20 })
+  return peer as { session_id: string }
+}
+
 function chunkStormSnapshot(chunks = 400): string {
   const path = join(testDir, `chunk-storm-${String(Date.now())}.jsonl`)
   const middle = Math.floor(chunks / 2)
@@ -715,11 +773,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const archives = join(testDir, 'plugin-archives')
     mkdirSync(archives)
     const archive = packWorkspacePackage(pluginManagementFixture, archives)
+    const missingSessionbusRuntime = join(testDir, 'missing-sessionbus-runtime')
+    const missingSessionbusSocket = join(missingSessionbusRuntime, 'sessionbus', 'presence.sock')
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: pluginHome,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
       SESSIONBUS_LAUNCH_TOKEN: undefined,
       SESSIONBUS_SOCKET: undefined,
+      XDG_RUNTIME_DIR: missingSessionbusRuntime,
     })
     const launcher = `${quote(process.execPath)} ${quote(dashiLauncher)}`
     try {
@@ -764,12 +825,176 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('[exit 1]', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('[exit 1]')
-      expect((shell.output.slice(start).match(/sessionbus:/gu) ?? []).length).toBeLessThanOrEqual(1)
+      const diagnostics = [...shell.output.slice(start).matchAll(/sessionbus: ([^\r\n]*)/gu)]
+        .map(match => match[1] ?? '')
+      const connectionFailures = diagnostics.filter(line => line.includes(missingSessionbusSocket))
+      expect(connectionFailures.length).toBeGreaterThan(0)
+      expect(connectionFailures.every(line => line.startsWith('connect ENOENT '))).toBe(true)
+      // Bound retries during this 60-second case so a reconnect hot loop fails visibly.
+      expect(connectionFailures.length).toBeLessThan(20)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
     } finally {
       await shell.close()
+    }
+  }, 60_000)
+
+  it('invokes the Sessionbus skill with slash-command prompt text', async () => {
+    const daemon = await startTestDaemon()
+    const snapshot = sessionbusReplay('sessionbus-slash', [replayText(1, 1, 'slash ok')])
+    const shell = new PtyShell(snapshot, undefined, root, {
+      SESSIONBUS_GROUPS: '["w101-slash"]',
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_SOCKET: daemon.socket,
+    })
+    shell.resize(180, 40)
+    let id = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      id = sessionId(shell.output, start)
+      const submittedAt = shell.output.length
+      shell.write('/sessionbus reply with exactly: slash ok\r')
+      await vi.waitFor(() => {
+        expect(sessionEvents(id).some(event => event.type.startsWith('assistant/')
+          && JSON.stringify(event.data).includes('slash ok'))).toBe(true)
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      await shell.waitFor('idle ·', submittedAt)
+      expect((await parsedFrame(shell.output.slice(start), 180, 40)).transcript).toContain('</skill_content>')
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+      await daemon.close()
+    }
+    expect(sessionEvents(id).some(event => event.type === 'user/message'
+      && JSON.stringify(event.data?.source).includes('skill-invocation')
+      && JSON.stringify(event.data).includes('sessionbus'))).toBe(true)
+  }, 60_000)
+
+  it('wakes an idle dashi peer and replies to its Sessionbus observer without a keypress', async () => {
+    const daemon = await startTestDaemon()
+    const group = 'w101-idle'
+    const observer = await connectTestObserver(daemon.socket, group, 'W101 idle observer')
+    const observerId = (await observer.list()).self_info?.session_id
+    if (observerId === undefined) throw new Error('Sessionbus observer omitted self_info')
+    const snapshot = sessionbusReplay('sessionbus-idle', [
+      replayTool(1, 1, 'idle-send', 'send', { target: observerId, message: 'pong' }),
+      replayText(1, 2, 'Idle peer turn complete.'),
+    ])
+    const shell = new PtyShell(snapshot, undefined, root, {
+      SESSIONBUS_GROUPS: JSON.stringify([group]),
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_SOCKET: daemon.socket,
+    })
+    shell.resize(180, 40)
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      await shell.waitFor('idle ·', start)
+      const dashiPeer = await waitForDashiPeer(observer)
+      const sent = await observer.send({
+        target: dashiPeer.session_id,
+        message: 'reply over the bus with exactly: pong',
+      })
+      expect(sent.deliveries).toMatchObject([{ target: dashiPeer.session_id, disposition: 'injected' }])
+      expect((await observer.waitForMessage('pong')).body).toBe('pong')
+      await waitForIdleAfter(shell, 'Idle peer turn complete.', start)
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start), 180, 40)).transcript)
+          .toContain('<cross-session-message from="W101 idle observer@w101"')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+      await observer.close()
+      await daemon.close()
+    }
+  }, 60_000)
+
+  it('admits a Sessionbus message during a running turn at the next step boundary', async () => {
+    const daemon = await startTestDaemon()
+    const group = 'w101-running'
+    const observer = await connectTestObserver(daemon.socket, group, 'W101 running observer')
+    const observerId = (await observer.list()).self_info?.session_id
+    if (observerId === undefined) throw new Error('Sessionbus observer omitted self_info')
+    const snapshot = sessionbusReplay('sessionbus-running', [
+      replayStreamingList(1, 1),
+      replayTool(1, 2, 'running-send', 'send', { target: observerId, message: 'active pong' }),
+      replayText(1, 3, 'Active boundary complete.'),
+    ])
+    const shell = new PtyShell(snapshot, undefined, root, {
+      DSH_REPLAY_PACE_MS: '100',
+      SESSIONBUS_GROUPS: JSON.stringify([group]),
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_SOCKET: daemon.socket,
+    })
+    shell.resize(180, 40)
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      await shell.waitFor('idle ·', start)
+      const dashiPeer = await waitForDashiPeer(observer)
+      shell.write('start the active turn\r')
+      await shell.waitFor('ACTIVE_STREAM_MARKER', start)
+      const sent = await observer.send({ target: dashiPeer.session_id, message: 'active boundary message' })
+      expect(sent.deliveries).toMatchObject([{ target: dashiPeer.session_id, disposition: 'injected' }])
+      expect((await observer.waitForMessage('active pong')).body).toBe('active pong')
+      await waitForIdleAfter(shell, 'Active boundary complete.', start)
+      const events = sessionEvents(sessionId(shell.output, start))
+      expect(events.filter(event => event.type === 'turn/start')).toHaveLength(1)
+      const injectedIndex = events.findIndex(event => event.type === 'user/message'
+        && JSON.stringify(event.data).includes('active boundary message'))
+      expect(injectedIndex).toBeGreaterThan(0)
+      const boundary = events.slice(0, injectedIndex).reverse().find(event => event.type === 'step/start')
+      expect(boundary?.data).toMatchObject({ turn: 1 })
+      expect(Number(boundary?.data?.step)).toBeGreaterThan(1)
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+      await observer.close()
+      await daemon.close()
+    }
+  }, 60_000)
+
+  it('renders human input and a Sessionbus sender envelope as distinct transcript cells', async () => {
+    const daemon = await startTestDaemon()
+    const group = 'w101-visual'
+    const observer = await connectTestObserver(daemon.socket, group, 'W101 visual observer')
+    const snapshot = sessionbusReplay('sessionbus-visual', [
+      replayText(1, 1, 'Human path complete.'),
+      replayText(2, 1, 'Peer path complete.'),
+    ])
+    const shell = new PtyShell(snapshot, undefined, root, {
+      SESSIONBUS_GROUPS: JSON.stringify([group]),
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_SOCKET: daemon.socket,
+    })
+    shell.resize(200, 50)
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      await shell.waitFor('idle ·', start)
+      const dashiPeer = await waitForDashiPeer(observer)
+      shell.write('human visual marker\r')
+      await waitForIdleAfter(shell, 'Human path complete.', start)
+      await observer.send({ target: dashiPeer.session_id, message: 'peer visual marker' })
+      await waitForIdleAfter(shell, 'Peer path complete.', start)
+      await vi.waitFor(async () => {
+        const transcript = (await parsedFrame(shell.output.slice(start), 200, 50)).transcript
+        expect(transcript).toMatch(/You\s*\n\s*human visual marker/u)
+        expect(transcript).toContain('Context · <cross-session-message from="W101 visual observer@w101"')
+        expect(transcript).toContain('peer visual marker')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+      await observer.close()
+      await daemon.close()
     }
   }, 60_000)
 
