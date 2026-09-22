@@ -3796,7 +3796,7 @@ outside the labelled history paragraph. Gate: unit 71/71, packed
 legs, peer floor, run 35674637293 green. Verifier: haiku six-point
 review.
 
-### W-105 dashi and sessionbus-dsh: repository references follow the organisation move — status: open (owner dsh-exec, after the trusted publisher is rebound)
+### W-105 dashi and sessionbus-dsh: repository references follow the organisation move — status: accepted 2026-09-22 (sessionbus-dsh PR #47 and dashi PR #237 squash-merged)
 Per the D-045 repository-move note. dashi (develop): the daemon
 download base in scripts/provision-sessionbus.mjs and any workflow or
 README reference to github.com/antst/sessionbus point at
@@ -3811,6 +3811,21 @@ PR per repository; gates green; handoffs. Evidence: grep for
 `github.com/antst/sessionbus` returns nothing in either repository
 outside labelled history text.
 
+Accepted 2026-09-22. Plugin half: sessionbus/sessionbus-dsh PR #47
+(squash c4b656a; README, docs/HOST-INSTALL.md and package.json
+repository fields point at the organisation; no version change; the old
+antst references are gone; the gate passed only after the owner
+installed the pkg.pr.new app on the organisation, since GitHub App
+installations did not follow the transfer). dashi half: PR #237 (squash
+86e07a4; scripts/provision-sessionbus.mjs downloads from
+github.com/sessionbus/sessionbus with unchanged checksums; gate green on
+the three DSH legs and preview; macos-gate needed one rerun after an
+unrelated flake in the resized-decision case, recorded as W-106 with the
+failing frame saved). Verifiers: haiku fourteen-point review of #47;
+haiku five-point review of #237; run 35736658657 green on rc.2, alpha.1,
+alpha.2 and preview, macos-gate green on its single permitted rerun,
+attempt 1 failure saved under scratchpad w105-macos-flake-35736658657 as
+the W-106 input.
 ### W-106 PTY: the resized inline decision case reads the frame before the overlay repaint — status: open (owner dsh-exec, W-096 family)
 Seen on the W-105 dashi PR (macos-gate, head db4e586): the case
 "keeps a resized decision answerable in inline mode"
