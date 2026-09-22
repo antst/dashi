@@ -232,8 +232,9 @@ interface ParsedFrame {
 }
 
 function parseFrame(terminal: HeadlessTerminal): ParsedFrame {
+  const viewport = terminal.buffer.active.viewportY
   const lines = Array.from({ length: terminal.rows }, (_, row) =>
-    terminal.buffer.active.getLine(row)?.translateToString(true) ?? '')
+    terminal.buffer.active.getLine(viewport + row)?.translateToString(true) ?? '')
   const header = Math.max(0, lines.findIndex(line => line.includes('dashi')))
   const rules = lines.flatMap((line, index) => /^[─━═]+$/u.test(line.trim()) ? [index] : [])
   const composerBottom = rules.at(-1) ?? -1
@@ -265,7 +266,7 @@ async function firstFrame(output: string, columns = 80, rows = 24): Promise<stri
 async function resizedFrame(
   output: string,
   changes: readonly { readonly at: number; readonly columns: number; readonly rows: number }[],
-): Promise<string> {
+): Promise<ParsedFrame> {
   const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: 80, rows: 24 })
   let offset = 0
   for (const change of changes) {
@@ -274,8 +275,7 @@ async function resizedFrame(
     offset = change.at
   }
   await new Promise<void>(resolveWrite => { terminal.write(output.slice(offset), resolveWrite) })
-  return Array.from({ length: terminal.buffer.active.length }, (_, row) =>
-    terminal.buffer.active.getLine(row)?.translateToString(true) ?? '').join('\n')
+  return parseFrame(terminal)
 }
 
 async function prepareShell(extraEnv: NodeJS.ProcessEnv = {}, cwd = root): Promise<{ baseline: string; shell: PtyShell }> {
@@ -1848,24 +1848,30 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} ${mode}`)
       const turnAt = shell.output.length
       shell.write('resize the stream\r')
-      const runningAt = await shell.waitFor('running ·', turnAt)
+      await shell.waitFor('running ·', turnAt)
       await shell.waitFor('STORM_START', start)
-      const narrowOutputAt = shell.output.length
       const narrowAt = shell.output.length - start
       shell.resize(48, 12)
-      await shell.waitFor('STORM_MIDDLE', narrowOutputAt)
-      const wideOutputAt = shell.output.length
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [
+          { at: narrowAt, columns: 48, rows: 12 },
+        ])).transcript).toContain('STORM_MIDDLE')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const wideAt = shell.output.length - start
       shell.resize(100, 30)
-      await shell.waitFor('STORM_END', wideOutputAt)
-      await shell.waitFor('idle ·', runningAt + 1)
-      const frame = await resizedFrame(shell.output.slice(start), [
+      let frame = await resizedFrame(shell.output.slice(start), [
         { at: narrowAt, columns: 48, rows: 12 },
         { at: wideAt, columns: 100, rows: 30 },
       ])
-      expect(frame).toContain('STORM_END')
-      expect(frame).toContain('idle ·')
-      expect(frame).not.toContain('\uFFFD')
+      await vi.waitFor(async () => {
+        frame = await resizedFrame(shell.output.slice(start), [
+          { at: narrowAt, columns: 48, rows: 12 },
+          { at: wideAt, columns: 100, rows: 30 },
+        ])
+        expect(frame.transcript).toContain('STORM_END')
+        expect(frame.status).toContain('idle ·')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      expect(frame.text).not.toContain('\uFFFD')
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('Resume with:', releasedAt)
@@ -1882,25 +1888,33 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     try {
       const start = await launch(shell,
         `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} ${mode} 'resize decision'`)
-      const initialApprovalAt = await shell.waitFor('Approval · bash', start)
-      await shell.waitFor('\u001B[?2026l', initialApprovalAt)
-      const narrowOutputAt = shell.output.length
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('Approval · bash')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const narrowAt = shell.output.length - start
       shell.resize(48, 12)
-      const narrowDecisionAt = await shell.waitFor('Allow once', narrowOutputAt)
-      await shell.waitFor('\u001B[?2026l', narrowDecisionAt)
-      const wideOutputAt = shell.output.length
+      await vi.waitFor(async () => {
+        const overlay = (await resizedFrame(shell.output.slice(start), [
+          { at: narrowAt, columns: 48, rows: 12 },
+        ])).overlay
+        expect(overlay).toContain('Approval · bash')
+        expect(overlay).toContain('Allow once')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const wideAt = shell.output.length - start
       shell.resize(100, 30)
-      const wideApprovalAt = await shell.waitFor('Approval · bash', wideOutputAt)
-      await shell.waitFor('\u001B[?2026l', wideApprovalAt)
-      const frame = await resizedFrame(shell.output.slice(start), [
+      let frame = await resizedFrame(shell.output.slice(start), [
         { at: narrowAt, columns: 48, rows: 12 },
         { at: wideAt, columns: 100, rows: 30 },
       ])
-      expect(frame).toContain('Approval · bash')
-      expect(frame).toContain('Allow once')
-      expect(frame).not.toContain('\uFFFD')
+      await vi.waitFor(async () => {
+        frame = await resizedFrame(shell.output.slice(start), [
+          { at: narrowAt, columns: 48, rows: 12 },
+          { at: wideAt, columns: 100, rows: 30 },
+        ])
+        expect(frame.overlay).toContain('Approval · bash')
+        expect(frame.overlay).toContain('Allow once')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      expect(frame.text).not.toContain('\uFFFD')
       shell.write('\r')
       await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
       const releasedAt = shell.output.length
