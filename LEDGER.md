@@ -3810,6 +3810,24 @@ and metadata only) unless the owner tags a release afterwards. One
 PR per repository; gates green; handoffs. Evidence: grep for
 `github.com/antst/sessionbus` returns nothing in either repository
 outside labelled history text.
+
+### W-106 PTY: the resized inline decision case reads the frame before the overlay repaint — status: open (owner dsh-exec, W-096 family)
+Seen on the W-105 dashi PR (macos-gate, head db4e586): the case
+"keeps a resized decision answerable in inline mode"
+(profile-pty.spec.ts:1901) found transcript in the frame after the
+resize where the approval overlay was expected; the diff under test
+was a one-line URL change that cannot reach that path, so this is the
+W-096 assertion family again: a frame read after a resize without a
+wait for the positive state that proves the repaint. Scope: after the
+resize, wait for the overlay's own marker in the parsed overlay
+region before asserting the decision is answerable; scope the
+assertion to that region; no sleeps, no raw escapes, no widened or
+removed assertions; then audit the other resize-then-assert cases in
+the PTY specs for the same shape and fix them in the same PR, listing
+each changed assertion with its reason. Evidence: the saved failing
+frame and job log from the W-105 run attached to the handoff; the
+changed cases 20/20 under load; 3/3 green on the three DSH legs and
+macOS on the same head. Production source 0.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
