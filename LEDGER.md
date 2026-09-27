@@ -3878,7 +3878,7 @@ assertion that pins the old wording; grep the file for any other
 pre-release carries it to installed models is the owner's call,
 recorded here when made. PR against main, gate green, handoff.
 
-### W-108 sessionbus-dsh: the packed-consumer test installs the leg's DSH version — status: open (owner dsh-exec, test only)
+### W-108 sessionbus-dsh: the packed-consumer test installs the leg's DSH version — status: accepted 2026-09-27 (sessionbus-dsh PR #48 squash-merged, test only)
 Found while preparing W-107: package.test.cjs's packed-consumer
 install (`npm install --omit=peer` at :29) floats to the newest DSH
 prerelease, so the day 0.1.5-rc.3 appeared upstream the test began
@@ -3893,6 +3893,20 @@ escape. Evidence: full npm test 71/71 on Node 22/npm 10 and on the
 builder's local Node; packed legs green. Test only, no version bump.
 W-107 rebases on this.
 
+Accepted 2026-09-27 (sessionbus/sessionbus-dsh PR #48, squash
+3e5be10; test and workflow only). The isolated packed consumer runs
+pnpm 10.28.1 with DSH's profile settings (node-linker hoisted,
+auto-install-peers false), installs exact @deepseek-ai/dsh at the leg
+under test plus the packed plugin, and asserts both installed
+versions; CI and release install the root test dependencies from the
+tracked lockfile with `npm ci --omit=peer --ignore-scripts` and pass
+the matrix leg as DSH_TEST_VERSION; the lockfile is unchanged with
+52 DSH records at rc.2. Ruling recorded: strict npm cannot admit the
+0.1.6 alphas under the D-041 floor and real installs go through
+pnpm via `dsh plugin add`, so pnpm is the correct consumer; no force
+or legacy-peer flags. Evidence: npm test 71/71 on rc.2, alpha.1,
+alpha.2 (Node 22/npm 10 and Node 25/npm 11), packed proofs and peer
+floor green, run 36289668881 green. Verifier: haiku six-point review.
 ### W-109 DSH 0.1.5-rc.3 under the track-current rule — status: open (owner dsh-exec, after W-108)
 D-030: validate against the newest DSH first, never pin backwards.
 0.1.5-rc.3 is on npm. Scope: (1) the read-only shape of rc.3's
