@@ -3877,6 +3877,35 @@ assertion that pins the old wording; grep the file for any other
 `stage` claim. Text only, no version bump in the PR; whether a
 pre-release carries it to installed models is the owner's call,
 recorded here when made. PR against main, gate green, handoff.
+
+### W-108 sessionbus-dsh: the packed-consumer test installs the leg's DSH version — status: open (owner dsh-exec, test only)
+Found while preparing W-107: package.test.cjs's packed-consumer
+install (`npm install --omit=peer` at :29) floats to the newest DSH
+prerelease, so the day 0.1.5-rc.3 appeared upstream the test began
+failing with ERESOLVE on cordis (rc.3's dsh-agent resolves cordis
+4.0.4 against a 4.0.2 peer) before any plugin code ran; with
+legacy-peer-deps the suite passes 71/71, which proves the failure is
+the harness, not the plugin. Scope: the packed consumer installs the
+DSH version of the leg under test, the same value the packed-proof
+script receives, never a floating latest; assert the installed
+@deepseek-ai/dsh version equals the requested one; no legacy-peer-deps
+escape. Evidence: full npm test 71/71 on Node 22/npm 10 and on the
+builder's local Node; packed legs green. Test only, no version bump.
+W-107 rebases on this.
+
+### W-109 DSH 0.1.5-rc.3 under the track-current rule — status: open (owner dsh-exec, after W-108)
+D-030: validate against the newest DSH first, never pin backwards.
+0.1.5-rc.3 is on npm. Scope: (1) the read-only shape of rc.3's
+dependency closure: which package requires cordis 4.0.4 and which
+peers pin 4.0.2, whether a uniform rc.3 graph installs cleanly under
+pnpm with the D-041 floor, and whether 0.1.6-alpha.2 has the same
+shape; (2) if rc.3 is installable, add it to the tested matrix of
+dashi (validated-dsh-versions.json) and of the plugin's packed proof,
+run the full gates, and record any behavioural difference as named
+DSH gaps; (3) if the closure is internally inconsistent, an upstream
+report draft in the usual format for the owner's go, and the matrix
+unchanged with the reason recorded. No floor change without a
+decision entry.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
