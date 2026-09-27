@@ -3862,7 +3862,7 @@ macOS in three attempts. Verifier: sonnet nine-point review; one
 cosmetic nit left as is (an initial resizedFrame call before each
 vi.waitFor is overwritten on the first iteration).
 
-### W-107 sessionbus-dsh: the skill text says idle messages stage; the contract says they wake — status: open (owner dsh-exec, docs only)
+### W-107 sessionbus-dsh: the skill text says idle messages stage; the contract says they wake — status: accepted 2026-09-27 (sessionbus-dsh PR #49 squash-merged, docs only, unreleased)
 Found by pdev's cross-repo split audit (inventory on pdev,
 stale-idle-stage-inventory-opus-20260927): skills/sessionbus.md
 lines 70-76 still describe the lane default as `idle_message:"stage"`
@@ -3878,6 +3878,18 @@ assertion that pins the old wording; grep the file for any other
 pre-release carries it to installed models is the owner's call,
 recorded here when made. PR against main, gate green, handoff.
 
+Accepted 2026-09-27 (sessionbus/sessionbus-dsh PR #49, squash
+33d6880; docs and test only, on main after W-108). The skill now
+states that fresh lanes default to `idle_message:"run"`, that fresh
+lanes and interactive sessions wake on an idle message, and that the
+legacy `stage` value is normalised to `run` with no opt-out; the
+remaining `queued_for_next_turn` mention describes a delivery
+disposition, not lane policy. Unit assertions pin the three
+statements. No version bump; the corrected text reaches installed
+models only with the next plugin release, which is the owner's call.
+Evidence: npm test 71/71 on rc.2, alpha.1, alpha.2; packed proofs
+green; run 36289938885 green. Verified by the architect directly
+(two-file diff read in full).
 ### W-108 sessionbus-dsh: the packed-consumer test installs the leg's DSH version — status: accepted 2026-09-27 (sessionbus-dsh PR #48 squash-merged, test only)
 Found while preparing W-107: package.test.cjs's packed-consumer
 install (`npm install --omit=peer` at :29) floats to the newest DSH
