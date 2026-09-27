@@ -3861,6 +3861,22 @@ with hashed logs; run 35743212202 green on rc.2, alpha.1, alpha.2 and
 macOS in three attempts. Verifier: sonnet nine-point review; one
 cosmetic nit left as is (an initial resizedFrame call before each
 vi.waitFor is overwritten on the first iteration).
+
+### W-107 sessionbus-dsh: the skill text says idle messages stage; the contract says they wake — status: open (owner dsh-exec, docs only)
+Found by pdev's cross-repo split audit (inventory on pdev,
+stale-idle-stage-inventory-opus-20260927): skills/sessionbus.md
+lines 70-76 still describe the lane default as `idle_message:"stage"`
+with `run` as the opt-in, while docs/HOST-INSTALL.md and daemon 0.5.7
+(normalizePolicy, protocol) make idle wake mandatory and normalise a
+stored legacy `stage` to `run`; the plugin already implements the
+wake (W-100). Scope: correct that passage so the model reads the
+current contract (fresh lanes and interactive sessions wake on an idle
+message; `stage` is a legacy alias normalised to `run`; there is no
+opt-out); no other content change; update the skill-content unit
+assertion that pins the old wording; grep the file for any other
+`stage` claim. Text only, no version bump in the PR; whether a
+pre-release carries it to installed models is the owner's call,
+recorded here when made. PR against main, gate green, handoff.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
