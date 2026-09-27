@@ -20,21 +20,6 @@ if (process.env.SESSIONBUS_DAEMON_BIN === undefined) {
   if (provision.status !== 0) process.exit(provision.status ?? 1)
   process.env.SESSIONBUS_DAEMON_BIN = join(root, '.cache/sessionbus/bin/sessionbus')
 }
-const checks = [
-  ['typecheck', ['run', 'typecheck']],
-  ['build', ['run', 'build']],
-  ['lint', ['run', 'lint']],
-  ['tests', ['run', 'test']],
-]
-
-for (const [label, args] of checks) {
-  const result = spawnSync('pnpm', args, {
-    cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
-  })
-  if (result.status !== 0) process.exit(result.status ?? 1)
-  console.log(`gate: ${label} passed`)
-}
-
 const sourceExtensions = new Set(['.js', '.mjs', '.ts', '.tsx'])
 const forbiddenPackages = [
   /^@deepseek-ai\/dsh-session-persistence(?:-|$)/,
@@ -100,6 +85,23 @@ for (const name of cordisNames) {
   const versions = lockedCordis.filter(([, packageName]) => packageName === name).map(([, , version]) => version)
   if (versions.length !== 1) failures.push(`pnpm-lock.yaml: expected one ${name} version, found ${versions.join(', ') || 'none'}`)
   else console.log(`gate: ${name} ${versions[0]}`)
+}
+if (failures.length > 0) {
+  console.error(failures.join('\n'))
+  process.exit(1)
+}
+const checks = [
+  ['typecheck', ['run', 'typecheck']],
+  ['build', ['run', 'build']],
+  ['lint', ['run', 'lint']],
+  ['tests', ['run', 'test']],
+]
+for (const [label, args] of checks) {
+  const result = spawnSync('pnpm', args, {
+    cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
+  })
+  if (result.status !== 0) process.exit(result.status ?? 1)
+  console.log(`gate: ${label} passed`)
 }
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
   .filter(path => path.endsWith('package.json'))

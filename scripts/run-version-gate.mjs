@@ -33,9 +33,11 @@ try {
     })
     if (cli.status !== 0) throw new Error(`cannot read DSH ${version} CLI dependencies: ${cli.stderr}`)
     const dependencies = JSON.parse(cli.stdout)
-    cordisPins = Object.fromEntries(cordisNames.flatMap(name => {
+    cordisPins = Object.fromEntries(cordisNames.map(name => {
       const declaration = dependencies[name]
-      return /^\d+\.\d+\.\d+(?:-[\da-z.-]+)?$/i.test(declaration) ? [[name, declaration]] : []
+      const floor = /^(?:\^|~|>=)?(\d+\.\d+\.\d+(?:-[\da-z.-]+)?)$/i.exec(declaration)
+      if (!floor) throw new Error(`cannot find ${name} minimum from DSH ${version} CLI declaration ${String(declaration)}`)
+      return [name, floor[1]]
     }))
     cpSync(source, workspace, { recursive: true, filter(path) {
       const parts = relative(source, path).split(sep)
@@ -63,6 +65,13 @@ try {
     const mismatches = resolved.filter(([, , installed]) => installed !== version)
     if (resolved.length === 0 || mismatches.length > 0) {
       throw new Error(`DSH graph is not uniform at ${version}: ${mismatches.map(match => match[0]).join(', ')}`)
+    }
+    const family = [...packageSection.matchAll(/^  '?(@deepseek-ai\/cordis(?:-plugin-(?:include|loader))?)@([^':]+)'?:$/gmu)]
+    for (const [name, pin] of Object.entries(cordisPins)) {
+      const versions = family.filter(([, packageName]) => packageName === name).map(([, , installed]) => installed)
+      if (versions.length !== 1 || versions[0] !== pin) {
+        throw new Error(`${name} must resolve once at the DSH ${version} CLI minimum ${pin}; found ${versions.join(', ') || 'none'}`)
+      }
     }
     console.log(`gate: prepared ${resolved.length} uniform DSH packages at ${version}`)
     run(['gate', version])
