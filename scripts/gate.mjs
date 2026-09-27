@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { assertPinnedGraph, deriveCliPins } from './dsh-cli-pins.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const dshPolicy = JSON.parse(await readFile(
@@ -20,21 +21,6 @@ if (process.env.SESSIONBUS_DAEMON_BIN === undefined) {
   if (provision.status !== 0) process.exit(provision.status ?? 1)
   process.env.SESSIONBUS_DAEMON_BIN = join(root, '.cache/sessionbus/bin/sessionbus')
 }
-const checks = [
-  ['typecheck', ['run', 'typecheck']],
-  ['build', ['run', 'build']],
-  ['lint', ['run', 'lint']],
-  ['tests', ['run', 'test']],
-]
-
-for (const [label, args] of checks) {
-  const result = spawnSync('pnpm', args, {
-    cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
-  })
-  if (result.status !== 0) process.exit(result.status ?? 1)
-  console.log(`gate: ${label} passed`)
-}
-
 const sourceExtensions = new Set(['.js', '.mjs', '.ts', '.tsx'])
 const forbiddenPackages = [
   /^@deepseek-ai\/dsh-session-persistence(?:-|$)/,
@@ -91,6 +77,28 @@ const lockedDsh = [...packageSection.matchAll(/^  '?(@deepseek-ai\/dsh[^@']*)@([
 if (lockedDsh.length === 0) failures.push('pnpm-lock.yaml: no @deepseek-ai/dsh packages found')
 for (const [, packageName, version] of lockedDsh) {
   if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
+}
+const cliManifest = JSON.parse(await readFile(join(root, 'node_modules/@deepseek-ai/dsh/package.json'), 'utf8'))
+if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must be ${testedVersion}`)
+const cliPins = deriveCliPins(cliManifest.dependencies)
+try { assertPinnedGraph(lockfile, cliPins) } catch (error) { failures.push(`pnpm-lock.yaml: ${String(error)}`) }
+console.log(`gate: CLI companion pins ${JSON.stringify(cliPins)}`)
+if (failures.length > 0) {
+  console.error(failures.join('\n'))
+  process.exit(1)
+}
+const checks = [
+  ['typecheck', ['run', 'typecheck']],
+  ['build', ['run', 'build']],
+  ['lint', ['run', 'lint']],
+  ['tests', ['run', 'test']],
+]
+for (const [label, args] of checks) {
+  const result = spawnSync('pnpm', args, {
+    cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
+  })
+  if (result.status !== 0) process.exit(result.status ?? 1)
+  console.log(`gate: ${label} passed`)
 }
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
   .filter(path => path.endsWith('package.json'))
