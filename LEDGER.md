@@ -3919,7 +3919,7 @@ pnpm via `dsh plugin add`, so pnpm is the correct consumer; no force
 or legacy-peer flags. Evidence: npm test 71/71 on rc.2, alpha.1,
 alpha.2 (Node 22/npm 10 and Node 25/npm 11), packed proofs and peer
 floor green, run 36289668881 green. Verifier: haiku six-point review.
-### W-109 DSH 0.1.5-rc.3 under the track-current rule — status: open (owner dsh-exec, after W-108)
+### W-109 DSH 0.1.5-rc.3 under the track-current rule — status: accepted 2026-09-27 (dashi PR #246 and sessionbus-dsh PR #50 squash-merged, test infrastructure only)
 D-030: validate against the newest DSH first, never pin backwards.
 0.1.5-rc.3 is on npm. Scope: (1) the read-only shape of rc.3's
 dependency closure: which package requires cordis 4.0.4 and which
@@ -3932,6 +3932,31 @@ DSH gaps; (3) if the closure is internally inconsistent, an upstream
 report draft in the usual format for the owner's go, and the matrix
 unchanged with the reason recorded. No floor change without a
 decision entry.
+Accepted 2026-09-27 (dashi PR #246, squash 7e9e862; sessionbus-dsh
+PR #50, squash 204cf3c; test and CI infrastructure only, no
+version bump). DSH 0.1.5-rc.3 joins both tested matrices; the floor
+stays 0.1.5-rc.2. Finding: rc.3 installs as a uniform DSH closure,
+but its CLI pins the cordis family exactly while newer
+cordis-plugin-include, loader and HMR releases require cordis 4.0.4,
+so any harness that lets those companions float splits the graph
+(gate typecheck failed on two Context types; the clean-install PTY
+case failed on the HMR service). Ruling: one shared helper
+(scripts/dsh-cli-pins.mjs) derives from the tested CLI's manifest a
+pin for every non-DSH @deepseek-ai dependency, the exact pin or the
+minimum of its range, used by the version gate, the top-level gate
+and both nested clean-install hooks, with one resolved version per
+package asserted in every lock; derived pins on all four legs:
+cordis 4.0.2, schemastery 3.18.2, cordis-plugin-hmr 1.0.17 (absent
+on alpha.2, which does not declare it), cordis-plugin-timer 1.1.4,
+cordis-plugin-loader 1.0.3, cordis-plugin-include 1.0.7. The
+plugin's packed-proof cutoff is the latest publish time across the
+CLI's full DSH closure plus one second, replacing CLI publish plus
+one hour, which rc.3 violated. Not an upstream defect; the exact-pin
+versus floating-companion fragility is recorded here as a note.
+Evidence: dashi run 36293122878 green on rc.2, alpha.1, alpha.2,
+rc.3 and macOS; plugin run 36291516313 green on the peer floor and
+four legs; local full gates on rc.2 and rc.3 300/300 with 233 uniform
+DSH packages. Verifier: sonnet twelve-point review of both PRs.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
