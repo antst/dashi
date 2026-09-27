@@ -2,6 +2,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { assertPinnedGraph, deriveCliPins } from './dsh-cli-pins.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const dshPolicy = JSON.parse(await readFile(
@@ -77,15 +78,11 @@ if (lockedDsh.length === 0) failures.push('pnpm-lock.yaml: no @deepseek-ai/dsh p
 for (const [, packageName, version] of lockedDsh) {
   if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
 }
-const cordisNames = [
-  '@deepseek-ai/cordis', '@deepseek-ai/cordis-plugin-include', '@deepseek-ai/cordis-plugin-loader',
-]
-const lockedCordis = [...packageSection.matchAll(/^  '?(@deepseek-ai\/cordis(?:-plugin-(?:include|loader))?)@([^':]+)'?:$/gm)]
-for (const name of cordisNames) {
-  const versions = lockedCordis.filter(([, packageName]) => packageName === name).map(([, , version]) => version)
-  if (versions.length !== 1) failures.push(`pnpm-lock.yaml: expected one ${name} version, found ${versions.join(', ') || 'none'}`)
-  else console.log(`gate: ${name} ${versions[0]}`)
-}
+const cliManifest = JSON.parse(await readFile(join(root, 'node_modules/@deepseek-ai/dsh/package.json'), 'utf8'))
+if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must be ${testedVersion}`)
+const cliPins = deriveCliPins(cliManifest.dependencies)
+try { assertPinnedGraph(lockfile, cliPins) } catch (error) { failures.push(`pnpm-lock.yaml: ${String(error)}`) }
+console.log(`gate: CLI companion pins ${JSON.stringify(cliPins)}`)
 if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)

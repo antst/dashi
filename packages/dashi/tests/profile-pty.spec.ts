@@ -11,6 +11,7 @@ import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
 import { connectTestObserver, startTestDaemon, type TestObserver } from './sessionbus-harness.js'
 import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
+import { assertPinnedGraph, deriveCliPins } from '../../../scripts/dsh-cli-pins.mjs'
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const dsh = join(root, 'node_modules', '.bin', 'dsh')
@@ -47,6 +48,11 @@ const { tested: testedDshVersions } = JSON.parse(readFileSync(
 )) as { tested: string[] }
 const testedDshVersion = process.env.DSH_TEST_VERSION ?? testedDshVersions[0] ?? ''
 if (!testedDshVersions.includes(testedDshVersion)) throw new Error(`DSH ${testedDshVersion} is not a tested gate version`)
+const cliManifest = JSON.parse(readFileSync(join(root, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), 'utf8')) as {
+  version: string; dependencies: Record<string, string>
+}
+if (cliManifest.version !== testedDshVersion) throw new Error(`installed DSH CLI must be ${testedDshVersion}`)
+const cliPins = deriveCliPins(cliManifest.dependencies)
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWNgZGIGAAAOAAeCcsnOAAAAAElFTkSuQmCC', 'base64')
 // pi-tui 0.84.4 dist/stdin-buffer.js:22 holds a lone Escape for 10 ms.
 // Leave ample PTY scheduling margin so two Escape keys cannot become one Alt sequence.
@@ -107,9 +113,11 @@ function writeDshPinHook(directory: string): void {
   mkdirSync(directory, { recursive: true })
   writeFileSync(join(directory, '.pnpmfile.cjs'), `
 const fields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']
+const cliPins = ${JSON.stringify(cliPins)}
 module.exports = { hooks: { readPackage(pkg) {
   for (const field of fields) for (const name of Object.keys(pkg[field] ?? {})) {
     if (name.startsWith('@deepseek-ai/dsh')) pkg[field][name] = ${JSON.stringify(testedDshVersion)}
+    else if (cliPins[name]) pkg[field][name] = cliPins[name]
   }
   return pkg
 } } }
@@ -1582,9 +1590,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       '',
     ].join('\n'))
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'add', appArchive], cleanEnv)
-    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`], cleanEnv, profile)
-    const cliResolved = assertResolvedDshGraph(readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
-    const profileResolved = assertResolvedDshGraph(readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
+    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`,
+      ...Object.entries(cliPins).map(([name, pin]) => `${name}@${pin}`)], cleanEnv, profile)
+    const cliLock = readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8')
+    const profileLock = readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8')
+    const cliResolved = assertResolvedDshGraph(cliLock, testedDshVersion)
+    const profileResolved = assertResolvedDshGraph(profileLock, testedDshVersion)
+    assertPinnedGraph(cliLock, cliPins)
+    assertPinnedGraph(profileLock, cliPins)
     expect(cliResolved).toBeGreaterThan(0)
     expect(profileResolved).toBeGreaterThan(0)
     const manifests = [

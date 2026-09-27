@@ -3,6 +3,7 @@ import { copyFileSync, cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { assertPinnedGraph, deriveCliPins } from './dsh-cli-pins.mjs'
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const policy = JSON.parse(readFileSync(join(source, 'packages/dashi/validated-dsh-versions.json'), 'utf8'))
@@ -11,14 +12,11 @@ const version = process.env.DSH_TEST_VERSION ?? tested[0]
 if (!tested.includes(version)) throw new Error(`DSH ${String(version)} is not in the tested matrix`)
 const temporary = version === tested[0] ? undefined : mkdtempSync(join(tmpdir(), 'dashi-version-gate-'))
 const workspace = temporary === undefined ? source : join(temporary, 'workspace')
-const cordisNames = [
-  '@deepseek-ai/cordis', '@deepseek-ai/cordis-plugin-include', '@deepseek-ai/cordis-plugin-loader',
-]
-let cordisPins = {}
+let cliPins = {}
 
 function run(args) {
   const result = spawnSync('pnpm', args, {
-    cwd: workspace, env: { ...process.env, DSH_TEST_VERSION: version, DSH_CORDIS_PINS: JSON.stringify(cordisPins) }, stdio: 'inherit',
+    cwd: workspace, env: { ...process.env, DSH_TEST_VERSION: version, DSH_CLI_PINS: JSON.stringify(cliPins) }, stdio: 'inherit',
   })
   if (result.status !== 0) throw new Error(`pnpm ${args.join(' ')} exited ${String(result.status)}`)
 }
@@ -32,13 +30,7 @@ try {
       cwd: source, encoding: 'utf8',
     })
     if (cli.status !== 0) throw new Error(`cannot read DSH ${version} CLI dependencies: ${cli.stderr}`)
-    const dependencies = JSON.parse(cli.stdout)
-    cordisPins = Object.fromEntries(cordisNames.map(name => {
-      const declaration = dependencies[name]
-      const floor = /^(?:\^|~|>=)?(\d+\.\d+\.\d+(?:-[\da-z.-]+)?)$/i.exec(declaration)
-      if (!floor) throw new Error(`cannot find ${name} minimum from DSH ${version} CLI declaration ${String(declaration)}`)
-      return [name, floor[1]]
-    }))
+    cliPins = deriveCliPins(JSON.parse(cli.stdout))
     cpSync(source, workspace, { recursive: true, filter(path) {
       const parts = relative(source, path).split(sep)
       return !parts.some(part => ['.git', '.pnpm-store', 'node_modules'].includes(part))
@@ -51,7 +43,7 @@ try {
     let catalog = workspaceText.slice(catalogStart).replace(
       /^(  '@deepseek-ai\/dsh(?:-[^']+)?': )\S+$/gmu, `$1${version}`,
     )
-    for (const [name, pin] of Object.entries(cordisPins)) {
+    for (const [name, pin] of Object.entries(cliPins)) {
       const entry = `  '${name}':`
       const line = new RegExp(`^${entry} \\S+$`, 'mu')
       catalog = line.test(catalog) ? catalog.replace(line, `${entry} ${pin}`) : `${catalog}${entry} ${pin}\n`
@@ -66,13 +58,7 @@ try {
     if (resolved.length === 0 || mismatches.length > 0) {
       throw new Error(`DSH graph is not uniform at ${version}: ${mismatches.map(match => match[0]).join(', ')}`)
     }
-    const family = [...packageSection.matchAll(/^  '?(@deepseek-ai\/cordis(?:-plugin-(?:include|loader))?)@([^':]+)'?:$/gmu)]
-    for (const [name, pin] of Object.entries(cordisPins)) {
-      const versions = family.filter(([, packageName]) => packageName === name).map(([, , installed]) => installed)
-      if (versions.length !== 1 || versions[0] !== pin) {
-        throw new Error(`${name} must resolve once at the DSH ${version} CLI minimum ${pin}; found ${versions.join(', ') || 'none'}`)
-      }
-    }
+    assertPinnedGraph(packageSection, cliPins)
     console.log(`gate: prepared ${resolved.length} uniform DSH packages at ${version}`)
     run(['gate', version])
   }
