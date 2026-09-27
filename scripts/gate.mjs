@@ -92,6 +92,15 @@ if (lockedDsh.length === 0) failures.push('pnpm-lock.yaml: no @deepseek-ai/dsh p
 for (const [, packageName, version] of lockedDsh) {
   if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
 }
+const cordisNames = [
+  '@deepseek-ai/cordis', '@deepseek-ai/cordis-plugin-include', '@deepseek-ai/cordis-plugin-loader',
+]
+const lockedCordis = [...packageSection.matchAll(/^  '?(@deepseek-ai\/cordis(?:-plugin-(?:include|loader))?)@([^':]+)'?:$/gm)]
+for (const name of cordisNames) {
+  const versions = lockedCordis.filter(([, packageName]) => packageName === name).map(([, , version]) => version)
+  if (versions.length !== 1) failures.push(`pnpm-lock.yaml: expected one ${name} version, found ${versions.join(', ') || 'none'}`)
+  else console.log(`gate: ${name} ${versions[0]}`)
+}
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
   .filter(path => path.endsWith('package.json'))
 for (const path of packageFiles) {
