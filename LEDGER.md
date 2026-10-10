@@ -826,6 +826,58 @@ current published plugin line; dashi's pin moves to pre.16 under
 W-110 on the owner's direct confirmation; the W-101 PTY gate's daemon
 moves to the sessionbus release whose kit the plugin pins.
 
+### D-047 (2026-10-10) dashi 0.2 follows DSH 0.2; one DSH line per dashi line
+W-111 step 1 (report /tmp/w111-eval-aCawKJzz/REPORT.md, scratch only)
+showed that DSH 0.2.0-rc.2 and 0.2.1-alpha.2 install as uniform
+graphs once our stale references are adapted, that roller passes with
+test-only changes, and that dashi and the plugin need code changes
+whose causes are all ours: the agent-presets package is published
+singular (dsh-agent-preset, registry list/resolve/readDocument only;
+AgentPreset.path and registry copy/remove are gone); ShellExecutor.run
+became resolve then execute; the jobs surface (SessionJob, jobs
+frames, SubagentRuntime.remoteExportList, JobRead.text/snapshot) was
+removed and controller calls take a SessionId; startContinuable is
+gone on alpha.2 with the session/wait change; session format v4
+requires a producer-owned source kind (the union includes tool, user,
+model, system-prompt, model-selection, user-approval,
+skill-invocation, ptc-mode, tool-registry, compact-checkpoint,
+plan-mode, agent-message, subagent-settled, user-question-reply,
+agent-instructions) and retires source.kind "plugin", which dashi's
+shell notice and the plugin's relay message use; the content block
+kind tool-result and ContentBlock.content/isError are gone; the
+cordis family moved to ~ ranges (4.0.4 on 0.2.0, 4.0.5-alpha.1 on
+0.2.1); the model id deepseek-v4-flash is gone. No new DSH defect was
+proved; #7172 is fixed upstream; the fileUploads injection and the
+steer strand persist. Rulings: (1) Under D-030 the next dashi line
+targets the newest DSH: the 0.2 line of dashi (0.2.0-alpha.1 per
+D-044) sets the floor to `>=0.2.0-rc.2` and the tested matrix to
+0.2.0-rc.2 and 0.2.1-alpha.2, extended as DSH publishes; the 0.1
+line of dashi stays on the 0.1.5-rc.2 floor for fixes only. No shim
+supports two DSH API generations in one dashi; one DSH line per
+dashi line. (2) Source kinds come from the v4 union, chosen by the
+builder with the schema and DSH's own producers as evidence and
+stated in the handoff before code; the plugin's relay message keeps
+its sender envelope and rendering (D-045) under the chosen kind;
+recorded v3 fixtures are migrated with DSH's own v3-to-v4 migration,
+never hand-edited. (3) Where DSH removed a capability dashi exposed
+(preset copy and remove; the jobs list; the tool-result block), dashi
+follows DSH's replacement when one exists and otherwise removes the
+exposure and names the gap in this ledger; DSH owns durable facts, so
+dashi does not reimplement file operations or job tracking. (4) The
+cordis family is declared as a floor at the version the DSH floor
+resolves (D-041 form), and every harness derives its cordis pins from
+the tested CLI (the W-109 helper); no hard-coded cordis pins remain
+in any proof script. (5) The plugin follows on its own version
+(pre.17) with the v4 source kind and the derived pins; roller drops
+the unavailable dev dependency and provides the working-directory
+fixture, production unchanged. (6) Work proceeds design-first under
+D-046: W-114 opens with a handoff that maps every error group to its
+chosen replacement with file:line evidence, reviewed before code;
+items W-114 to W-117. The owner's two asks are answered by this
+line: what was solved is recorded in W-111; whether the profile and
+plugins work is proven by the gates and the host acceptance on the
+new floor.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -4022,7 +4074,7 @@ kit 0.5.12, daemon v0.5.12, DSH version per W-111) goes to pdev for
 the umka install. Evidence: gate 3/3 on all legs and macOS; host
 acceptance packet. Production source 0.
 
-### W-111 DSH 0.2 line: evaluate, map what was solved, prove dashi, roller and the plugin on it — status: open (owner dsh-exec; step 1 read-only)
+### W-111 DSH 0.2 line: evaluate, map what was solved, prove dashi, roller and the plugin on it — status: accepted 2026-10-10 (read-only evaluation; decided in D-047)
 Owner 2026-10-10: "there is certainly new version of DSH, so we need
 to upgrade to it and (1) check if something was solved there (2) make
 sure our profile and plugins works with it." Survey of 2026-10-10:
@@ -4062,6 +4114,21 @@ and tested matrix, the peer-range form for the cordis family (a
 floor like D-041 or the ~ range), the fixes, and the version line of
 the resulting dashi release (D-044: a floor change is 0.2.0-alpha.1).
 
+Accepted 2026-10-10 as a read-only evaluation (no repo change; report
+/tmp/w111-eval-aCawKJzz/REPORT.md with per-product logs, preserved in
+the builder's scratch and summarised in D-047). Findings: both 0.2
+versions install uniformly once our stale references are adapted;
+roller passes with test-only changes; dashi stops at 39/38
+TypeScript errors in six groups (presets package and registry API,
+shell executor, jobs and subagents, v4 source kinds, content blocks,
+test fixtures) plus the stale model id; the plugin passes its unit
+suite but its relay message's source kind is rejected by format v4
+and its packed proof hard-codes cordis pins that leave two physical
+cordis copies. All causes are ours. #7172 is fixed upstream from
+0.1.7-rc.2; the fork cut is confirmed with dashi's /btw refusal still
+needed; the fileUploads injection and the steer strand persist.
+Decided in D-047; implemented by W-114 to W-117.
+
 ### W-112 dashi and roller: the owner's change rule in AGENTS.md — status: open (owner dsh-exec, docs only)
 Per D-046 ruling (1) and the owner's instruction of 2026-09-30
 ("record also in AGENTS.md in ALL repos"). Add to dashi's AGENTS.md
@@ -4087,6 +4154,66 @@ empty outside the history paragraph. First change in that repository
 under its root AGENTS.md: the handoff opens with the consequence
 analysis, waits for the review bot at the reviewed head, and the
 merge is squashed and pinned to that head. Docs only.
+
+### W-114 dashi 0.2.0-alpha.1: migrate to DSH 0.2 — status: open (owner dsh-exec, design handoff first)
+Per D-047. Phase 1, design handoff before code (consequence analysis
+per D-046): for each W-111 error group, the chosen replacement with
+file:line evidence from the tested DSH 0.2.1-alpha.2 and 0.2.0-rc.2
+packages: presets (singular package, registry API; what dashi's
+copy/remove paths become), shell executor (resolve then execute),
+jobs and subagents (what replaced SessionJob and the jobs frames;
+what the jobs cell and picker show now; session/wait and the
+startContinuable path), v4 source kinds for the shell notice and for
+rendering of relay messages, content blocks (tool-result successor),
+test fixtures (required projection hints and summary fields), the
+README model example. State each user-visible change against the
+completeness bar and each named DSH gap. Phase 2 after ACCEPT of the
+design: implement on branch w-114-dsh-02 from develop; floor
+`>=0.2.0-rc.2` in every peer range; cordis family as floors per
+D-047 (4); validated-dsh-versions.json minimum 0.2.0-rc.2, tested
+[0.2.0-rc.2, 0.2.1-alpha.2]; CI matrices and the version gate follow;
+versions 0.2.0-alpha.1 (D-044); changelog; recorded v3 session
+fixtures migrated with DSH's migration; PTY suite green on both legs
+and macOS; W-101 sessionbus cases green against plugin pre.17 (W-115)
+and the v0.5.12 daemon. Evidence: full gate 3/3 on both legs and
+macOS; the W-111 scratch logs as the before state. Production source
+changes listed per file with their reason.
+
+### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md)
+Per D-047 (2), (4), (5). plugin.cjs:176 emits source.kind "plugin"
+(form relay), rejected on DSH 0.2 by session-format-v3-to-v4
+index.js:125-126 ("format v4 message requires a producer-owned source
+kind"). Scope: choose the v4 kind for delivered peer messages with
+evidence (the schema union and how DSH's own producers mark inbound
+agent messages), keep the sender envelope and the D-045 rendering
+contract, and keep the DSH 0.1.5 legs working only if one kind
+satisfies both formats; otherwise the plugin's peer floor moves to
+`>=0.2.0-rc.2` with the dashi 0.2 line and the 0.1.5 legs leave its
+matrix (state which in the consequence analysis). Packed-proof
+script: derive cordis-family pins from the tested CLI (W-109 helper
+form) instead of the hard-coded 4.0.2/1.0.3, so the packed home is a
+uniform closure; the agent boundary proof installs the Agent packages
+it imports. Matrix: 0.2.0-rc.2 and 0.2.1-alpha.2 added; the full
+packed proof must reach the lane and dashi cases on both. Version
+0.1.0-pre.17, changelog, runbook pins (folds W-113 if still open).
+Handoff opens with the consequence analysis; bot review read at the
+reviewed head; squash pinned to it.
+
+### W-116 roller 0.1.4: DSH 0.2 legs — status: open (owner codex-roller)
+Per D-047 (5) and the W-111 report: production unchanged; drop the
+unavailable @deepseek-ai/dsh-code-runtime devDependency, provide the
+DSH testkit working-directory fixture in both test harnesses, peer
+floor `>=0.2.0-rc.2`, tested matrix 0.2.0-rc.2 and 0.2.1-alpha.2,
+cordis family as floors per D-047 (4), version 0.1.4, changelog.
+Evidence: gate 15/15 on both legs; the release flow of roller.
+
+### W-117 upstream: close what DSH fixed, post what it did not — status: open (owner dsh-exec, on the owner's go)
+From W-111: reply on Discussion #7172 that 0.1.7-rc.2 and later fix
+it (abortedCancelCause and turn/end in finally), and on #7175 that
+the fork cut is confirmed with the pre-turn/end residual; post the
+steer-strand report (scratchpad draft upstream-steer-strand.md,
+updated to cite agent-loop lib/index.js:854-858 on 0.2.1-alpha.2);
+leave the rest open. Posting happens only on the owner's "post it".
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
