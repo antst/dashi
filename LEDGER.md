@@ -4048,7 +4048,7 @@ rc.3 and macOS; plugin run 36291516313 green on the peer floor and
 four legs; local full gates on rc.2 and rc.3 300/300 with 233 uniform
 DSH packages. Verifier: sonnet twelve-point review of both PRs.
 
-### W-110 dashi 0.1.3: plugin pre.16, kit 0.5.12, daemon v0.5.12 — status: open (owner dsh-exec, on the owner's direct confirmation of the pin)
+### W-110 dashi 0.1.3: plugin pre.16, kit 0.5.12, daemon v0.5.12 — status: accepted 2026-10-10 (PR #249 squash-merged; released as 0.1.3)
 Per D-046 ruling (4). Plugin pre.15 was a flag day: the daemon must
 be v0.5.9 or newer and a kit 0.5.7 host is refused, so dashi 0.1.2
 (plugin pre.14, kit 0.5.7, PTY daemon v0.5.7) cannot meet a current
@@ -4073,6 +4073,29 @@ sealed packet for pdev. Release identity (dashi 0.1.3, plugin pre.16,
 kit 0.5.12, daemon v0.5.12, DSH version per W-111) goes to pdev for
 the umka install. Evidence: gate 3/3 on all legs and macOS; host
 acceptance packet. Production source 0.
+
+Accepted 2026-10-10 (PR #249, squash b35185d; released as 0.1.3, main
+and tag v0.1.3 at the same SHA, run 38067782101). dashi-app pins
+@sessionbus/dsh 0.1.0-pre.16 exact on the owner's direct word ("yes, pin
+pre.16", given in the architect's window after pdev's relay); the test
+harness pins @sessionbus/kit 0.5.12; the PTY harness provisions the
+sessionbus v0.5.12 release for its own tests; the release notes state
+the real requirement, a Sessionbus daemon v0.5.9 or newer, because
+plugin pre.15 was a flag day that removed the idle_message lane argument
+and made message wake mandatory. DSH floor unchanged at 0.1.5-rc.2.
+Lockfile moves pre.14→pre.16 and kit 0.5.7→0.5.12 only. Consequence
+analysis per D-046 in the handoff: an older daemon response carrying the
+retired idle_message policy is rejected by the kit's closed schema as an
+invalid frame, the no-daemon PTY case still proves dashi starts and
+runs; kit 0.5.12's failed lane interrupt returns -32603 and allows an
+explicit retry, and peer supersession no longer awaits the courtesy
+write; the archive cache name now carries the release version so a warm
+checkout cannot mistake the v0.5.7 archive for v0.5.12. Evidence: five
+checks green three times on the head, gate 300/300 with the daemon,
+hosted run 38064635445 attempts 1, 2 and 3 green on rc.2, rc.3, alpha.1,
+alpha.2 and macOS, all four v0.5.12 archives verified against the
+published sums, daemon reports v0.5.12 fd85d7e. Verifier: haiku
+seven-point review. Host step and umka install recorded below when done.
 
 ### W-111 DSH 0.2 line: evaluate, map what was solved, prove dashi, roller and the plugin on it — status: accepted 2026-10-10 (read-only evaluation; decided in D-047)
 Owner 2026-10-10: "there is certainly new version of DSH, so we need
