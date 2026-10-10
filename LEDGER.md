@@ -990,6 +990,20 @@ acceptance passes there on the permanent daemon; merge may precede
 the proof, publication may not. The pre.17 tag is held under this
 rule until the host proof.
 
+Amendment 2026-10-10 (owner: "it is not only dashi but roller and
+whatever else we have"): the host-proof rule covers every artefact
+this ledger owns and every host it installs on. Products: @antst/dashi,
+@antst/dashi-app, @antst/dashi-launcher, @antst/dsh-file-uploads-none
+(one release train), @antst/roller, @sessionbus/dsh (with its bins
+sessionbus-dsh and sessionbus-dsh-install), and the runbook
+docs/HOST-INSTALL.md. Host surfaces: the dsh host's home DSH install
+and its three profiles (dashi, sessionbus, web), umka's equivalents
+at dev1's pace, the mac host when scheduled. roller 0.1.4 (W-116)
+was published on the 0.2 floor from scratch legs before this rule
+existed and has not run on a properly installed DSH 0.2; W-118 proves
+it on the dsh host before any further roller release, and dashi
+0.2.0-alpha.1 pins it only after that proof.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -4414,6 +4428,19 @@ buildForkSeed 925-934, called from fork at 2008) with the residual
 pre-turn/end case stated from our reading, not a new test. Body kept
 in the architect's scratch. Fourteen reports now; #7172 and #7175 are
 the two with confirmed fixes.
+
+### W-118 roller 0.1.4 on the real host — status: open (owner codex-roller, after plugin pre.17)
+Per D-049 amendment. On the dsh host (DSH 0.2.1-alpha.2 in the home
+install): install @antst/roller 0.1.4 exact into a real profile the
+way a user would (`dsh plugin --profile <p> add @antst/roller@0.1.4`
+on a snapshot-backed profile; the dashi profile stays untouched until
+W-114), run the D-043 (0.2) checks (lock uniform, companions one each,
+runtime resolution for roller's own package), boot the profile and
+exercise roller's capture and restore on a real file edit through a
+real model turn on the permanent daemon or a recorded turn if the
+profile has no provider, and `/roller` surfaces as documented. Any
+failure is fixed in roller 0.1.5 before dashi 0.2 pins it. Evidence:
+expected vs actual with the profile log excerpts; sealed packet.
 
 ## Backlog
 
