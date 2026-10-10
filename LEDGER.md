@@ -937,6 +937,37 @@ appears; evaluation (as in W-111) decides how, never whether. (5) The
 dashi 0.2 migration (W-114) is the lead item; the host and umka move
 to dashi 0.2 with plugin pre.17 when it is accepted.
 
+### D-049 (2026-10-10) The real host is the test bed; no scratch installs stand in for it
+Owner, 2026-10-10, on learning that DSH 0.2 existed only in scratch
+installs: "you know what will happen? as it ALWAYS happen when you,
+instead of doing proper install, start to fiddle with temp installs?"
+The day's evidence agrees: the plugin's packed proof reached a
+uniform graph only through a .pnpmfile hook that a real host does
+not have, and the hook-less measurement showed a retained direct
+cordis pin leaving two physical copies that the runbook's checker
+missed (W-115). Rulings: (1) The newest DSH is installed on the
+dsh host properly, in the home install under the user's pnpm
+convention, as soon as it is the target (D-048), with the D-043
+repair, the companion pins derived from the executing CLI, the
+headless boot and the closure check; what that breaks on the host
+until the products follow is stated in the ledger, not avoided.
+(2) Evaluation and gating of dashi, roller and the plugin against a
+DSH version run on that host install as well as in CI; scratch
+installs may answer a narrow read-only question but never stand as
+acceptance evidence. (3) umka follows at dev1's pace after the dsh
+host and the products are proven. Applied today: DSH 0.2.1-alpha.2
+goes onto the dsh host now; dashi 0.1.3 and the pre.16 profiles are
+known broken there until plugin pre.17 (W-115, releasing) and dashi
+0.2.0-alpha.1 (W-114) land.
+(4) Owner, same day: "we will need to release yet another version of
+everything, as it will turn out that it does not work with properly
+installed". So: no tag and no publish of dashi, roller or the plugin
+before the packed candidate from the merged head is installed on the
+dsh host's real DSH graph through the ordinary install path and the
+acceptance passes there on the permanent daemon; merge may precede
+the proof, publication may not. The pre.17 tag is held under this
+rule until the host proof.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
