@@ -904,6 +904,22 @@ timer >=1.1.7-alpha.1, schemastery >=3.18.5-alpha.1); pnpm admits
 prerelease floors. (f) The plugin's pre.17 (W-115) takes the same
 floor and the `plugin:sessionbus-dsh` kind.
 
+Amendment 2 (2026-10-10, phase 1b review): ruling (c)'s "no plugins
+of its own" would have dropped, on alpha.2, the persona prefix (dsh-base
+sets it empty; dsh-headless restates it), dsh-tool-ask-user (dashi's
+question UI), dsh-tool-present, dsh-tool-ralph, time-context and
+subagent model selection, which dsh-tool-subagent allows only inside a
+preset scope. Corrected: dashi's `standard` preset is dashi's own
+terminal composition and declares exactly the rows the completeness
+bar needs that dsh-base's host rows do not supply: the persona prefix
+in dashi's words, the ask-user, present and ralph tools, time-context,
+and the subagent tool row in preset scope with model selection on;
+each row carries its reason in the handoff; rows base already
+supplies stay host-level; dsh-tool-schedule stays host-level and the
+record names that child agents see and are refused those tools. This
+is declared need, not a copy of the web preset; the gap list keeps
+preset authoring inside dashi.
+
 ### D-048 (2026-10-10) The DSH 0.1.5 line is closed; everyone moves to the newest DSH as soon as possible
 Owner, 2026-10-10: "no point to waste token releasing dashi and
 sessionbus for 0.1.5, nobody uses it anymore" and "this is AI world!
