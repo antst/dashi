@@ -4322,6 +4322,20 @@ no fake completion). The handoff protocol is unchanged: the builder's
 handoff now includes the consequence analysis as its first part.
 Docs only; one PR per repository; gates green.
 
+Accepted 2026-10-10 (docs only; owner reassigned to codex-roller while
+dsh-exec held W-114). roller: antst/roller PR #16 squash 5821c5c;
+dashi: antst/dashi PR #264 squash 0638e660408548ff3875758e888fcc34c20a55b3. Both copy the owner's quote
+and the four practices byte-for-byte from the plugin repository's
+AGENTS.md at 75f8d65 (22 non-blank lines; implementation-language
+section excluded), inserted before the handoff protocol; the handoff
+bullet goes from three to four parts with the consequence analysis
+first; no other line changed, reverse diff reconstructs the prior
+document. Recorded fact: neither antst/dashi nor antst/roller has a
+review bot (CodeRabbit runs only on the plugin repository), so the
+exact-head evidence there is the hosted gates green at the reviewed
+head plus the architect's verifier; the owner decides whether to add
+one. Verifier: sonnet verifier agents 2026-10-10 (roller #16 and dashi #264: files, checks at head, verbatim copy against plugin 75f8d65, handoff bullet, cross-repo block identity).
+
 ### W-113 sessionbus-dsh: runbook follows pre.16 and kit 0.5.12 — status: cancelled 2026-10-10 (D-048; folded into W-115)
 docs/HOST-INSTALL.md on sessionbus/sessionbus-dsh main still pins
 plugin 0.1.0-pre.15, kit 0.5.9 and daemon v0.5.9 (b485529) while the
