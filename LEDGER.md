@@ -4474,6 +4474,27 @@ profile has no provider, and `/roller` surfaces as documented. Any
 failure is fixed in roller 0.1.5 before dashi 0.2 pins it. Evidence:
 expected vs actual with the profile log excerpts; sealed packet.
 
+Accepted 2026-10-10 (no code change; proof only). roller 0.1.4 runs on
+the dsh host's real DSH 0.2.1-alpha.2 install: dedicated profile
+roller-proof with exact @antst/roller 0.1.4, dsh-codex 0.3.2 and
+@sessionbus/dsh 0.1.0-pre.17; home and profile locks uniform at alpha.2
+(290/13 records), companions one each, anchor correct; runtime
+resolution via ctx.pluginPackages.packageOf from the profile importer
+and roller's own importer gives 0.1.4 at the profile path. Two real
+model turns (dsh-codex) made four edit/write mutations with four
+persisted checkpoints; /roller-restore 32, start and 0 executed through
+native commands.execute restored exact bytes (numeric: first retained,
+later absent; start and 0: both created files absent), all reports
+Failed(0), three paired durable command/run+done records in the v4 log.
+Home manifest and lock byte-identical before and after; owner profiles
+and process untouched. Two harness stops recorded, neither a roller
+defect: pre.17 not yet published (resumed after the publish), and the
+checker's wrong assumption that a bundle's own package appears in the
+profile table (DSH app-boot deletes it; packageOf is the lookup).
+Packet roller-w118-host.lRglU3ix, SHA256 3bed0a30...66aa, 75 files.
+Heading correction: the entry's `/roller` is the documented
+`/roller-restore` (seq|start|0); no alias exists. Verifier: sonnet verifier agent 2026-10-10 (packet hash and 75/75 manifest, profile exact pins and installed versions, home manifest/lock identical to snapshot, 13 dsh-* records alpha.2, owner process present).
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
