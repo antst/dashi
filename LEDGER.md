@@ -643,6 +643,28 @@ generation-bound targeted removal plus a no-op frozen install; dashi
 0.1.1 and plugin pre.13 on all profiles, rc.2 anchor, closure 479,
 lane and web replies exact, daemon unchanged. Both hosts are current.
 
+Amendment 2026-10-10 (DSH 0.2): the physical fallback heal is gone.
+dsh-app-boot 0.2.1-alpha.2 builds an immutable in-memory runtime
+resolution (lib/index.js:748-784, installed before profile mounts at
+the CLI's profile-boot :271-275; README:67,137-144 states runtime
+resolution creates no fallback links); only the legacy per-profile
+module-fallback cleanup remains (:615-631). Found on the dsh host
+after the first proper DSH 0.2.1-alpha.2 install: `dsh --profile
+headless --help` left the shared $DSH_HOME/profiles/node_modules at
+its rc.2 links (closure expected 578, current 380) because nothing
+heals it any more. Ruling for DSH 0.2 hosts: the host assertion is
+(a) the lockfile uniform at the target and the executing anchor at
+the target, (b) exactly one version per cordis companion at the
+executing CLI's minima, and (c) a runtime-resolution assertion: boot
+the profile by its ordinary launch and query ctx.pluginPackages.
+packageOf for dsh-base, cordis and the companions, asserting they
+resolve to the new installation's manifests and versions. The old
+shared physical links are reported as legacy extras, never asserted
+and never hand-linked; DSH's own legacy cleanup is the only cleanup.
+The physical one-version assertion for profiles (nested directories,
+2026-09-21 addendum) still applies to the profile trees themselves.
+Runbook change in the W-115 successor PR.
+
 ### D-044 (2026-09-21) 0.1.0 is the first stable cut; stable is a dist-tag promise, not a DSH promise
 Owner ruling 2026-09-21: cut a stable release. Facts: develop 41f86a9
 carries the same production source as 0.1.0-alpha.21 (b01f293); the
