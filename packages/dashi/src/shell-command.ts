@@ -1,9 +1,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { boundContextSummary, createUserMessage, type UserMessage } from '@deepseek-ai/dsh-llm'
+import { boundContextSummary, createUserMessage, type ContextFormed, type UserMessage } from '@deepseek-ai/dsh-llm'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type { CollectedOutput, ShellRunResult } from '@deepseek-ai/dsh-shell'
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'plugin:dashi': { readonly kind: 'plugin:dashi' } & Extract<ContextFormed, { form: 'notice' }>
+  }
+}
 
 export const HUMAN_SHELL_TIMEOUT_MS = 30_000
 export const HUMAN_SHELL_STREAM_BYTES = 32 * 1024
@@ -50,7 +56,7 @@ export async function runHumanShell(
   command: string,
   signal: AbortSignal, success?: string, useSessionSandbox = true,
 ): Promise<readonly [UserMessage, ShellRunResult]> {
-  const result = await ctx.shell.run(ctx.shell.resolve({
+  const spec = ctx.shell.resolve({
     command,
     env: { DSH_HOME: resolveDshHome() },
     sandboxPolicy: ctx.sandboxPolicy.resolve(useSessionSandbox
@@ -59,11 +65,12 @@ export async function runHumanShell(
     stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES,
     timeoutMs: HUMAN_SHELL_TIMEOUT_MS,
     workdir: agent.session.header.cwd,
-  }))
+  })
+  const result = await (await ctx.shell.execute(spec)).result()
   return [createUserMessage({
     content: [{ type: 'text', text: shellResultText(command, result) + (result.exitCode === 0 && success ? `\n${success}` : '') }],
     source: {
-      form: 'notice', kind: 'plugin', plugin: 'dashi',
+      form: 'notice', kind: 'plugin:dashi',
       summary: boundContextSummary(`Shell: ${command.replace(/\s+/gu, ' ').trim()}`),
     },
   }), result]

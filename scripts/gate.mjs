@@ -105,8 +105,8 @@ const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', impo
 for (const path of packageFiles) {
   const manifest = JSON.parse(await readFile(path, 'utf8'))
   if (relative(root, path) === 'packages/dashi-app/package.json'
-    && manifest.dependencies?.['@antst/roller'] !== '0.1.3') {
-    failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.3')
+    && manifest.dependencies?.['@antst/roller'] !== '0.1.4') {
+    failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.4')
   }
   for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
     for (const dependency of Object.keys(manifest[field] ?? {})) {
@@ -126,6 +126,10 @@ for (const path of sourceFiles) {
     .map(match => match[1])
   for (const specifier of specifiers) {
     const reason = packageViolation(specifier)
+    // W-114: the native fixed-rate test composes DSH's real storage stack;
+    // no product imports, storage provider stubs or dashi-owned storage code.
+    if (relative(root, path) === 'packages/dashi/tests/schedule-runtime.spec.ts'
+      && ['@deepseek-ai/dsh-storage', '@deepseek-ai/dsh-storage-json', '@deepseek-ai/dsh-storage-domain'].includes(specifier)) continue
     if (reason !== undefined) failures.push(`${relative(root, path)}: ${reason}: ${specifier}`)
   }
   if (specifiers.includes('node:fs/promises')

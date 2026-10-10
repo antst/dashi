@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
@@ -9,17 +8,16 @@ import { createRenderer, type Renderer } from '../src/renderer.js'
 import { historyInputs } from '../src/rewind.js'
 import { foldCells } from '../src/transcript.js'
 import { inputHistoryEvents } from './fixtures/input-history.js'
+import { recordedEvents } from './fixtures/session-format.js'
 import { testCeiling } from './test-budget.js'
 
 function codeBlockCells() {
-  const lines = readFileSync(new URL('./fixtures/code-block-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  const events = lines.slice(1).map(line => JSON.parse(line) as SessionEvent)
+  const events = recordedEvents(new URL('./fixtures/code-block-session.jsonl', import.meta.url))
   return foldCells(events as SessionEvent[])
 }
 
 function openTurnCells() {
-  const lines = readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  const events = lines.slice(1).map(line => JSON.parse(line) as SessionEvent)
+  const events = recordedEvents(new URL('./fixtures/open-turn-session.jsonl', import.meta.url))
   return foldCells(events as SessionEvent[])
 }
 
@@ -923,7 +921,8 @@ describe('terminal renderer', () => {
       running: false,
       sessionId: `session-${String(index).padStart(4, '0')}`,
       updatedAt: index,
-      projections: { asOfSeq: 1, values: { title: `Session ${String(index)}` } },
+      agentAvailable: true,
+      projections: { kind: 'sequenced', asOfSeq: 1, values: { title: `Session ${String(index)}` } },
     })) as never, 'none')
     const start = performance.now()
     shell.dispatch({ type: 'open-overlay', overlay })

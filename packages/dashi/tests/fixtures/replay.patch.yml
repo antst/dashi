@@ -19,7 +19,7 @@
           - id: deepseek-official
             name: Replay
             models:
-              - id: deepseek-v4-flash
+              - id: deepseek-flash
                 name: Recorded
                 contextWindow: 100000
                 reasoningEfforts: [low, high]

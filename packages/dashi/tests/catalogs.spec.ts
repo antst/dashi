@@ -115,19 +115,21 @@ describe('terminal catalogs', () => {
 
   it('projects session, model effort, and permission service data into list rows', () => {
     const sessions = sessionOverlay([{
-      blank: false,
+      agentAvailable: true, blank: false,
       cwd: '/elsewhere',
       running: false,
       sessionId: 'session-a' as never,
       updatedAt: 0,
-      projections: { asOfSeq: 1, values: { title: 'Named' } },
+      formatStatus: 'migration-required',
+      projections: { kind: 'sequenced', asOfSeq: 1, values: { title: 'Named' } },
     }, {
-      blank: false, cwd: '/work', running: false,
+      agentAvailable: true, blank: false, cwd: '/work', running: false,
       sessionId: 'session-hidden' as never, updatedAt: 1,
     }], 'other', '/elsewhere')
     expect(sessions).toMatchObject({ kind: 'list', purpose: 'resume' })
     if (sessions.kind !== 'list') throw new Error('expected list')
     expect(sessions.options[0]).toMatchObject({ label: 'Named · session-a', detail: expect.stringContaining('/elsewhere') })
+    expect(sessions.options[0]?.detail).toContain('migration required')
     expect(sessions.options).toHaveLength(1)
 
     const models = modelOverlay({
@@ -175,15 +177,15 @@ describe('terminal catalogs', () => {
     })
 
     const overlay = agentPresetOverlay([
-      { id: 'standard', name: 'Standard', description: 'Daily work', trust: 'system', path: '/standard' },
-      { id: 'broken', trust: 'user', path: '/broken', broken: 'bad config' },
-      { id: 'ptc', trust: 'system', path: '/ptc' },
+      { id: 'standard', name: 'Standard', description: 'Daily work' },
+      { id: 'broken', broken: 'bad config' },
+      { id: 'custom' },
     ], 'standard', false)
     expect(overlay).toMatchObject({
       kind: 'list', notice: 'Choosing a preset starts a new session.', purpose: 'agents',
       options: [
         { active: true, label: 'Standard', detail: 'Daily work', value: { kind: 'agent-preset', preset: 'standard' } },
-        { active: false, label: 'ptc', value: { kind: 'agent-preset', preset: 'ptc' } },
+        { active: false, label: 'custom', value: { kind: 'agent-preset', preset: 'custom' } },
       ],
     })
   })

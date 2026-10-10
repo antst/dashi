@@ -1,0 +1,8 @@
+- insert:
+    - id: preset-custom
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: custom
+        name: Custom terminal fixture
+        description: An explicitly declared native preset
+        plugins: []

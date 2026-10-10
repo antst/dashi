@@ -1,5 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionJob, SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
+import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
+import type { JobView as NativeJobView } from '@deepseek-ai/dsh-api-job-controller'
 import type {} from '@deepseek-ai/dsh-subagent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-token-meter'
@@ -15,11 +16,12 @@ export function contextPercent(value: unknown): number | undefined {
     : Math.min(100, Math.round(used / pressure.contextWindow * 100))
 }
 
-export function jobViews(jobs: readonly SessionJob[]): readonly JobView[] {
+export function jobViews(jobs: readonly NativeJobView[]): readonly JobView[] {
   return jobs.map(job => ({
     id: String(job.id), kind: job.kind, label: job.label, startedAt: job.startedAt, status: job.status,
     ...(job.detail === undefined ? {} : { detail: job.detail }),
     ...(job.finishedAt === undefined ? {} : { finishedAt: job.finishedAt }),
+    ...(job.progress === undefined ? {} : { progress: job.progress }),
   }))
 }
 
@@ -41,26 +43,26 @@ export async function subagentViews(
   signal: AbortSignal,
 ): Promise<readonly SubagentView[]> {
   const subagents = ctx.get('subagents')
-  if (subagents === undefined) return []
+  if (subagents === undefined) throw new Error('DSH subagent catalog service is unavailable')
   const [catalog, listed] = await Promise.all([
-    subagents.remoteExportList(parentId, signal),
+    subagents.listChildren(parentId, signal),
     ctx.sessionController.list({}, signal),
   ])
   const summaries = new Map(listed.items.map(summary => [String(summary.sessionId), summary]))
-  return catalog.entries.flatMap((entry): readonly SubagentView[] => {
-    if (entry.kind !== 'child') return []
-    const summary = summaries.get(String(entry.id))
+  return catalog.map((entry): SubagentView => {
+    const summary = entry.mode === 'external' ? undefined : summaries.get(String(entry.id))
     const timing = summary?.projections?.values.subagentTiming
     const title = summaryTitle(summary)
     const tokens = tokenTotal(summary)
-    return [{
-      id: String(entry.id), label: entry.label ?? String(entry.id), mode: entry.mode, state: entry.activity,
+    return {
+      id: String(entry.id), label: entry.label ?? String(entry.id), mode: entry.mode,
+      state: summary === undefined ? 'unknown' : summary.running ? 'running' : 'inactive',
       ...(timing === undefined ? {} : {
         elapsedMs: timing.settledMs,
         ...(timing.active === undefined ? {} : { active: timing.active }),
       }),
       ...(title === undefined ? {} : { summary: title }),
       ...(tokens === undefined ? {} : { tokens }),
-    }]
+    }
   })
 }

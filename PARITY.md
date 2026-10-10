@@ -1,6 +1,19 @@
 # Parity with Claude Code interactive mode
 
-Date: 2026-09-03
+Current line: dashi 0.2.0-alpha.1 on DSH 0.2.1-alpha.2 (W-114, 2026-10-10).
+
+The terminal-owned `standard` preset supplies question, presentation, Ralph,
+time-context and scoped subagent tools; DSH base owns the host tools. Preset
+authoring is a named DSH gap: definitions are declared in profile patches,
+custom presets can add but not remove host-level tools, and do not implicitly
+inherit standard-only rows. Children see schedule tools but DSH refuses them.
+`/tasks` lists owned and unowned jobs; background child activations are shown
+in a separate catalog. Migration-required sessions are labelled and a cold
+fork reports the native migration refusal. DSH also refuses model/provider routes
+absent from its available catalog. These replace the older API facts
+below; the original audit is retained as historical evidence, not current pins.
+
+## Historical audit — 2026-09-03
 
 Pinned DSH: `dsh-v0.1.5-rc.2`, commit
 `fb2c4b9e698e30edb738bca4cf0618587db7d203`.

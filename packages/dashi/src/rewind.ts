@@ -39,7 +39,7 @@ export function humanPrompt(event: SessionEvent): string | undefined {
 }
 
 function shellInput(message: UserMessage): string | undefined {
-  if (message.source.kind !== 'plugin' || message.source.plugin !== 'dashi'
+  if (message.source.kind !== 'plugin:dashi'
     || message.source.form !== 'notice') return undefined
   const first = message.content.find(block => block.type === 'text')?.text.split(/\r?\n/u)[0]
   return first?.startsWith('$ ') === true ? `!${first.slice(2)}` : undefined

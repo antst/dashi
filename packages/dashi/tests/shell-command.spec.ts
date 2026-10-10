@@ -35,11 +35,11 @@ describe('human shell command', () => {
 
   it('runs the resolved DSH shell request and creates one identified notice', async () => {
     const spec = result({ stdout: { text: 'ok', truncated: false } })
-    const run = vi.fn(async () => spec)
+    const execute = vi.fn(async () => ({ result: async () => spec }))
     const resolve = vi.fn((request: unknown) => request)
     const policy = { mode: 'workspace-write', workspaceRoot: '/work' }
     const ctx = {
-      sandboxPolicy: { resolve: vi.fn(() => policy) }, shell: { resolve, run },
+      sandboxPolicy: { resolve: vi.fn(() => policy) }, shell: { resolve, execute },
     } as unknown as Context
     const agent = { session: { header: { cwd: '/work' } } } as unknown as Agent
     const signal = new AbortController().signal
@@ -50,9 +50,10 @@ describe('human shell command', () => {
     })
     expect(message).toMatchObject({
       content: [{ text: expect.stringContaining('[exit 0]\nreload next time') }],
-      role: 'user', source: { form: 'notice', kind: 'plugin', plugin: 'dashi', summary: 'Shell: echo ok' },
+      role: 'user', source: { form: 'notice', kind: 'plugin:dashi', summary: 'Shell: echo ok' },
     })
     expect(message.id).toBeTruthy()
+    expect(execute).toHaveBeenCalledWith(resolve.mock.results[0]?.value)
     expect(shellResult).toBe(spec)
   })
 })

@@ -26,7 +26,7 @@ function messageText(blocks: readonly ContentBlock[]): string {
   for (const block of blocks) {
     if (block.type === 'text') parts.push(block.text)
     else if (block.type === 'image') parts.push('[image]')
-    else if (block.type !== 'reasoning' && block.type !== 'tool-call' && block.type !== 'tool-result') {
+    else if (block.type !== 'reasoning' && block.type !== 'tool-call') {
       parts.push(`[${String((block as unknown as { type?: unknown }).type ?? 'content')}]`)
     }
   }
@@ -35,7 +35,7 @@ function messageText(blocks: readonly ContentBlock[]): string {
 
 function isDashiShell(message: UserMessage): boolean {
   const source = message.source as unknown as Record<string, unknown>
-  return source.kind === 'plugin' && source.plugin === 'dashi' && source.form === 'notice'
+  return source.kind === 'plugin:dashi' && source.form === 'notice'
     && messageText(message.content).startsWith('$ ')
 }
 
@@ -47,9 +47,10 @@ function shellCell(message: UserMessage, pending: boolean): TerminalCell {
 
 function collapsedContextCell(message: UserMessage, key: string): TerminalCell | undefined {
   const source = message.source as unknown as Record<string, unknown>
+  if (source.kind === 'skill-invocation') return undefined
   const form = source.form
   if (source.kind !== 'agent-instructions'
-    && (source.kind !== 'plugin' || !['instructions', 'catalog', 'snapshot', 'notice', 'recall'].includes(String(form)))) {
+    && !['instructions', 'catalog', 'snapshot', 'notice', 'recall'].includes(String(form))) {
     return undefined
   }
   const text = messageText(message.content)
@@ -99,7 +100,7 @@ function compactSource(event: SessionEvent<'user/message'>): {
 } | undefined {
   if (event.surfaceOp === undefined || event.surfaceOp === 'append' || event.surfaceOp.op !== 'replace') return undefined
   const source = event.data.source as unknown as Record<string, unknown>
-  if (source.kind !== 'plugin' || source.plugin !== 'compact' || typeof source.compactionId !== 'string') return undefined
+  if (source.kind !== 'compact-checkpoint' || typeof source.compactionId !== 'string') return undefined
   return {
     compactionId: source.compactionId,
     ...(typeof source.sourceCommandId === 'string' ? { sourceCommandId: source.sourceCommandId } : {}),
@@ -262,14 +263,9 @@ export function foldCells(
           cells.push({ key: `${event.seq}:error`, kind: 'error', text: `tool result ${id} has no matching call` })
           break
         }
-        const block = event.data.message.content[0]
-        if (block === undefined) {
-          cells.push({ key: `${event.seq}:error`, kind: 'error', text: `tool result ${id} has no content` })
-          break
-        }
         const result = {
-          content: block.content,
-          isError: block.isError || event.data.error !== undefined,
+          content: [...event.data.message.content],
+          isError: event.data.message.isError === true || event.data.error !== undefined,
           ...(event.data.meta === undefined ? {} : { meta: event.data.meta }),
         }
         const previous = cells[call.slot]

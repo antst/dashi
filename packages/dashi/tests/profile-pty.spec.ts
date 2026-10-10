@@ -1,16 +1,19 @@
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as pty from 'node-pty'
 import { prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm-replay'
+import { historicalSessionFormatCatalog, sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
 import { connectTestObserver, startTestDaemon, type TestObserver } from './sessionbus-harness.js'
 import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
+import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
 import { assertPinnedGraph, deriveCliPins } from '../../../scripts/dsh-cli-pins.mjs'
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
@@ -43,6 +46,7 @@ const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
 const fakeEditor = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'fake-editor.mjs')
 const mcpStderrPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'mcp-stderr.patch.yml')
+const customPresetPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'custom-preset.patch.yml')
 const { tested: testedDshVersions } = JSON.parse(readFileSync(
   join(root, 'packages', 'dashi', 'validated-dsh-versions.json'), 'utf8',
 )) as { tested: string[] }
@@ -73,6 +77,16 @@ let pluginHome = ''
 let pluginSandboxHome = ''
 let mcpHome = ''
 let rewindDefaultHome = ''
+let presetHome = ''
+
+function currentSnapshot(snapshot: string): string {
+  const header = JSON.parse(readFileSync(snapshot, 'utf8').split('\n')[0] ?? '{}')
+  // Native replay-generated current fixtures may retain its documented template tokens.
+  if (sessionFormatCatalog.readHeader(header).status === 'current') return snapshot
+  const path = join(testDir, `v4-${snapshot.split('/').at(-1) ?? 'snapshot.jsonl'}`)
+  writeFileSync(path, currentRecordedJsonl(snapshot))
+  return path
+}
 
 function reportPerformance(name: string, value: number, unit: string): void {
   process.stdout.write(`performance: ${name} ${value.toFixed(2)} ${unit}\n`)
@@ -109,6 +123,23 @@ function assertResolvedDshGraph(lockfile: string, expected: string): number {
   return resolved.length
 }
 
+function assertSingleUploadProvider(profile: string): void {
+  const app = realpathSync(join(profile, 'node_modules', '@antst', 'dashi-app', 'package.json'))
+  const plugin = createRequire(app).resolve('@sessionbus/dsh')
+  const providers = [app, plugin].map(anchor => {
+    let directory = dirname(realpathSync(createRequire(anchor).resolve('@antst/dsh-file-uploads-none')))
+    while (!existsSync(join(directory, 'package.json'))) directory = dirname(directory)
+    const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { name: string; version: string }
+    expect(manifest.name).toBe('@antst/dsh-file-uploads-none')
+    expect(manifest.version).toBe((JSON.parse(readFileSync(
+      join(root, 'packages', 'file-uploads-none', 'package.json'), 'utf8',
+    )) as { version: string }).version)
+    return directory
+  })
+  expect(new Set(providers).size).toBe(1)
+  process.stdout.write(`profile upload provider: 1 resolved copy at ${providers[0]}\n`)
+}
+
 function writeDshPinHook(directory: string): void {
   mkdirSync(directory, { recursive: true })
   writeFileSync(join(directory, '.pnpmfile.cjs'), `
@@ -135,7 +166,7 @@ class PtyShell {
       ...process.env,
       ...hermeticGitEnv,
       DSH_HOME: home,
-      DSH_SNAPSHOT_FILE: snapshot,
+      DSH_SNAPSHOT_FILE: currentSnapshot(snapshot),
       DSH_TELEMETRY_DISABLED: '1',
       ...(rootEvents === undefined ? {} : { DSH_DASHI_ROOT_EVENTS: rootEvents }),
       NO_COLOR: '1',
@@ -255,7 +286,7 @@ function parseFrame(terminal: HeadlessTerminal): ParsedFrame {
       ? lines.slice(composerTop + 1, composerBottom).join('\n')
       : lines.at(-3) ?? '',
     overlay: lines.slice(header, -1).join('\n'),
-    status: lines.at(-1) ?? '',
+    status: composerBottom >= 0 ? lines[composerBottom + 1] ?? '' : lines.at(-1) ?? '',
     text: lines.slice(header).join('\n'),
     transcript: body.filter(line => !/\[image \d+\]/u.test(line)).join('\n'),
   }
@@ -585,35 +616,50 @@ function generateLargeSession(
 ): { readonly events: number; readonly toolCells: number } {
   const file = findSessionFile(join(sessionHome, 'replay-sessions'), id)
   if (file === '') throw new Error(`Missing persisted session ${id}`)
-  const header = readFileSync(file, 'utf8').split('\n')[0]
-  if (header === undefined) throw new Error(`Empty persisted session ${id}`)
-  writeFileSync(file, `${header}\n`)
+  const original = recordedSession(file)
+  writeFileSync(file, `${JSON.stringify(sessionFormatCatalog.encodeCurrentHeader(
+    original.header, original.inheritedEventCount,
+  ))}\n`)
   let rows: string[] = []
   let seq = 0
   const add = (type: string, data: Record<string, unknown>, extra: Record<string, unknown> = {}): void => {
-    rows.push(JSON.stringify({ type, data, ...extra, seq, time: 1_800_000_000_000 + seq }))
+    rows.push(JSON.stringify(sessionFormatCatalog.encodeCurrentEvent({
+      type, data, ...extra, seq, time: 1_800_000_000_000 + seq,
+    } as Parameters<typeof sessionFormatCatalog.encodeCurrentEvent>[0])))
     seq++
     if (rows.length === 1_000) {
       appendFileSync(file, `${rows.join('\n')}\n`)
       rows = []
     }
   }
+  // Retain DSH's native protected head so the next real step can replace it.
+  const head = recordedSession(threeTurnFixture).events.find(event => event.type === 'system/message')
+  if (head === undefined) throw new Error('native recorded fixture has no system head')
+  add('session/title', { title: 'Large generated history', source: { kind: 'user' }, messageSeqs: [] })
   for (let turn = 1; turn <= turns; turn++) {
     add('turn/start', { turn })
+    add('step/start', { turn, step: 1 })
+    if (turn === 1) add('system/message', head.data as Record<string, unknown>, { surfaceOp: 'append' })
     add('user/message', {
       id: `large-user-${String(turn)}`, role: 'user', source: { kind: 'user' },
       content: [{ type: 'text', text: `large prompt ${String(turn)}` }],
     }, { surfaceOp: 'append' })
     if (turn <= toolCells) {
       const callId = `large-call-${String(turn)}`
-      add('tool/call', { turn, step: 1, callId, name: 'inspect', arguments: `{"path":"large-${String(turn)}"}` })
+      const arguments_ = `{"path":"large-${String(turn)}"}`
+      add('assistant/message', {
+        turn, step: 1, message: {
+          id: `large-assistant-${String(turn)}`, role: 'assistant',
+          source: { kind: 'model', provider: 'replay', model: 'recorded' },
+          content: [{ type: 'tool-call', id: callId, name: 'inspect', arguments: arguments_ }],
+        }, stream: [],
+      }, { surfaceOp: 'append' })
+      add('tool/call', { turn, step: 1, callId, name: 'inspect', arguments: arguments_ })
       add('tool/result', {
         turn, step: 1, message: {
-          id: `large-result-${String(turn)}`, role: 'user', source: { kind: 'tool', callId },
-          content: [{
-            type: 'tool-result', toolCallId: callId,
-            content: [{ type: 'text', text: `large tool result ${String(turn)}` }],
-          }],
+          id: `large-result-${String(turn)}`, role: 'tool', source: { kind: 'tool', callId },
+          toolCallId: callId,
+          content: [{ type: 'text', text: `large tool result ${String(turn)}` }],
         },
       }, { surfaceOp: 'append' })
     } else {
@@ -625,9 +671,12 @@ function generateLargeSession(
         }, stream: [],
       }, { surfaceOp: 'append' })
     }
+    add('step/end', { turn, step: 1 })
     add('turn/end', { turn, reason: { kind: 'completed' } })
   }
   if (rows.length > 0) appendFileSync(file, `${rows.join('\n')}\n`)
+  // Fail at fixture production if the native V4 lifecycle is not admissible.
+  recordedSession(file)
   return { events: seq, toolCells }
 }
 
@@ -654,6 +703,7 @@ function prepareTestProfile(profileHome: string): void {
     profileDir)
   run('pnpm', ['add', questionPlugin], env, profileDir)
   assertResolvedDshGraph(readFileSync(join(profileDir, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
+  assertSingleUploadProvider(profileDir)
 }
 
 beforeAll(() => {
@@ -666,6 +716,7 @@ beforeAll(() => {
   pluginSandboxHome = join(testDir, 'plugin-sandbox-home')
   mcpHome = join(testDir, 'mcp-home')
   rewindDefaultHome = join(testDir, 'rewind-default-home')
+  presetHome = join(testDir, 'preset-home')
   hardeningCwd = join(testDir, 'hardening-workspace')
   mkdirSync(hardeningCwd)
   prepareTestProfile(home)
@@ -676,6 +727,7 @@ beforeAll(() => {
   prepareTestProfile(pluginSandboxHome)
   prepareTestProfile(mcpHome)
   prepareTestProfile(rewindDefaultHome)
+  prepareTestProfile(presetHome)
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${testedDshVersion}`],
     { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
   assertResolvedDshGraph(readFileSync(
@@ -688,6 +740,99 @@ afterAll(() => {
 })
 
 describe.sequential('shipped profile terminal lifecycle', () => {
+  it('lists unowned jobs and keeps human output reads separate from the native model cursor', async () => {
+    const shell = new PtyShell()
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const id = sessionId(shell.output, start)
+      shell.write('/dashi-unowned-job-proof\r')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).transcript)
+          .toContain('Job · W114 unowned output · completed')
+      }, { timeout: testCeiling(20_000) })
+      for (let read = 0; read < 2; read++) {
+        shell.write('/tasks\r')
+        await vi.waitFor(async () => {
+          expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('W114 unowned output')
+        }, { timeout: testCeiling(20_000) })
+        shell.write('\r')
+        await vi.waitFor(async () => {
+          expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('W114_OUTPUT_STILL_UNCONSUMED')
+        }, { timeout: testCeiling(20_000) })
+        shell.write('\u001B')
+        await vi.waitFor(async () => {
+          expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle · Enter send')
+        }, { timeout: testCeiling(20_000) })
+      }
+      shell.write('/dashi-unowned-job-proof consume\r')
+      await vi.waitFor(() => {
+        const records = sessionEvents(id).filter(event => event.type === 'command/done'
+          && String(event.data?.text).includes('W114_RESULT_STILL_UNCONSUMED'))
+        expect(records).toHaveLength(1)
+        const read = JSON.parse(String(records[0]?.data?.text)) as {
+          result: string; chunks: Array<{ text: string }>; job: { owner?: string }
+        }
+        expect(read.result).toBe('W114_RESULT_STILL_UNCONSUMED')
+        expect(read.chunks.map(chunk => chunk.text)).toEqual(['W114_OUTPUT_STILL_UNCONSUMED'])
+        expect(read.job.owner).toBeUndefined()
+      }, { timeout: testCeiling(20_000) })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, testCeiling(60_000))
+
+  it('boots scoped subagent shadowing and preserves native model-selection settings in fresh roots', async () => {
+    const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: presetHome })
+    const proof = async (id: string, count: number): Promise<Record<string, unknown>> => {
+      let result: Record<string, unknown> = {}
+      await vi.waitFor(() => {
+        const done = sessionEvents(id, presetHome).filter(event => event.type === 'command/done')
+        expect(done).toHaveLength(count)
+        expect(done.at(-1)?.data?.kind, String(done.at(-1)?.data?.text)).toBe('success')
+        result = JSON.parse(String(done.at(-1)?.data?.text)) as Record<string, unknown>
+      }, { timeout: testCeiling(20_000) })
+      return result
+    }
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const first = sessionId(shell.output, start)
+      shell.write('/dashi-preset-proof\r')
+      const defaults = await proof(first, 1)
+      expect(defaults).toMatchObject({
+        preset: 'standard', scopedShadowsHost: true,
+        settings: { enabled: false, allowedModels: [] }, selectionParameters: [], listModels: false, policy: [],
+      })
+      expect(defaults.rows).toEqual([
+        '@deepseek-ai/dsh-tool-ask-user', '@deepseek-ai/dsh-tool-present',
+        '@deepseek-ai/dsh-tool-ralph', '@deepseek-ai/dsh-time-context', '@deepseek-ai/dsh-tool-subagent',
+      ])
+      shell.write('/dashi-preset-proof enable\r')
+      expect(await proof(first, 2)).toMatchObject({
+        scopedShadowsHost: true, settings: { enabled: true, allowedModels: [{ provider: 'deepseek-official', model: 'deepseek-flash' }] },
+        selectionParameters: [], listModels: false, policy: [],
+      })
+      expect(readFileSync(join(presetHome, 'profiles', 'dashi', 'cordis.patch.yml'), 'utf8'))
+        .toContain('deepseek-flash')
+      const nextAt = shell.output.length
+      shell.write('/new\r')
+      const next = await waitForOtherSession(shell, first, nextAt)
+      shell.write('/dashi-preset-proof\r')
+      expect(await proof(next, 1)).toMatchObject({
+        preset: 'standard', scopedShadowsHost: true,
+        selectionParameters: ['provider', 'model', 'reasoning_effort'], listModels: true,
+        policy: [{ allowedModels: [{ provider: 'deepseek-official', model: 'deepseek-flash' }] }],
+      })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await shell.close()
+    }
+  }, testCeiling(60_000))
+
   it('shows inherited MCP server stderr in the active terminal', async () => {
     const shell = new PtyShell(replayFixture, undefined, root, { DSH_HOME: mcpHome })
     try {
@@ -1070,18 +1215,46 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       const readAt = shell.output.length
       shell.write('/config\r')
-      await shell.waitFor('maxSpillBytes', readAt)
+      await shell.waitFor('subagent-model-selection-settings', readAt)
       await shell.waitFor('base:', readAt)
-      await shell.waitFor('user: —', readAt)
+      await shell.waitFor('user: {}', readAt)
+      let configText = ''
+      await vi.waitFor(() => {
+        configText = sessionEvents(sessionId(shell.output, 0)).filter(event => event.type === 'command/done')
+          .map(event => String(event.data?.text)).at(-1) ?? ''
+        expect(configText.split('\n')[0]).toBe(join(home, 'profiles', 'dashi', 'cordis.patch.yml'))
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      const documentPath = configText.split('\n')[0] ?? ''
+      const namespace = configText.split('\n').find(line => line.endsWith('subagent-model-selection-settings')) ?? ''
+      expect(documentPath).toBe(join(home, 'profiles', 'dashi', 'cordis.patch.yml'))
+      expect(namespace).not.toBe('')
 
       const updateAt = shell.output.length
-      shell.write('/config shell timeoutMs=61000\r')
-      await shell.waitFor('updated shell.timeoutMs', updateAt)
-      expect(readFileSync(join(home, 'settings.yaml'), 'utf8')).toContain('timeoutMs: 61000')
+      shell.write(`/config ${namespace} enabled=true\r`)
+      await vi.waitFor(() => {
+        expect(sessionEvents(sessionId(shell.output, 0)).filter(event => event.type === 'command/done')
+          .map(event => event.data).at(-1)).toMatchObject({
+          kind: 'success', text: `updated ${namespace}.enabled`,
+        })
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      await shell.waitFor(`updated ${namespace}.enabled`, updateAt)
+      expect(readFileSync(documentPath, 'utf8')).toContain('enabled: true')
 
       const changedAt = shell.output.length
       shell.write('/config\r')
-      await shell.waitFor('user: {"timeoutMs":61000}', changedAt)
+      await vi.waitFor(() => {
+        const config = sessionEvents(sessionId(shell.output, 0)).filter(event => event.type === 'command/done')
+          .map(event => String(event.data?.text)).at(-1)
+        expect(config).toContain('user: {"enabled":true}')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      await shell.waitFor('subagent-model-selection-settings', changedAt)
+      // Restore the native default before later tests create roots in this shared fixture.
+      const restoreAt = shell.output.length
+      shell.write(`/config ${namespace} enabled=false\r`)
+      await shell.waitFor(`updated ${namespace}.enabled`, restoreAt)
+      await vi.waitFor(() => {
+        expect(readFileSync(documentPath, 'utf8')).toContain('enabled: false')
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -1139,9 +1312,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await seed.close()
     }
     const file = findSessionFile(join(home, 'replay-sessions'), id)
-    const header = readFileSync(file, 'utf8').split('\n')[0]
-    const fixture = readFileSync(contextInjectionFixture, 'utf8').split('\n').slice(1).join('\n')
-    writeFileSync(file, `${header}\n${fixture}`)
+    const original = recordedSession(file)
+    writeFileSync(file, currentRecordedJsonl(contextInjectionFixture, original.header))
 
     const resumed = new PtyShell()
     try {
@@ -1598,6 +1770,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const profileResolved = assertResolvedDshGraph(profileLock, testedDshVersion)
     assertPinnedGraph(cliLock, cliPins)
     assertPinnedGraph(profileLock, cliPins)
+    assertSingleUploadProvider(profile)
     expect(cliResolved).toBeGreaterThan(0)
     expect(profileResolved).toBeGreaterThan(0)
     const manifests = [
@@ -1615,10 +1788,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(manifests.map(manifest => manifest.version)).toEqual(Array(4).fill(workspaceVersion))
     expect(manifests[2]?.dependencies?.['@antst/dsh-file-uploads-none']).toBe(manifests[0]?.version)
     expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[1]?.version ?? ''}`)
-    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.3')
+    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.4')
     expect(JSON.parse(readFileSync(
       join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
-    )).version).toBe('0.1.3')
+    )).version).toBe('0.1.4')
 
     for (const path of [manifestPath, workspacePath, join(profile, 'pnpm-lock.yaml')]) {
       const installed = readFileSync(path, 'utf8')
@@ -1882,7 +2055,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
           { at: wideAt, columns: 100, rows: 30 },
         ])
         expect(frame.transcript).toContain('STORM_END')
-        expect(frame.status).toContain('idle ·')
+        expect(frame.status, frame.text).toContain('idle ·')
       }, { timeout: testCeiling(20_000), interval: 20 })
       expect(frame.text).not.toContain('\uFFFD')
       const releasedAt = shell.output.length
@@ -1951,7 +2124,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await created.close()
     }
-    expect(generateLargeSession(id, 30, 0)).toEqual({ events: 120, toolCells: 0 })
+    expect(generateLargeSession(id, 30, 0)).toEqual({ events: 182, toolCells: 0 })
 
     const shell = new PtyShell(threeTurnFixture)
     try {
@@ -2126,12 +2299,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await seed.close()
     }
-    const fixture = readFileSync(openTurnFixture, 'utf8').trim().split('\n')
-    const header = JSON.parse(fixture[0] ?? '{}') as Record<string, unknown>
-    writeFileSync(findSessionFile(join(home, 'replay-sessions'), parent), [
-      JSON.stringify({ ...header, id: parent, cwd, createdAt: Date.now() }),
-      ...fixture.slice(1),
-    ].join('\n') + '\n')
+    writeFileSync(findSessionFile(join(home, 'replay-sessions'), parent),
+      currentRecordedJsonl(openTurnFixture, { id: parent, cwd, createdAt: Date.now() }))
 
     const shell = new PtyShell(btwChildFixture, undefined, cwd, {
       DSH_SNAPSHOT_CHILD_FILES: replayFixture,
@@ -2534,7 +2703,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const events = sessionLog(id).events
     const inserted = events.filter(event => event.type === 'agent/inbox/spliced'
       && JSON.stringify(event.data).includes('DASHI_SHELL_OUTPUT')
-      && JSON.stringify(event.data).includes('"plugin":"dashi"'))
+      && JSON.stringify(event.data).includes('"kind":"plugin:dashi"'))
     expect(inserted).toHaveLength(1)
     expect(JSON.stringify(inserted[0]?.data)).toContain('"form":"notice"')
     const insertedAt = events.indexOf(inserted[0]!)
@@ -2823,9 +2992,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(events.some(event => event.type === 'command/run'
       && event.data?.name === 'workspace-proof')).toBe(false)
     const preStep = readFileSync(preStepEvents, 'utf8')
-    expect(preStep).toContain('"kind":"skill-invocation"')
-    expect(preStep).toContain('"name":"workspace-proof"')
-    expect(preStep).toContain('WORKSPACE_SKILL_BODY')
+    expect(preStep).toContain('/workspace-proof use the fixture')
+    // Base now owns the outer skill middleware; this inner fixture hook sees
+    // the user input before that middleware injects the final native message.
+    const invoked = events.find(event => event.type === 'user/message'
+      && (event.data?.source as { kind?: unknown } | undefined)?.kind === 'skill-invocation')
+    expect(invoked?.data?.source).toMatchObject({ kind: 'skill-invocation', name: 'workspace-proof', form: 'instructions' })
+    expect(JSON.stringify(invoked?.data)).toContain('"name":"workspace-proof"')
+    expect(JSON.stringify(invoked?.data)).toContain('WORKSPACE_SKILL_BODY')
   }, 60_000)
 
   it('runs parity commands through DSH services and preserves native preset ownership', async () => {
@@ -2935,33 +3109,46 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && event.data?.title === 'W052 archived root')).toBe(true)
   }, 30_000)
 
-  it('/agents authors presets through DSH and opens a new copy in the editor', async () => {
-    const authoredRoot = join(home, '.agent-presets')
-    const trace = join(testDir, 'agents-editor.json')
-    const { baseline, shell } = await prepareShell({
-      DSH_DASHI_EDITOR_TRACE: trace,
-      EDITOR: `${process.execPath} ${fakeEditor}`,
-      VISUAL: '',
-    })
+  it('/agents selects declared presets and names the removed authoring API without writing files', async () => {
+    const profilePatch = join(hardeningHome, 'profiles', 'dashi', 'cordis.patch.yml')
+    const before = readFileSync(profilePatch, 'utf8')
+    const { baseline, shell } = await prepareShell({ DSH_HOME: hardeningHome })
+    let id = ''
     try {
-      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
-      shell.write('/agents copy standard w052-copy\r')
-      await shell.waitFor('copied standard to w052-copy', start)
-      expect(existsSync(join(authoredRoot, 'w052-copy', 'agent.cordis.yml'))).toBe(true)
-      shell.write('/agents delete w052-copy\r')
-      await shell.waitFor('deleted w052-copy', start)
-      expect(existsSync(join(authoredRoot, 'w052-copy'))).toBe(false)
-
-      shell.write('/agents new w052-new\r')
-      await shell.waitFor('created w052-new from standard', start)
-      await vi.waitFor(() => { expect(existsSync(trace)).toBe(true) }, { timeout: testCeiling(20_000) })
-      const result = JSON.parse(readFileSync(trace, 'utf8')) as { file: string; terminalMode: string }
-      expect(realpathSync(result.file)).toBe(realpathSync(join(authoredRoot, 'w052-new', 'agent.cordis.yml')))
-      expect(relevantTerminalMode(result.terminalMode)).toBe(relevantTerminalMode(baseline))
-      expect(readFileSync(result.file, 'utf8')).toContain(' from editor')
-      shell.write('/agents delete w052-new\r')
-      await shell.waitFor('deleted w052-new', start)
-      expect(existsSync(join(authoredRoot, 'w052-new'))).toBe(false)
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --patch ${quote(customPresetPatch)} --fullscreen`)
+      id = sessionId(shell.output, start)
+      for (const args of ['copy standard w052-copy', 'new w052-new', 'delete w052-new']) {
+        shell.write(`/agents ${args}\r`)
+        await vi.waitFor(async () => {
+          expect((await parsedFrame(shell.output.slice(start))).transcript)
+            .toContain('DSH has no preset authoring API')
+          expect(sessionEvents(id, hardeningHome).filter(event => event.type === 'command/done'
+            && event.data?.kind === 'error').length).toBeGreaterThan(0)
+        }, { timeout: testCeiling(20_000) })
+        await vi.waitFor(async () => {
+          const frame = await parsedFrame(shell.output.slice(start))
+          expect(frame.transcript).toContain('presets in profile configuration.')
+          expect(sessionEvents(id, hardeningHome).filter(event => event.type === 'command/done'
+            && event.data?.kind === 'error')).toHaveLength(['copy standard w052-copy', 'new w052-new', 'delete w052-new'].indexOf(args) + 1)
+        }, { timeout: testCeiling(20_000) })
+        expect(readFileSync(profilePatch, 'utf8')).toBe(before)
+        expect(existsSync(join(hardeningHome, '.agent-presets', 'w052-new'))).toBe(false)
+      }
+      shell.write('/agents\r')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('Custom terminal fixture')
+      }, { timeout: testCeiling(20_000) })
+      shell.write('\u001B[A')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('› 1 Custom terminal fixture')
+      }, { timeout: testCeiling(20_000) })
+      shell.write('\r')
+      await vi.waitFor(async () => {
+        expect(sessionEvents(id, hardeningHome).some(event => event.type === 'agent-preset/selected'
+          && event.data?.agentPreset === 'custom')).toBe(true)
+        expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle · Enter send')
+      }, { timeout: testCeiling(20_000) })
+      expect(sessionId(shell.output, start)).toBe(id)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -2969,6 +3156,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await shell.close()
     }
+    const events = sessionEvents(id, hardeningHome)
+    expect(events.filter(event => event.type === 'command/done' && event.data?.kind === 'error')).toHaveLength(3)
+    expect(events.some(event => event.type === 'agent-preset/selected' && event.data?.agentPreset === 'custom')).toBe(true)
+    expect(readFileSync(profilePatch, 'utf8')).toBe(before)
   }, 60_000)
 
   it('creates a root, resumes through the picker, and emits post-swap root events in order', async () => {
@@ -3085,7 +3276,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const shell = new PtyShell()
     try {
       const start = await launch(shell,
-        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-v4-flash`)
+        `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-flash`)
       shell.write('/effort low\r')
       await shell.waitFor('◆ /effort low', start)
       shell.write('/status\r')
@@ -3119,6 +3310,51 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.close()
     }
     expect(sessionLog(id).header).toMatchObject({ agentPreset: 'standard', id })
+  }, 30_000)
+
+  it('refuses a cold migration-required fork without rewriting the historical generation', async () => {
+    const seed = new PtyShell()
+    let id = ''
+    try {
+      const start = await launch(seed, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      id = sessionId(seed.output, start)
+      const releasedAt = seed.output.length
+      seed.write('\u0004\u0004')
+      await seed.waitFor('\u001B[?1049l', releasedAt)
+    } finally {
+      await seed.close()
+    }
+    const file = findSessionFile(join(home, 'replay-sessions'), id)
+    const current = recordedSession(file)
+    const [header, ...events] = readFileSync(threeTurnFixture, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+    const restore = historicalSessionFormatCatalog.createRestore(header, { recovery: 'strict', validation: 'current' })
+    for (const event of events) restore.decodeRow(event)
+    const historical = restore.finish()
+    const encoded = `${[
+      historicalSessionFormatCatalog.encodeCurrentHeader({
+        ...historical.header, id, createdAt: current.header.createdAt,
+        ...(current.header.cwd === undefined ? {} : { cwd: current.header.cwd }),
+      }, historical.inheritedEventCount),
+      ...historical.events.map(event => historicalSessionFormatCatalog.encodeCurrentEvent(event)),
+    ].map(row => JSON.stringify(row)).join('\n')}\n`
+    expect(file.endsWith('session.v4.jsonl')).toBe(true)
+    const historicalFile = join(dirname(file), 'session.v3.jsonl')
+    writeFileSync(historicalFile, encoded)
+    rmSync(file)
+
+    const shell = new PtyShell()
+    try {
+      const start = shell.output.length
+      shell.write(`${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)} --fork-session; printf '__MIGRATION_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('Open the source Session to complete migration before forking', start)
+      await shell.waitFor('__MIGRATION_EXIT__1', start)
+      expect(shell.output.slice(start)).toContain('startup failed')
+      expect(shell.output.slice(start)).not.toContain('\u001B[?1049h')
+      expect(readFileSync(historicalFile, 'utf8')).toBe(encoded)
+      expect(existsSync(file)).toBe(false)
+    } finally {
+      await shell.close()
+    }
   }, 30_000)
 
   it.each(['--resume', '--continue'])('forks the %s target for --fork-session', async (targetFlag) => {
@@ -3234,12 +3470,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       let id = ''
       try {
         const start = await launch(shell,
-          `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-v4-flash --effort low ${dangerFlag} 'launch flags'`)
+          `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --provider deepseek-official --model deepseek-flash --effort low ${dangerFlag} 'launch flags'`)
         id = sessionId(shell.output, start)
         await waitForIdleAfter(shell, 'DASHI_TOOL_ROUND_TRIP complete.', start)
         expect(shell.output.slice(start)).not.toContain('Approval · bash')
         shell.write('/status\r')
-        await shell.waitFor('Model: deepseek-official/deepseek-v4-flash', start)
+        await shell.waitFor('Model: deepseek-official/deepseek-flash', start)
         await shell.waitFor('Effort: low', start)
         await shell.waitFor('Permission: danger-full-access', start)
         const closedAt = shell.output.length
@@ -3382,18 +3618,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && event.data?.preset === 'read-only')).toBe(true)
   }, 30_000)
 
-  it('binds an unlisted launch model because DSH catalogs are advisory', async () => {
+  it('preserves the native refusal of an unavailable launch model', async () => {
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: launchFlagsHome,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
     })
     try {
-      const start = await launch(shell,
-        `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --model w025-unlisted`)
-      expect(shell.output.slice(start)).toContain('w025-unlisted')
-      const releasedAt = shell.output.length
-      shell.write('\u0004\u0004')
-      await shell.waitFor('\u001B[?1049l', releasedAt)
+      const start = shell.output.length
+      shell.write(`${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --model w025-unlisted; printf '__UNAVAILABLE_MODEL_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('Select an available model before sending a message.', start)
+      await shell.waitFor('__UNAVAILABLE_MODEL_EXIT__1', start)
+      expect(shell.output.slice(start)).toContain('startup failed')
+      expect(shell.output.slice(start)).not.toContain('\u001B[?1049h')
     } finally {
       await shell.close()
     }
@@ -3455,12 +3691,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('__W025_PERMISSION_EXIT__1', start)
       start = shell.output.length
       shell.write(`${launcher} --provider w025-missing --model unlisted; printf '__W025_PROVIDER_EXIT__%s\\n' "$?"\n`)
-      await shell.waitFor('no adapter registered for provider "w025-missing"', start)
+      await shell.waitFor('Select an available model before sending a message.', start)
       await shell.waitFor('__W025_PROVIDER_EXIT__1', start)
       expect(shell.output.slice(start)).toContain('startup failed')
       start = shell.output.length
-      shell.write(`${launcher} --provider deepseek-official --model deepseek-v4-flash --effort w025-missing; printf '__W025_EFFORT_EXIT__%s\\n' "$?"\n`)
-      await shell.waitFor('provider "deepseek-official" model "deepseek-v4-flash" does not support reasoning effort "w025-missing"', start)
+      shell.write(`${launcher} --provider deepseek-official --model deepseek-flash --effort w025-missing; printf '__W025_EFFORT_EXIT__%s\\n' "$?"\n`)
+      await shell.waitFor('provider "deepseek-official" model "deepseek-flash" does not support reasoning effort "w025-missing"', start)
       await shell.waitFor('__W025_EFFORT_EXIT__1', start)
       expect(shell.output.slice(start)).toContain('startup failed')
     } finally {
@@ -3702,12 +3938,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       } finally {
         await seed.close()
       }
-      const fixture = readFileSync(headerlessTurnFixture, 'utf8').trim().split('\n')
-      const header = JSON.parse(fixture[0] ?? '{}') as Record<string, unknown>
-      writeFileSync(findSessionFile(join(rewindDefaultHome, 'replay-sessions'), parent), [
-        JSON.stringify({ ...header, id: parent, cwd: workspace, createdAt: Date.now() }),
-        ...fixture.slice(1),
-      ].join('\n') + '\n')
+      writeFileSync(findSessionFile(join(rewindDefaultHome, 'replay-sessions'), parent),
+        currentRecordedJsonl(headerlessTurnFixture, { id: parent, cwd: workspace, createdAt: Date.now() }))
 
       const shell = new PtyShell(rollerFixture, undefined, workspace, { DSH_HOME: rewindDefaultHome })
       let child = ''
@@ -3716,7 +3948,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
           `${quote(process.execPath)} ${quote(dashiLauncher)} --patch ${quote(replayPatch)} --fullscreen --resume ${parent}`,
           'idle ·')
         const sourceTypes = sessionEvents(parent, rewindDefaultHome).map(event => event.type)
-        // V3 wraps the prompt in step markers and persists the assembled system message.
+        // The native migration preserves the recorded prompt's step/system markers.
         expect(sourceTypes.slice(0, 6)).toEqual([
           'turn/start', 'step/start', 'system/message', 'user/message', 'step/end', 'turn/end',
         ])
@@ -4231,10 +4463,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && text(event).includes('CHILD_RESULT'))).toBe(false)
     expect(childLog.events.some(event => text(event).includes('CHILD_RESULT'))).toBe(true)
     expect(parentLog.events.some(event => event.type === 'user/message'
-      && (event.data?.source as { plugin?: unknown } | undefined)?.plugin === 'tool-jobs')).toBe(true)
+      && (event.data?.source as { kind?: unknown } | undefined)?.kind === 'tool-jobs')).toBe(true)
   }, 120_000)
 
-  it('reads and kills jobs and starts a continuable subtask through DSH', async () => {
+  it('reads and kills jobs and starts a native child activation through DSH', async () => {
     const shell = new PtyShell(tasksFixture, undefined, root, {
       DSH_SNAPSHOT_CHILD_FILES: presentationChildFixture,
     })
@@ -4289,25 +4521,37 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   it('creates, lists, rejects, and stops loops through DSH Schedule', async () => {
     const shell = new PtyShell()
     let id = ''
+    let scheduleId = ''
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
 
       const createAt = shell.output.length
       shell.write('/loop 5m check the release\r')
-      await shell.waitFor('scheduled schedule-1 · every 5m · check the release', createAt)
+      await vi.waitFor(() => {
+        const created = sessionEvents(id).find(event => event.type === 'command/done'
+          && event.data?.kind === 'success' && String(event.data?.text).startsWith('scheduled '))
+        scheduleId = /^scheduled (schedule-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}) · every 5m · check the release$/u
+          .exec(String(created?.data?.text))?.[1] ?? ''
+        expect(scheduleId).not.toBe('')
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      await vi.waitFor(async () => {
+        const transcript = (await parsedFrame(shell.output.slice(createAt))).transcript
+        expect(transcript).toContain(`scheduled ${scheduleId} · every 5m · check the`)
+        expect(transcript).toContain('release')
+      }, { timeout: testCeiling(20_000), interval: 20 })
 
       const listAt = shell.output.length
       shell.write('/loop\r')
-      await shell.waitFor('schedule-1 · every 5m · check the release', listAt)
+      await shell.waitFor(`${scheduleId} · every 5m · check the release`, listAt)
 
       const rejectedAt = shell.output.length
-      shell.write('/loop 1m too frequent\r')
-      await shell.waitFor('every_seconds must be at least 300.', rejectedAt)
+      shell.write('/loop 0m too frequent\r')
+      await shell.waitFor('every_seconds must be at least 60.', rejectedAt)
 
       const stopAt = shell.output.length
-      shell.write('/loop stop schedule-1\r')
-      await shell.waitFor('stopped schedule-1', stopAt)
+      shell.write(`/loop stop ${scheduleId}\r`)
+      await shell.waitFor(`stopped ${scheduleId}`, stopAt)
 
       const emptyAt = shell.output.length
       shell.write('/loop\r')
@@ -4322,8 +4566,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const events = sessionEvents(id)
     expect(events.filter(event => event.type === 'command/run'
       && event.data?.name === 'loop')).toHaveLength(5)
-    expect(events.filter(event => event.type === 'schedule/change')
-      .map(event => event.data?.operation)).toEqual(['create', 'delete'])
+    // Alpha.2 persists schedule changes in native storage, not the session event log.
+    expect(events.filter(event => event.type === 'command/done').map(event => event.data)).toEqual([
+      expect.objectContaining({ kind: 'success', text: `scheduled ${scheduleId} · every 5m · check the release` }),
+      expect.objectContaining({ kind: 'success', text: `${scheduleId} · every 5m · check the release` }),
+      expect.objectContaining({ kind: 'error', text: 'every_seconds must be at least 60.' }),
+      expect.objectContaining({ kind: 'success', text: `stopped ${scheduleId}` }),
+      expect.objectContaining({ kind: 'success', text: 'no active schedules' }),
+    ])
   }, 60_000)
 
   it('/btw and /recap answer in titled forks without changing the main conversation', async () => {
@@ -4441,8 +4691,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await created.close()
     }
-    const shape = generateLargeSession(id, 12_375, 500)
-    expect(shape).toEqual({ events: 50_000, toolCells: 500 })
+    // V4 needs a protected head, title, steps and advertisements: 2 + 8166*6 + 501*2 = 50k.
+    const shape = generateLargeSession(id, 8_166, 501)
+    expect(shape).toEqual({ events: 50_000, toolCells: 501 })
 
     const stormChunks = 400
     const resumed = new PtyShell(chunkStormSnapshot(stormChunks), undefined, root, { DSH_REPLAY_PACE_MS: '10' })
@@ -4455,11 +4706,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       reportPerformance('large-resume-first-view', resumeElapsed, 'ms')
       // rc.2 measured 11,879.11 ms at 50k events; gate bound 15,000 ms.
       expect(resumeElapsed).toBeLessThan(testCeiling(15_000))
-      expect(resumed.output.slice(start)).toContain('large answer 12375')
+      expect(resumed.output.slice(start)).toContain('large answer 8166')
 
       const pageAt = resumed.output.length
       resumed.write('\u001B[1;5H')
-      await resumed.waitFor('large prompt 12326', pageAt, 20_000)
+      await resumed.waitFor('large prompt 8117', pageAt, 20_000)
 
       resumed.write('\u001B[1;5F')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, 100) })
@@ -4469,7 +4720,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const payloadStart = oscAt + '\u001B]52;c;'.length
       const payloadEnd = resumed.output.indexOf('\u0007', payloadStart)
       expect(Buffer.from(resumed.output.slice(payloadStart, payloadEnd), 'base64').toString())
-        .toBe('large answer 12375')
+        .toBe('large answer 8166')
 
       const historyAt = resumed.output.length
       resumed.write('/history\r')
@@ -4478,7 +4729,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       resumed.write('\u001B')
       await new Promise(resolveDelay => { setTimeout(resolveDelay, separateEscapeKeysMs) })
       resumed.write('\u001B[1;5H')
-      await resumed.waitFor('large prompt 12301', closedAt, 20_000)
+      await resumed.waitFor('large prompt 8092', closedAt, 20_000)
 
       const streamingAt = resumed.output.length
       resumed.write('measure chunk storm\r')

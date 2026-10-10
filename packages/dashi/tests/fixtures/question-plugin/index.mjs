@@ -3,9 +3,55 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agents', 'authorization', 'commands', 'credentials', 'sessionController', 'skills', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
 
 export function apply(ctx) {
+  let unownedJob
+  ctx.commands.register({
+    name: 'dashi-unowned-job-proof',
+    description: 'Expose one native unowned job and inspect its consuming result after human reads.',
+    handler: ({ agent, rawInput }) => {
+      if (rawInput.trim() === 'consume') {
+        if (unownedJob === undefined) throw new Error('unowned job was not started')
+        return { kind: 'success', text: JSON.stringify(ctx.jobs.read(unownedJob, agent.id)) }
+      }
+      if (unownedJob !== undefined) throw new Error('unowned job already started')
+      unownedJob = ctx.jobs.start({
+        kind: 'bash', label: 'W114 unowned output',
+        run(job) {
+          job.append('W114_OUTPUT_STILL_UNCONSUMED')
+          return { done: Promise.resolve({ status: 'completed', result: 'W114_RESULT_STILL_UNCONSUMED' }), cancel() {} }
+        },
+      })
+      return { kind: 'success', text: `Unowned job ${unownedJob}` }
+    },
+  })
+  ctx.commands.register({
+    name: 'dashi-preset-proof',
+    description: 'Inspect real alpha.2 scoped delegation and its native route policy.',
+    handler: async ({ agent, rawInput }) => {
+      if (rawInput.trim() === 'enable') {
+        const descriptor = ctx.settings.describe().find(entry => entry.ns.endsWith('subagent-model-selection-settings'))
+        if (descriptor === undefined) throw new Error('native model-selection settings form unavailable')
+        await ctx.settings.update(descriptor.ns, {
+          enabled: true, allowedModels: [{ provider: 'deepseek-official', model: 'deepseek-flash' }],
+        }, descriptor.revision)
+      }
+      const scoped = ctx.tools.get('subagent', agent)
+      const host = ctx.tools.get('subagent')
+      if (scoped === undefined || host === undefined) throw new Error('native subagent definitions unavailable')
+      return { kind: 'success', text: JSON.stringify({
+        preset: ctx.agentPresets.composedPreset(agent.ctx),
+        scopedShadowsHost: scoped !== host,
+        settings: ctx.subagentModelSelection.current(),
+        selectionParameters: ['provider', 'model', 'reasoning_effort'].filter(name => Object.hasOwn(scoped.parameters.properties, name)),
+        listModels: ctx.tools.get('list_subagent_models', agent) !== undefined,
+        policy: agent.session.snapshotEvents().filter(event => event.type === 'subagent/model-selection-policy')
+          .map(event => event.data),
+        rows: ctx.agentPresets.inspectCompositions(agent.ctx).flatMap(revision => revision.modules.map(row => row.moduleName)),
+      }) }
+    },
+  })
   const fixtureCredential = credentialKey('dashi-fixture', 'account')
   ctx.effect(() => ctx.authorization.registerFlow({
     key: fixtureCredential,

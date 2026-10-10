@@ -10,10 +10,10 @@ function summary(
   origin?: 'subagent',
 ): SessionSummary {
   return {
-    blank: false, running: true, sessionId: sessionId as never, updatedAt,
+    agentAvailable: true, blank: false, running: true, sessionId: sessionId as never, updatedAt,
     ...(cwd === undefined ? {} : { cwd }),
     ...(origin === undefined ? {} : { origin }),
-    ...(title === undefined ? {} : { projections: { asOfSeq: 1, values: { title } } }),
+    ...(title === undefined ? {} : { projections: { kind: 'sequenced', asOfSeq: 1, values: { title } } }),
   }
 }
 

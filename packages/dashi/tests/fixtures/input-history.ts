@@ -3,7 +3,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 const shellMessage = {
   id: 'message-shell',
   content: [{ type: 'text', text: "$ printf 'ok value'\n[stdout]\nok value\n[exit 0]" }],
-  source: { form: 'notice', kind: 'plugin', plugin: 'dashi', summary: 'Shell: printf ok value' },
+  source: { form: 'notice', kind: 'plugin:dashi', summary: 'Shell: printf ok value' },
 }
 
 export const inputHistoryEvents = [
