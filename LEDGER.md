@@ -878,6 +878,32 @@ line: what was solved is recorded in W-111; whether the profile and
 plugins work is proven by the gates and the host acceptance on the
 new floor.
 
+Amendment 2026-10-10 (W-114 design review): (a) the dashi 0.2 floor
+is `>=0.2.1-alpha.2` and the tested matrix is 0.2.1-alpha.2 plus
+newer as published; 0.2.0-rc.2 is dropped because its schedule tools
+live in dsh-schedule while alpha.2 moved them to dsh-tool-schedule,
+which has no rc.2 release, so one composition cannot serve both and
+a conditional row would be a shim; under D-048 the newest DSH is the
+target. (b) Ruling (2) reads: source kinds are producer-owned per
+the v4 contract; a kind declared through dsh-llm's merge-extensible
+MessageSourceMap, as DSH's own schedule, compaction and subagent
+producers do, is producer-owned, and the kinds are those DSH's own
+v3-to-v4 migration assigns (`plugin:dashi` for dashi's shell notice,
+`plugin:sessionbus-dsh` for the plugin's relay message). (c) Presets:
+dashi-app keeps dsh-base's host agent rows (DSH states base keeps
+them for the TUI) and declares one `standard` preset with no plugins
+of its own through the native registry; nothing is copied; custom
+presets can add tools but not remove host-level ones; preset
+authoring inside dashi (new, copy, delete) and the web-only presets
+are named DSH gaps with an upstream report on package-relative
+bundle patches. (d) Recorded v3 fixtures are migrated with
+dsh-session-format-catalog's own catalog, an exact dev dependency.
+(e) The cordis family floors follow the alpha.2 CLI (cordis
+>=4.0.5-alpha.1, loader >=1.0.6-alpha.1, include >=1.0.10-alpha.1,
+timer >=1.1.7-alpha.1, schemastery >=3.18.5-alpha.1); pnpm admits
+prerelease floors. (f) The plugin's pre.17 (W-115) takes the same
+floor and the `plugin:sessionbus-dsh` kind.
+
 ### D-048 (2026-10-10) The DSH 0.1.5 line is closed; everyone moves to the newest DSH as soon as possible
 Owner, 2026-10-10: "no point to waste token releasing dashi and
 sessionbus for 0.1.5, nobody uses it anymore" and "this is AI world!
