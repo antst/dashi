@@ -4495,6 +4495,21 @@ Packet roller-w118-host.lRglU3ix, SHA256 3bed0a30...66aa, 75 files.
 Heading correction: the entry's `/roller` is the documented
 `/roller-restore` (seq|start|0); no alias exists. Verifier: sonnet verifier agent 2026-10-10 (packet hash and 75/75 manifest, profile exact pins and installed versions, home manifest/lock identical to snapshot, 13 dsh-* records alpha.2, owner process present).
 
+### W-119 plugin pre.18: file-uploads-none range covers the 0.2 line — status: open (owner codex-roller, after W-112)
+Found during W-114: @sessionbus/dsh pre.17 depends on
+@antst/dsh-file-uploads-none ^0.1.0, so a profile that pins dashi-app
+0.2.0-alpha.1 resolves two copies (0.1.3 with DSH 0.1.5-floor peers
+beside 0.2.0-alpha.1): two providers of one service and an unmet-peer
+install on DSH 0.2.1-alpha.2. Fixed at the source per D-049, before the
+dashi 0.2 host proof: release 0.1.0-pre.18 whose only change widens
+that range to accept the 0.2 line (builder decides the exact range;
+semver prerelease matching proven by a test that resolves one copy in
+a profile pinning 0.2.0-alpha.1 and one copy in a profile on 0.1.3).
+Consequence analysis first, bot review at the pushed head, merge
+pinned, tag, registry check, then W-114 re-pins to pre.18 exact.
+Evidence: the resolution test, pack byte diff limited to package.json,
+registry view of pre.18.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
