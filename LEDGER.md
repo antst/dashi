@@ -4209,13 +4209,30 @@ Evidence: gate 15/15 on both legs; the release flow of roller.
 
 Recorded in roller's LEDGER.md; release run 38066085938.
 
-### W-117 upstream: close what DSH fixed, post what it did not — status: open (owner dsh-exec, on the owner's go)
+### W-117 upstream: close what DSH fixed, post what it did not — status: accepted 2026-10-10 (posted on the owner's word)
 From W-111: reply on Discussion #7172 that 0.1.7-rc.2 and later fix
 it (abortedCancelCause and turn/end in finally), and on #7175 that
 the fork cut is confirmed with the pre-turn/end residual; post the
 steer-strand report (scratchpad draft upstream-steer-strand.md,
 updated to cite agent-loop lib/index.js:854-858 on 0.2.1-alpha.2);
 leave the rest open. Posting happens only on the owner's "post it".
+
+Accepted 2026-10-10 on the owner's "post it". Posted under the
+owner's account on deepseek-ai/deepseek-harness: Discussion #9370
+"Agent.steer during the running→idle transition strands the spliced
+next-step item" (category Ideas, like the earlier thirteen), with
+citations verified on 0.2.1-alpha.2 (dsh-agent-loop lib/index.js:
+send 800-806, steer 809-811, wakeDriver returns on a running phase
+854-858, turn/end in finally 1027-1035, hasPending read 1037, idle
+transition in kick's finally 893-898) and the reproduction script
+named; a comment on #7172 confirming the fix from 0.1.7-rc.2
+(abortedCancelCause 731-745, catch 1011, turn/end finally 1027-1035);
+a comment on #7175 confirming the fork cut (dsh-session
+buildForkSeed 925-934, called from fork at 2008) with the residual
+pre-turn/end case stated from our reading, not a new test. Body kept
+in the architect's scratch. Fourteen reports now; #7172 and #7175 are
+the two with confirmed fixes.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -4275,9 +4292,9 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Queued (not yet posted), HIGH: DSH Discussion (Bug): cold resume of a large session regressed from ~2.3 s (0.1.2-rc.1) to over 120 s (0.1.5-rc.2) for a 200k-event log, stalling before the first UI frame inside agent-loop session open (packages/core/agent-loop/src/index.ts:878-899: whole-log V3 read-validate plus interruptedTurnClosers). Scaling numbers, profile, and the 0.1.6-alpha.2 result to be attached (W-070).
 - Update 2026-09-19 to the cold-resume entry above: localized by the rc.2 50k CPU profile to @deepseek-ai/dsh-token-meter, packages/llm/token-meter/src/breakdown-projection.ts:56-75 (`contextBreakdownProjectionDefinition.apply` / `commitSurfaceTokens` clones state.nodes and findLast-scans it per surface event), not the agent-loop open path; introduced by upstream commit 6525195953 ("fix(token-meter): classify surviving prompts in surface order", 2026-09-07), still live at HEAD. Timings on the same fixture: rc.2 10k 1,629 ms, 50k 11,879 ms, 100k 47,246 ms, 200k 183,088 ms; 0.1.6-alpha.2 50k 11,764 ms, 200k 183,216 ms; rc.1 200k 2.3 s. Related but distinct: Discussions #928 and #4416 (fixed by 0c5aa8110f, already in rc.1). Upstream has issues disabled; post as a Discussion (Bug). No existing report found.
 - Posted 2026-09-19 (draft 13): DSH Discussion (General): Token-meter projection makes cold resume quadratic in session event count https://github.com/deepseek-ai/deepseek-harness/discussions/7171
-- Posted 2026-09-19 (draft 10): DSH Discussion (General): turn/end is lost when a pre-header LLM request is cancelled https://github.com/deepseek-ai/deepseek-harness/discussions/7172
+- Posted 2026-09-19 (draft 10): DSH Discussion (General): turn/end is lost when a pre-header LLM request is cancelled https://github.com/deepseek-ai/deepseek-harness/discussions/7172 — fixed upstream from 0.1.7-rc.2
 - Posted 2026-09-19 (draft 11): DSH Discussion (General): Session controller cannot activate without the web-only fileUploads service https://github.com/deepseek-ai/deepseek-harness/discussions/7174
-- Posted 2026-09-19 (draft 12): DSH Discussion (General): Forking a running session replays its pending prompt in the child https://github.com/deepseek-ai/deepseek-harness/discussions/7175
+- Posted 2026-09-19 (draft 12): DSH Discussion (General): Forking a running session replays its pending prompt in the child https://github.com/deepseek-ai/deepseek-harness/discussions/7175 — fork cut fixed from 0.1.6-alpha.1; residual pre-turn/end replay
 - Posted 2026-09-19 (draft 01): DSH Discussion (General): Two install hazards: mixed prerelease graphs and stale peer dependencies https://github.com/deepseek-ai/deepseek-harness/discussions/7177
 - Posted 2026-09-19 (draft 02): DSH Discussion (Ideas): Session-scoped model and effort selection https://github.com/deepseek-ai/deepseek-harness/discussions/7179
 - Posted 2026-09-19 (draft 03): DSH Discussion (General): Cold seeded sessions lose their title in the session list https://github.com/deepseek-ai/deepseek-harness/discussions/7180
@@ -4287,3 +4304,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Posted 2026-09-19 (draft 07): DSH Discussion (General): pnpm global installs produce profiles with missing DSH packages https://github.com/deepseek-ai/deepseek-harness/discussions/7185
 - Posted 2026-09-19 (draft 08): DSH Discussion (General): Session-only model selection for Agent Sessions lanes https://github.com/deepseek-ai/deepseek-harness/discussions/7186
 - Posted 2026-09-19 (draft 09): DSH Discussion (Ideas): Take-once access for launchEnvironment secrets https://github.com/deepseek-ai/deepseek-harness/discussions/7187
+- Posted 2026-10-10: DSH Discussion (Ideas): Agent.steer during the running→idle transition strands the spliced next-step item https://github.com/deepseek-ai/deepseek-harness/discussions/9370
