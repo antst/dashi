@@ -42,7 +42,7 @@
     "@deepseek-ai/dsh-util-values": "catalog:",
     "@deepseek-ai/dsh-util-workspace-path": "catalog:",
     "@deepseek-ai/dsh-workflow": "catalog:",
-    "@sessionbus/kit": "0.5.7",
+    "@sessionbus/kit": "0.5.12",
     "@xterm/headless": "6.0.0",
     "@types/node": "22.20.0",
     "node-pty": "1.2.0-beta.15",
