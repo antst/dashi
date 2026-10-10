@@ -878,6 +878,23 @@ line: what was solved is recorded in W-111; whether the profile and
 plugins work is proven by the gates and the host acceptance on the
 new floor.
 
+### D-048 (2026-10-10) The DSH 0.1.5 line is closed; everyone moves to the newest DSH as soon as possible
+Owner, 2026-10-10: "no point to waste token releasing dashi and
+sessionbus for 0.1.5, nobody uses it anymore" and "this is AI world!
+everyone move to newer one ASAP". Rulings: (1) dashi 0.1.3 (plugin
+pre.16, kit 0.5.12) is the last release of the 0.1 line; no further
+0.1.x release, no host acceptance packet for it (the dsh host keeps
+its 0.1.3 install until 0.2 lands; the W-110 acceptance was stopped
+mid-run, see W-110), no umka install of it. (2) The plugin's next
+release, pre.17 (W-115), drops the DSH 0.1.5 legs and moves its peer
+floor to `>=0.2.0-rc.2` with the v4 source kind; no dual-format
+support. (3) W-113 is cancelled; the runbook re-pin folds into
+pre.17's runbook update. (4) D-030 is restated as the owner's
+standing rule: the newest published DSH is the target the moment it
+appears; evaluation (as in W-111) decides how, never whether. (5) The
+dashi 0.2 migration (W-114) is the lead item; the host and umka move
+to dashi 0.2 with plugin pre.17 when it is accepted.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -4097,6 +4114,22 @@ alpha.2 and macOS, all four v0.5.12 archives verified against the
 published sums, daemon reports v0.5.12 fd85d7e. Verifier: haiku
 seven-point review. Host step and umka install recorded below when done.
 
+Host note 2026-10-10: the dsh host install of this release was done
+and verified by the architect (dashi-app 0.1.3 with plugin pre.16,
+launcher 0.1.3, sessionbus and web profiles at pre.16, daemon v0.5.12
+installed by the owner at 15:09); the acceptance run and packet were
+stopped by the owner's D-048 ruling before completion and are not
+claimed. Finding kept: with the daemon at v0.5.12 and the profiles
+still at pre.14, a lane spawn from a current caller settled as -32600
+invalid_frame with no row (the pre.15 flag day seen from the worker
+side), distinct from the Sep 21 -32002 caller disconnect.
+Before the stop, the native-broker lane spawn proof passed on this
+host (profiles at pre.16, daemon v0.5.12, caller codex-peer v0.5.9):
+one spawn without idle_message, one completed record "lane hello"
+(run-gla0ivuhbf2h/1), ack and close; that closes the Sep 21 -32002
+and today's -32600 observations. Snapshots at
+~/.local/state/dsh-host-pre16-dashi-013/20261010T165036Z.
+
 ### W-111 DSH 0.2 line: evaluate, map what was solved, prove dashi, roller and the plugin on it — status: accepted 2026-10-10 (read-only evaluation; decided in D-047)
 Owner 2026-10-10: "there is certainly new version of DSH, so we need
 to upgrade to it and (1) check if something was solved there (2) make
@@ -4165,7 +4198,7 @@ no fake completion). The handoff protocol is unchanged: the builder's
 handoff now includes the consequence analysis as its first part.
 Docs only; one PR per repository; gates green.
 
-### W-113 sessionbus-dsh: runbook follows pre.16 and kit 0.5.12 — status: open (owner dsh-exec, docs only, under the repository's AGENTS.md)
+### W-113 sessionbus-dsh: runbook follows pre.16 and kit 0.5.12 — status: cancelled 2026-10-10 (D-048; folded into W-115)
 docs/HOST-INSTALL.md on sessionbus/sessionbus-dsh main still pins
 plugin 0.1.0-pre.15, kit 0.5.9 and daemon v0.5.9 (b485529) while the
 package is pre.16 on kit 0.5.12 and the README says the runbook does
@@ -4202,7 +4235,7 @@ and the v0.5.12 daemon. Evidence: full gate 3/3 on both legs and
 macOS; the W-111 scratch logs as the before state. Production source
 changes listed per file with their reason.
 
-### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md)
+### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md) — scope per D-048: DSH 0.1.5 legs dropped, peer floor >=0.2.0-rc.2
 Per D-047 (2), (4), (5). plugin.cjs:176 emits source.kind "plugin"
 (form relay), rejected on DSH 0.2 by session-format-v3-to-v4
 index.js:125-126 ("format v4 message requires a producer-owned source
