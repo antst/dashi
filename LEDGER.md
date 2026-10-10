@@ -4395,6 +4395,38 @@ packed proof must reach the lane and dashi cases on both. Version
 Handoff opens with the consequence analysis; bot review read at the
 reviewed head; squash pinned to it.
 
+Accepted 2026-10-10 (sessionbus/sessionbus-dsh PR #55 squash 3162d596817bceb2b2ef089184ce7b47f467031f, PR #56
+squash 2f897294419d1d99bd89226ccaffd5d18d53124a, docs PR #57 squash 75f8d65246967f023598eda41f353025ab9945a4; released as 0.1.0-pre.17 from
+tag v0.1.0-pre.17 at 75f8d65246967f023598eda41f353025ab9945a4, run 38091308571, dist-tag pre). The first change
+under the repository's root AGENTS.md: consequence analysis written,
+reviewed independently, revised (A to E), then code. Delivered peer
+messages carry the v4 kind plugin:sessionbus-dsh with form relay, the
+envelope, receipts, FIFO hop, uncertainty, idle wake and identity
+unchanged; peer floors >=0.2.1-alpha.2 for DSH and the alpha.2 CLI's
+cordis family minima; kit 0.5.12; CI and release matrices
+[0.2.1-alpha.2]; root test dependencies installed by pnpm 10.28.1 from a
+frozen exact lock (package-lock.json removed); the packed proof derives
+cordis pins from the tested CLI and installs the Agent packages its
+boundary proof imports; the dashi packed case is gated on
+DASHI_APP_VERSION and prints one NOT RUN line to stdout and the step
+summary until dashi 0.2.0-alpha.1 exists; the installer refuses a
+below-floor host before any write, proven by a new peer-floor case;
+runbook re-pinned (W-113 folded); the offline-provider helper reads no
+settings with an explicit provider and resolves the settings location
+through dsh-settings otherwise. Residual named: a manual pnpm add
+bypasses the guard. Heading correction: the entry's floor text
+`>=0.2.0-rc.2` and two-leg matrix were superseded by D-047 amendments
+(a) and (f) before implementation; the delivered floor is
+`>=0.2.1-alpha.2` with the single alpha.2 leg. D-049 proof: the
+candidate packed from 2f89729 (tarball sha256 66953c59...6ffc3, byte-
+identical at 75f8d65246967f023598eda41f353025ab9945a4's parent 1d98829) was installed on the dsh host's
+real DSH 0.2.1-alpha.2 into the sessionbus and web profiles; lane
+acceptance (idle send, one completed run, ack, close) and web acceptance
+(delivered message wakes, slash line reaches the model, one web-owned
+lane round trip) passed with the owner's web process and configuration
+untouched; packet dsh-host-dsh-021-pre17-candidate-20261010,
+SHA256(SHA256SUMS) 8f4545a3...1fe6. Verifier: sonnet verifier agent 2026-10-10 (tarball identity 2f89729/1d98829, PR #57 files and checks, packet 27/27, registry pre-publish absence).
+
 ### W-116 roller 0.1.4: DSH 0.2 legs — status: accepted 2026-10-10 (roller PR #14 squash-merged; released as 0.1.4)
 Per D-047 (5) and the W-111 report: production unchanged; drop the
 unavailable @deepseek-ai/dsh-code-runtime devDependency, provide the
