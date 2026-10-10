@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-10-10
+
+- Pin Sessionbus plugin 0.1.0-pre.16 and kit 0.5.12. Sessionbus daemon v0.5.9 or newer is required; dashi's CI/PTY harness provisions v0.5.12 for tests. A failed interrupt callback can be retried explicitly instead of yielding false success, and a superseded peer no longer waits on a courtesy reply write. `idle_message` is no longer a lane argument.
+
 ## 0.1.2 — 2026-09-21
 
 - Sessionbus 0.1.0-pre.14 adds the `/sessionbus` skill, wakes idle sessions for peer messages, and identifies the sender in a durable message envelope (W-101).

@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-const version = '0.5.7'
+const version = '0.5.12'
 const checksums = {
-  'darwin-arm64': 'e70e5b9f2121782b5e661eb38e6b2aa3b400a9f98addc9fe8da9dde0e3f54d4d',
-  'darwin-x64': 'c50de99fa0ca10ff8314d29803ae9c53f9f69fcc9e3a6053e3c4c0a74d9594b5',
-  'linux-arm64': '44532d0244e9be24d0ebf54bc64a75bbbcfa0ffff50b1a9a944b670c04085086',
-  'linux-x64': '328db4f500613ae3f431d23e5f44023fd2bef6f128936d25ac25931d1ff0bba4',
+  'darwin-arm64': 'b9908a19f542ff07907fdef423e352cc229ddb725904bfe5ed84971cd58c72bc',
+  'darwin-x64': '4ae2548f9b2f0f68c7284430032421c24d8683414aaddab4539d019c966e1bd5',
+  'linux-arm64': '8c8ca010f064dcfaf251260d727527c81b4dc2a003c287f67d68bd9ec2ec237d',
+  'linux-x64': 'ec4361b001a49c45087ea63453560a3cd16463697d959b8c8edcee2c8681f785',
 }
 const platform = `${process.platform}-${process.arch}`
 const expected = checksums[platform]
@@ -20,7 +20,7 @@ if (process.argv.includes('--docker') && platform !== 'linux-x64') {
 const root = resolve(import.meta.dirname, '..')
 const directory = join(root, '.cache', 'sessionbus')
 const asset = `sessionbus-host-${platform.replace('-x64', '-amd64')}.tar.gz`
-const archive = join(directory, asset)
+const archive = join(directory, `${version}-${asset}`)
 const binary = join(directory, 'bin', 'sessionbus')
 const base = `https://github.com/sessionbus/sessionbus/releases/download/v${version}`
 mkdirSync(directory, { recursive: true })
