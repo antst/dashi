@@ -4510,6 +4510,24 @@ pinned, tag, registry check, then W-114 re-pins to pre.18 exact.
 Evidence: the resolution test, pack byte diff limited to package.json,
 registry view of pre.18.
 
+Accepted 2026-10-10 (sessionbus/sessionbus-dsh PR #58 squash 0d98cad30e777745d350cad34694fd3f9f5c6c42;
+released as 0.1.0-pre.18 from tag v0.1.0-pre.18 at 0d98cad30e777745d350cad34694fd3f9f5c6c42, run 38094675235,
+dist-tag pre). Range `^0.1.0 || ^0.2.0-alpha.1`; package.json is the
+only shipped file that differs from pre.17 (version and that range;
+pre.17 tarball 66953c59...6ffc3, pre.18 35da7798...cc07). Proof:
+registry-shaped fixture serving the published 0.1.3 helper and the
+W-114 0.2.0-alpha.1 helper packed read-only; direct-helper profiles and
+a dashi-app-shaped profile with the two nested edges resolve one copy
+at 0.2.0-alpha.1 and one at 0.1.3 with the same importer path, and the
+old range resolves two (negative control); semver boundary checks;
+76/76 tests; packed alpha.2 lane/web/boundary/install/uninstall and
+peer-floor legs PASS; the dashi packed case stays NOT RUN until
+0.2.0-alpha.1 is published. Known boundary: a helper prerelease on a
+different base (0.2.1-alpha.x) is not admitted and needs a later range
+change. Heading correction: the published 0.1.3 helper carries cordis
+peers only, not DSH 0.1.5-floor peers; the defect is the duplicate
+provider copy. Verifier: sonnet verifier agent 2026-10-10 (PR files/checks, package.json diff, extracted tarball diff, pack sha, semver boundary, CodeRabbit at head, no skip/todo/only).
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
