@@ -1004,6 +1004,21 @@ existed and has not run on a properly installed DSH 0.2; W-118 proves
 it on the dsh host before any further roller release, and dashi
 0.2.0-alpha.1 pins it only after that proof.
 
+Amendment 2026-10-10 (multi-package products). dashi is four packages
+with exact internal pins, so a file: tarball install of dashi-app
+cannot resolve its siblings before they exist on npm, and a hand-built
+profile with local overrides is exactly the fiddling this decision
+forbids. For such products the install vehicle for the host proof is
+the ordinary prerelease publish: tag the candidate, let the release
+workflow publish all packages under a prerelease dist-tag (`alpha`;
+`latest` untouched), then `dsh plugin --profile dashi add
+@antst/dashi-app@<version>` on the dsh host exactly as a user would,
+then the proof packet. A failed proof is answered by the next
+prerelease number, never by a host patch or a moved dist-tag. Only
+after the packet is accepted may a dist-tag or an announcement move.
+Single-package products (the sessionbus plugin, roller) keep the
+packed-tarball proof before the tag.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
