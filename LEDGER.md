@@ -4199,13 +4199,15 @@ packed proof must reach the lane and dashi cases on both. Version
 Handoff opens with the consequence analysis; bot review read at the
 reviewed head; squash pinned to it.
 
-### W-116 roller 0.1.4: DSH 0.2 legs — status: open (owner codex-roller)
+### W-116 roller 0.1.4: DSH 0.2 legs — status: accepted 2026-10-10 (roller PR #14 squash-merged; released as 0.1.4)
 Per D-047 (5) and the W-111 report: production unchanged; drop the
 unavailable @deepseek-ai/dsh-code-runtime devDependency, provide the
 DSH testkit working-directory fixture in both test harnesses, peer
 floor `>=0.2.0-rc.2`, tested matrix 0.2.0-rc.2 and 0.2.1-alpha.2,
 cordis family as floors per D-047 (4), version 0.1.4, changelog.
 Evidence: gate 15/15 on both legs; the release flow of roller.
+
+Recorded in roller's LEDGER.md; release run 38066085938.
 
 ### W-117 upstream: close what DSH fixed, post what it did not — status: open (owner dsh-exec, on the owner's go)
 From W-111: reply on Discussion #7172 that 0.1.7-rc.2 and later fix
