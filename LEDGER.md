@@ -4253,7 +4253,7 @@ under its root AGENTS.md: the handoff opens with the consequence
 analysis, waits for the review bot at the reviewed head, and the
 merge is squashed and pinned to that head. Docs only.
 
-### W-114 dashi 0.2.0-alpha.1: migrate to DSH 0.2 — status: open (owner dsh-exec, design handoff first)
+### W-114 dashi 0.2.0-alpha.1: migrate to DSH 0.2 — status: open (owner dsh-exec; design accepted 2026-10-10, implementation after W-115)
 Per D-047. Phase 1, design handoff before code (consequence analysis
 per D-046): for each W-111 error group, the chosen replacement with
 file:line evidence from the tested DSH 0.2.1-alpha.2 and 0.2.0-rc.2
@@ -4276,6 +4276,37 @@ and macOS; W-101 sessionbus cases green against plugin pre.17 (W-115)
 and the v0.5.12 daemon. Evidence: full gate 3/3 on both legs and
 macOS; the W-111 scratch logs as the before state. Production source
 changes listed per file with their reason.
+
+Design accepted 2026-10-10 (phase 1c, /tmp/w114-dsh-02/
+DESIGN-HANDOFF-1C.md with proposed-dashi-app.patch.yml; three review
+passes). Composition on DSH 0.2.1-alpha.2: dsh-base host rows kept;
+persona prefix as a host system-prompt override in dashi's words; one
+native preset registry with `standard` carrying five scoped rows
+(ask-user, present, ralph, time-context, subagent with model selection
+on); dsh-tool-schedule and dsh-api-job-controller at host level;
+dashi-app's authorization dependency removed; plural presets and the
+in-process driver gone. Replacement map: shell resolve then execute;
+JobController list/follow/kill with JobView get and non-consuming
+readAt, no dashi tracker; /subtask through the native subagent tool
+returning subagentId; listChildren for direct children; v4 kinds
+plugin:dashi (augmentation in packages/dashi/src/ shell-command.ts) and
+plugin:sessionbus-dsh (plugin side, W-115); tool results carried on the
+tool message; recorded v3 fixtures migrated through
+dsh-session-format-catalog, child-bearing logs via
+historicalSessionFormatCatalog first; schedule default export and title;
+README model example deepseek-flash. Named for users: preset authoring
+inside dashi gone (upstream report on package-relative bundle patches),
+custom presets additive only, children refused the schedule tools,
+/tasks lists owned and unowned jobs while activations live in the child
+catalog, migration-required sessions shown in the picker with the native
+fork error relayed, persona and clock context from the new composition,
+alpha.2-only line. Phase 2 implements on w-114-dsh-02 after plugin
+pre.17 (W-115). Reviews: opus on 1a (blocking schedule split, preset
+copy, relay kind), opus on 1b (empty preset losses), sonnet on 1c
+(READY); carried into implementation: the boot proof asserts the scoped
+subagent shadows the host row against alpha.2 dsh-tools, and the scoped
+subagent row deliberately omits the web toolFilter because the schedule
+refusal is native.
 
 ### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md) — scope per D-048: DSH 0.1.5 legs dropped, peer floor >=0.2.0-rc.2
 Per D-047 (2), (4), (5). plugin.cjs:176 emits source.kind "plugin"
