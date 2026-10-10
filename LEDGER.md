@@ -788,6 +788,44 @@ with workflow release.yml; dashi's daemon download URL and the
 runbook's repository references are re-pinned to the organisation in
 W-105; lane clones and remotes are updated to the new URL.
 
+### D-046 (2026-10-10) Plugin repository writes outside the ledger are recorded, and announced from now on
+Found on 2026-10-10 while checking state with pdev: four merges
+landed on sessionbus/sessionbus-dsh between 2026-09-29 and 2026-10-07
+without passing this ledger: PR #51 "Follow the removal of the
+unreleased idle_message policy field" (d36a9e3) and PR #52 "release
+0.1.0-pre.15" on kit 0.5.9 (5d82dcb), both 2026-09-29; PR #53 "docs:
+require consequence analysis, KISS and RCA for every change"
+(c448175, 2026-09-30), which added a root AGENTS.md carrying the
+owner's verbatim rule of 2026-09-30 ("ANY change require extensive
+analysis of edge cases and consequences ... record also in AGENTS.md
+in ALL repos. Also add to it KISS, RCA etc."); and PR #54 "Prepare
+pre.16 with kit 0.5.12 interrupt and peer fixes" (e37fb8b, 2026-10-07)
+released as 0.1.0-pre.16 under dist-tag `pre`. All four were merged
+by pdev's root/astra operations through the owner's GitHub
+credentials on pdev, with merge commits rather than squashes; #53 and
+#54 carry retained owner authority on pdev
+(owner-rules-root-20260930/CHANGE-ANALYSIS.md;
+dsh-pre16-root-20261007/AUTHORITY.md, owner selection "pre.16 on kit
+0.5.12, then Dashi pin"); #51 and #52 are attributed by pdev to the
+owner's release-alignment rule with no verbatim approval recovered,
+and are recorded here exactly so. Rulings: (1) The plugin repository's
+root AGENTS.md is the owner's standing instruction and binds every
+change there (analysis of edge cases and consequences before the
+change, KISS, root-cause analysis, preservation and proof, one
+coordinated writer, bot review read in full at the reviewed head,
+merge pinned to that head); this ledger's handoff protocol continues
+to apply on top of it; the same owner rule is added to dashi's
+AGENTS.md by W-112. (2) Any write to sessionbus/sessionbus-dsh by a
+party other than this ledger's lanes is announced to the architect
+before merge and recorded here the same day; the architect does not
+re-review pdev's work, only records provenance. (3) The owner's word
+for a dashi release is taken in the owner's own window with the
+architect; a relayed authorization is recorded as a relay and
+confirmed directly before any release. (4) pre.15 and pre.16 are the
+current published plugin line; dashi's pin moves to pre.16 under
+W-110 on the owner's direct confirmation; the W-101 PTY gate's daemon
+moves to the sessionbus release whose kit the plugin pins.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -3957,6 +3995,98 @@ Evidence: dashi run 36293122878 green on rc.2, alpha.1, alpha.2,
 rc.3 and macOS; plugin run 36291516313 green on the peer floor and
 four legs; local full gates on rc.2 and rc.3 300/300 with 233 uniform
 DSH packages. Verifier: sonnet twelve-point review of both PRs.
+
+### W-110 dashi 0.1.3: plugin pre.16, kit 0.5.12, daemon v0.5.12 — status: open (owner dsh-exec, on the owner's direct confirmation of the pin)
+Per D-046 ruling (4). Plugin pre.15 was a flag day: the daemon must
+be v0.5.9 or newer and a kit 0.5.7 host is refused, so dashi 0.1.2
+(plugin pre.14, kit 0.5.7, PTY daemon v0.5.7) cannot meet a current
+daemon. Scope, dashi develop: dashi-app pins @sessionbus/dsh
+0.1.0-pre.16 exact (W-091 shape; lockfile moves pre.14→pre.16 and kit
+0.5.7→0.5.12, nothing else; report records); the test harness pins
+@sessionbus/kit 0.5.12 exact; scripts/provision-sessionbus.mjs moves
+to the sessionbus v0.5.12 release with its four checksums verified
+against the published SHA256SUMS; the four packages become 0.1.3 with
+a changelog line (plugin pre.16 on kit 0.5.12; daemon v0.5.9 or
+newer required; idle_message no longer exists as a lane argument).
+PTY cases from W-101 run unchanged against the v0.5.12 daemon; any
+assertion that still names idle_message or the old skill wording is
+corrected with its reason. Then on the dsh host, under the owner's
+host authorization: daemon v0.5.12 release binary into the permanent
+service (same procedure as the v0.5.7 upgrade: verified archive,
+snapshot, restart announced on the bus, peers reconnect, before/after
+inventory), sessionbus and web profiles to pre.16 exact, dashi profile
+to 0.1.3 exact, and the human-visible acceptance of D-045 ruling (3)
+natively on the permanent daemon with a current originating caller;
+sealed packet for pdev. Release identity (dashi 0.1.3, plugin pre.16,
+kit 0.5.12, daemon v0.5.12, DSH version per W-111) goes to pdev for
+the umka install. Evidence: gate 3/3 on all legs and macOS; host
+acceptance packet. Production source 0.
+
+### W-111 DSH 0.2 line: evaluate, map what was solved, prove dashi, roller and the plugin on it — status: open (owner dsh-exec; step 1 read-only)
+Owner 2026-10-10: "there is certainly new version of DSH, so we need
+to upgrade to it and (1) check if something was solved there (2) make
+sure our profile and plugins works with it." Survey of 2026-10-10:
+versions since 0.1.5-rc.3 are 0.1.7-alpha.1/2, 0.1.7-rc.1/2,
+0.2.0-rc.1/2, 0.2.1-alpha.1/2 (newest, 2026-10-09); npm latest is
+0.2.0-rc.2; no stable exists. Of our thirteen Discussions only
+#7172 (turn/end lost on pre-header cancel) is fixed in code since
+0.1.7-rc.2 (abortedCancelCause), #7175 (fork replays the pending
+prompt) is fixed from 0.1.6-alpha.1 except for a prompt submitted
+before turn/end, #7177 is partly changed (sibling dsh-* now exact
+pins, cordis family on ~ ranges), #7184 possibly touched (bundle
+dependency mapping); #7171, #7174 (fileUploads still hard-injected,
+so dsh-file-uploads-none stays), #7179/#7186 (session-scoped model),
+#7180, #7182, #7183, #7185, #7187 and the steer strand (wakeDriver
+unchanged in 0.2.1-alpha.2) are unaddressed; no maintainer has
+replied to any. Breaking notes that can touch us: spill-policy
+maxInlineBytes becomes maxInlineTokens (0.1.7-alpha.2); runtime
+invariant plugins and ./invariant exports removed (0.2.1-alpha.1);
+subpath plugins no longer read separate package.json files
+(0.2.1-alpha.1); subagent completion unified, SDK runtimes must
+support session/wait (0.2.1-alpha.2); tool-display mode `both`
+removed; agent-instructions per-row dshHome removed; some model ids
+removed (0.2.0-rc.2); cordis family moved from exact pins to
+~4.0.4 (0.2.0) and ~4.0.5-alpha.1 (0.2.1), sibling dsh-* exact.
+Step 1, read-only, per D-030 newest first: run the full dashi gate,
+the roller gate and the plugin packed proof against 0.2.1-alpha.2 and
+against 0.2.0-rc.2 in scratch (the W-109 pin helper takes the ~ range
+minimum), and report per product: install shape (cordis copies), each
+failing check with its cause classified as ours (profile config,
+peer ranges, API use such as ./invariant or spill-policy keys, test
+assumptions) or DSH's (named gap, with the smallest reproduction), and
+which of the breaking notes actually bite. Also verify in code that
+#7172 is fixed on the tested version and whether the fork cut makes
+W-070's refusal of /btw during a turn still necessary. No repo edits
+in step 1. Step 2 is decided in D-047 on that report: the new floor
+and tested matrix, the peer-range form for the cordis family (a
+floor like D-041 or the ~ range), the fixes, and the version line of
+the resulting dashi release (D-044: a floor change is 0.2.0-alpha.1).
+
+### W-112 dashi and roller: the owner's change rule in AGENTS.md — status: open (owner dsh-exec, docs only)
+Per D-046 ruling (1) and the owner's instruction of 2026-09-30
+("record also in AGENTS.md in ALL repos"). Add to dashi's AGENTS.md
+and roller's AGENTS.md a section carrying the owner's verbatim rule
+and the four practices as written in the plugin repository's
+AGENTS.md (mandatory analysis of edge cases and consequences before
+every change; KISS as the smallest sufficient change; RCA before a
+fix; preservation and proof), adapted only where this ledger already
+states a stronger rule (squash-merge only, PR titles, verifier gates,
+no fake completion). The handoff protocol is unchanged: the builder's
+handoff now includes the consequence analysis as its first part.
+Docs only; one PR per repository; gates green.
+
+### W-113 sessionbus-dsh: runbook follows pre.16 and kit 0.5.12 — status: open (owner dsh-exec, docs only, under the repository's AGENTS.md)
+docs/HOST-INSTALL.md on sessionbus/sessionbus-dsh main still pins
+plugin 0.1.0-pre.15, kit 0.5.9 and daemon v0.5.9 (b485529) while the
+package is pre.16 on kit 0.5.12 and the README says the runbook does
+not cover pre.16. Re-pin the active steps to pre.16, kit 0.5.12,
+daemon v0.5.12 (its release revision and SHA256SUMS), dashi 0.1.3
+once W-110 releases it, and the current originating-caller SDK;
+remove the idle_message remnants if any remain; stale-literal audit
+empty outside the history paragraph. First change in that repository
+under its root AGENTS.md: the handoff opens with the consequence
+analysis, waits for the review bot at the reviewed head, and the
+merge is squashed and pinned to that head. Docs only.
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
