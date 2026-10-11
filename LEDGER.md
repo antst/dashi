@@ -4818,6 +4818,25 @@ assertions unchanged. Cause still unlocalised; the item stays open
 until the next occurrence supplies evidence. Residual: several slow
 successful waits can still exhaust the budget before a stall prints.
 
+### W-124 dashi: launcher finds its own DSH; global and mixed installs documented — status: open (owner dsh-exec)
+Owner steer 2026-10-11 ("user might have both, global and local
+installs") and three host facts from the same day: the launcher spawns
+`dsh` by name, so by full path from a home install it fails with
+"dsh not found" (pdev), and with a global and a local install present
+PATH order alone decides which DSH a launcher starts; DSH 0.2.1 from a
+pnpm 11 global install does not boot at all (upstream loader bug,
+reported; mac). Deliver: (1) the launcher resolves the DSH installed
+with it first (Node resolution of @deepseek-ai/dsh from the launcher's
+own real path, its bin from that package's manifest) and falls back to
+`dsh` on PATH; zero dependencies and the one-line "not found" contract
+kept; (2) README: which layouts work (home/project install proven;
+pnpm 11 global needs the stated pnpm setting or NODE_PATH until the
+upstream fix), what a global and a local install sharing one ~/.dsh
+means (profiles and sessions are shared; a 0.2 profile needs DSH
+>=0.2.1), how to see which DSH a launcher started. Consequence analysis
+first. Evidence: launcher tests for co-installed, PATH-only and neither;
+a packed two-install fixture; hosted gates; rides 0.2.0-alpha.3.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -4892,3 +4911,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Posted 2026-10-10: DSH Discussion (Ideas): Agent.steer during the running→idle transition strands the spliced next-step item https://github.com/deepseek-ai/deepseek-harness/discussions/9370
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9399: dsh-storage-domain: let plugins supply a record schema without their own zod
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9419: dsh-settings: legacy settings.yaml import lands in one profile only
+- 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9432: DSH 0.2.1-alpha.2 does not boot from a pnpm 11 global install (native binding resolved from the loader's own module context)
