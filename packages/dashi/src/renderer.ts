@@ -307,7 +307,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     const editorLines = decision.cursor === question.options.length ? editor.render(width) : []
     const custom = question.secret === true
       ? editorLines.map((value, index) => index === 0 || index === editorLines.length - 1 ? value : value.replace(MASK_TOKEN, token => token.startsWith('\u001B') ? token : '•')) : editorLines
-    const rendered = [...prompt, ...detail, ...choiceRows, ...custom]
+    const choices = windowRows(choiceRows, Math.max(1, rows - prompt.length - detail.length - custom.length - 4), decision.cursor, true)
+      .map(choice => line(choice, width))
+    const rendered = [...prompt, ...detail, ...choices, ...custom]
     return rows < 12 ? rendered.slice(0, Math.max(2, rows - 4)) : rendered
   }
 

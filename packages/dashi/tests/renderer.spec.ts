@@ -1,4 +1,5 @@
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
+import { createHash } from 'node:crypto'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { describe, expect, it } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
@@ -35,11 +36,14 @@ class ScreenTerminal {
   private input: (data: string) => void = () => {}
   private pending = Promise.resolve()
 
-  constructor(readonly columns: number, readonly rows: number) {
+  constructor(public columns: number, public rows: number) {
     this.screen = new HeadlessTerminal({ allowProposedApi: true, cols: columns, rows })
   }
 
   get kittyProtocolActive(): boolean { return false }
+  resize(columns: number, rows: number): void {
+    this.columns = columns; this.rows = rows; this.screen.resize(columns, rows)
+  }
   start(onInput: (data: string) => void): void { this.input = onInput }
   stop(): void { this.input = () => {} }
   drainInput(): Promise<void> { return Promise.resolve() }
@@ -67,6 +71,51 @@ class ScreenTerminal {
 }
 
 describe('terminal renderer', () => {
+  it('keeps small question rendering byte-identical to the pre-window renderer', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({ createView: bindings => createRenderer({ ...bindings, inline: false, terminal }), cwd: '/work', exit: () => {}, inline: false })
+    shell.start(); await shell.whenIdle(); await terminal.flush()
+    terminal.output = ''
+    const result = shell.requestDecision({ answers: [], cursor: 0, custom: '', id: 'small', index: 0, kind: 'question', owner: { id: 'session' }, selected: [],
+      questions: [{ allowCustom: false, header: 'Small question', id: 'small', multiSelect: false, options: [{ label: 'First' }, { label: 'Last' }], question: 'Which option?' }],
+    })
+    await shell.whenIdle(); await terminal.flush()
+    const digest = createHash('sha256').update(terminal.output).digest('hex')
+    // Captured from the renderer before the W-127 choice-window change (pi-tui 0.84.4).
+    expect(digest).toBe('b2bb704bd785e76318becd026c5773ee2ca890c2c68adb2934f662f9f6b63785')
+    shell.dispatch({ type: 'decision-submit' }); await shell.whenIdle(); await result; await shell.dispose()
+  })
+
+  it('keeps long-question header, prompt and selected choice visible and answerable across resize', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({ createView: bindings => createRenderer({ ...bindings, inline: false, terminal }), cwd: '/work', exit: () => {}, inline: false })
+    shell.start()
+    const live = () => Array.from({ length: terminal.rows }, (_, row) => terminal.screen.buffer.active.getLine(terminal.screen.buffer.active.viewportY + row)?.translateToString(true) ?? '').join('\n')
+    try {
+      for (const cursor of [0, 40]) {
+        const result = shell.requestDecision({ answers: [], cursor: 0, custom: '', id: `long-${cursor}`, index: 0, kind: 'question', owner: { id: 'session' }, selected: [],
+          questions: [{ allowCustom: false, header: 'Native catalog', id: 'provider', multiSelect: false, options: Array.from({ length: 41 }, (_, index) => ({ label: `Provider ${index}` })), question: 'Choose a native provider.' }],
+        })
+        void result.catch(() => {}) // A failed frame assertion still disposes/cancels the pending question.
+        for (let move = 0; move < cursor; move++) terminal.send('\u001B[B')
+        for (const [columns, rows] of [[80, 24], [48, 14], [120, 36]]) {
+          terminal.resize(columns!, rows!)
+          shell.dispatch({ type: 'redraw' })
+          await shell.whenIdle(); await terminal.flush()
+          const frame = live()
+          expect(frame).toContain('Native catalog')
+          expect(frame).toContain('Choose a native provider.')
+          expect(frame).toContain(`› ${cursor + 1} [ ] Provider ${cursor}`)
+          expect(shell.readState().decisions[0]?.kind).toBe('question')
+          const decision = shell.readState().decisions[0]
+          if (decision?.kind !== 'question') throw new Error('decision kind changed')
+          expect(decision.questions[0]?.options).toHaveLength(41)
+        }
+        terminal.send('\r'); await shell.whenIdle()
+        await expect(result).resolves.toEqual({ answers: [{ id: 'provider', selected: [`Provider ${cursor}`] }] })
+      }
+    } finally { await shell.dispose() }
+  })
   it('renders an idle open-tail session and its history without a spinner', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const shell = createTerminalShell({
@@ -384,7 +433,8 @@ describe('terminal renderer', () => {
     expect(help).toContain(VERSION_LINE)
     expect(help).toContain('Shift+Tab permission')
     expect(help).toContain('/plugins /plugin')
-    expect(help).toContain('↓ 4 more')
+    // The two W-127 slash-help entries add three wrapped rows at this width.
+    expect(help).toContain('↓ 7 more')
     terminal.send('\u001B[6~')
     await shell.whenIdle(); await terminal.flush()
     expect(terminal.lines().join('\n')).toContain('--permission PRESET')

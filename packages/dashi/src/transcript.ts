@@ -6,6 +6,7 @@ import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tool-todo'
 import type { TerminalCell } from './state.js'
 import { createToolPresenter, type ToolPresenter } from './tool-presentation.js'
+import { credentialGuidance } from './model-setup.js'
 
 interface AssistantCells {
   reasoning?: number
@@ -180,9 +181,13 @@ export function foldCells(
   let planSlot: number | undefined
   let todoSlot: number | undefined
   let truncatedPrefix = options.truncatedStart === true
+  let provider: string | undefined
 
   for (const event of events) {
     switch (event.type) {
+      case 'request/header':
+        provider = event.data.header.config.provider
+        break
       case 'system/message':
         break
       case 'turn/start':
@@ -339,7 +344,9 @@ export function foldCells(
           cells.push({
             key: `${event.seq}:outcome`,
             kind: event.data.reason.kind === 'error' ? 'error' : 'outcome',
-            text: outcome(event.data.reason),
+            text: outcome(event.data.reason) + (event.data.reason.kind === 'error'
+              && event.data.reason.error.code === 'MISSING_CREDENTIAL' && provider !== undefined
+              ? `\n${credentialGuidance(provider)}` : ''),
           })
         }
         truncatedPrefix = false

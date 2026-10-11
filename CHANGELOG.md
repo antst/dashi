@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Guide known-provider first runs through `/model` and DSH's own profile, credential and login writers. Show guidance only for native missing-credential outcomes or an unconfigured declared reference; keep unknown readiness unknown, preserve masked entry and never replay a failed prompt (W-127).
 - Document and check global npm/pnpm, npx, project and mixed DSH installations on Linux and macOS, including the pnpm global-store remedy (W-124). Package READMEs link to the single installation guide. Remove dashi's redundant version warning in favor of DSH's native compatibility checks; make the missing-DSH hint and resume instruction independent of installation layout.
 
 ## 0.2.0-alpha.2 — 2026-10-11

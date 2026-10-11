@@ -3330,7 +3330,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       let picker = ''
       await vi.waitFor(async () => {
         picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
-        expect(picker).toContain('↓ 53 more')
+        // W-127 appends Add provider to this fixture's 60 native model rows.
+        expect(picker).toContain('↓ 54 more')
         expect(picker).toContain('W054 provider · W054 row 00')
       }, { timeout: testCeiling(20_000), interval: 20 })
       expect(picker).not.toContain('W054 row 59')
@@ -3338,8 +3339,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u001B[B'.repeat(59))
       await vi.waitFor(async () => {
         picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
-        expect(picker).toContain('↑ 53 more')
+        expect(picker).toContain('↑ 54 more')
         expect(picker).toContain('W054 provider · W054 row 59')
+        expect(picker).toContain('Add provider')
       }, { timeout: testCeiling(20_000), interval: 20 })
       const selectedAt = shell.output.length
       shell.write('\r')

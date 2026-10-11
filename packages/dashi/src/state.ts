@@ -139,6 +139,8 @@ export type OverlayValue =
   | { readonly kind: 'insert'; readonly text: string }
   | { readonly jobId: string; readonly kind: 'job-output' }
   | { readonly kind: 'model'; readonly effort?: string; readonly model: string; readonly provider: string }
+  | { readonly kind: 'model-credential'; readonly provider: string }
+  | { readonly kind: 'model-add-provider' }
   | { readonly kind: 'open-file'; readonly path: string }
   | { readonly interrupt?: true; readonly kind: 'fork' }
   | { readonly agentPreset?: string; readonly interrupt?: true; readonly kind: 'new'; readonly title?: string }
@@ -372,6 +374,8 @@ function help(): Overlay {
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /usage /context',
       '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /bashes /subtask /loop /btw /recap /history /export /copy /exit /quit',
+      '/model credential ROUTE — set its declared credential through a masked question (no secret or reference argument)',
+      '/model add — add a known provider and sign in (no secret or reference argument)',
       ...FLAG_HELP,
     ],
   }
