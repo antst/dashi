@@ -4720,6 +4720,19 @@ from a pre.18 lane profile resolving to one copy; host proof per
 D-049 on the dsh host's sessionbus and web profiles before the tag.
 Consequence analysis first (owner rule).
 
+### W-123 macOS flake: "restores after stdin is already closed" times out — status: open (owner dsh-exec, after W-121)
+Seen on the docs-only W-121 PR (#274, head 0d9cbc8, run 38108453512,
+macos-gate 325/326): profile-pty.spec.ts:2389 "restores after stdin is
+already closed" timed out at 30 s with no assertion frame, while the
+same case passed on macOS in the four W-114 hosted runs and locally.
+Logged exception to the no-rerun rule: that one macOS job was rerun
+once for #274 with the first failure kept as this item's evidence
+(/tmp/w121-macos-38108453512-failed.log and the full run log). Task:
+root cause from the recorded output and the case's wait conditions
+(observed state only, no sleeps, no widened assertion), fix the cause
+or the case's observation, prove with repeated hosted macOS runs of
+that case; if the rerun fails again this item moves ahead of W-121.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -4792,3 +4805,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Posted 2026-09-19 (draft 08): DSH Discussion (General): Session-only model selection for Agent Sessions lanes https://github.com/deepseek-ai/deepseek-harness/discussions/7186
 - Posted 2026-09-19 (draft 09): DSH Discussion (Ideas): Take-once access for launchEnvironment secrets https://github.com/deepseek-ai/deepseek-harness/discussions/7187
 - Posted 2026-10-10: DSH Discussion (Ideas): Agent.steer during the running→idle transition strands the spliced next-step item https://github.com/deepseek-ai/deepseek-harness/discussions/9370
+- 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9399: dsh-storage-domain: let plugins supply a record schema without their own zod
