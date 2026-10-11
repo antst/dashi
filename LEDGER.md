@@ -5152,6 +5152,51 @@ still gets the profile default. Own branch and pull request after
 W-125 (whose diff keeps plugin.cjs byte-identical); both ship in
 0.1.0-pre.21; one host proof per D-049 covers both.
 
+Amendment 2026-10-11 (implementation, after the builder's analysis and
+independent review of PR #67). The change above stands with three
+facts added. (1) DSH 0.2.1-alpha.2 has no public way to give one
+session its model and effort without saving the profile default: the
+controller's create and resume take neither, and the public agent
+registry accepts them only by taking creation and lifecycle ownership
+away from the controller. The plugin therefore reaches three
+documented ApiSessionAgentController methods, selectionFor,
+selectForNextRequest and serializeImageAdmission, through
+sessionController.agents, which the published types declare private
+(lib/types/index.d.ts:49; agent.d.ts:101,107,129). This is the single
+named exception to "public interfaces only". If any of the three is
+missing, that lane open fails with a message naming it; there is no
+fallback to selectModel; a lane opened without options touches neither
+the holder nor the llm service; a hosted fixture goes red if DSH
+removes one. An upstream request for a public, validated
+select-for-this-session entry point is queued. (2) Validation is DSH's
+public core resolver (llm.resolveCallConfig), taken at the point of
+use, not injected: an unknown provider, an adapter-rejected model or
+an unsupported effort fails at open before anything is committed. A
+valid but unadvertised route is accepted, so a mistyped model that a
+permissive adapter accepts now fails at the lane's first request
+instead of at open; an empty model is an error instead of a silent
+fallback. (3) Proof: the profile patch is byte-identical after open,
+after a completed turn and after shutdown in every install cell, and
+the same proof run against the published pre.20 must fail on changed
+bytes, which keeps it from passing vacuously. Unchanged and stated:
+the selection is committed before permission_mode is validated, and a
+failed option-bearing open leaves the created session behind. Version
+0.1.0 per D-051.
+
+Accepted for merge 2026-10-11 (sessionbus/sessionbus-dsh PR #67 squash
+826a29427d93150e995dec33f71685f913ebbe0f; hosted run 38162254589 at 0b065ab: 17 jobs). Reviews by an
+opus agent at 247575c (fix as ruled; the missing-seam message could
+itself fail on a version lookup; one behaviour change understated;
+the failing first control not executable) and 0b065ab (verified);
+CodeRabbit read at each head. Packed candidate 1fb8e005...4be55,
+version 0.1.0; plugin.cjs changes for this item only, installer,
+launcher and bin unchanged from W-125. Not released: host proof
+per D-049 and D-051 of the packed candidate on a global install and
+on the dsh host's project install (in-place upgrade of its pre.20
+lane and web profiles with the owner's rows byte-identical, and an
+option-bearing lane leaving the profile patch unchanged), then the
+tag v0.1.0 and the registry check.
+
 ### W-127 dashi: a fresh profile reaches a working model from inside dashi — status: open (owner dsh-exec, after W-124)
 DSH 0.2 keeps provider and default-model settings in each profile's
 patch, and its one-time import of the old global settings file lands
@@ -5196,6 +5241,21 @@ confirmation naming it; a failed prompt is never replayed. Proof needs
 native completed turns against an endpoint that requires the key.
 Upstream request, not blocking: provider readiness and login-flow
 metadata on the Host seam, which today only the web client computes.
+
+### W-128 plugin: a failed lane turn carries its native reason — status: open (owner codex-roller, after the 0.1.0 release)
+Found in the W-126 review on 2026-10-11. When a turn fails after the
+user message is bound (a provider error, a missing credential, a model
+id the backend rejects), the record a lane owner collects is outcome
+failed, native_stop_reason error and an empty result: plugin.cjs
+renders the error text only for a turn that ends before the message is
+bound (:270-274). The lane's owner cannot tell why it failed, and
+W-126 routes one more class of error there (a mistyped model accepted
+at open). Deliver: the terminal record of a failed turn carries the
+native error code and message DSH reports for that turn, through the
+existing record shape, with no secret and no host path. Consequence
+analysis first: what the kit's record allows and what DSH's turn end
+exposes. Failing-first: a replayed backend error on the first request.
+Ships as 0.1.1.
 
 ## Backlog
 
