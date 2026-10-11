@@ -1019,6 +1019,45 @@ after the packet is accepted may a dist-tag or an announcement move.
 Single-package products (the sessionbus plugin, roller) keep the
 packed-tarball proof before the tag.
 
+### D-050 (2026-10-11) Install docs and checks are universal: any DSH install, no host layout
+Owner, 2026-10-11, after the mac, pdev and umka upgrades: "DSH itself
+can be installed locally and globally without dances. As absolute
+majority of packages. Why we ended up with some kind fo fucked up
+hardcoded stuff?"; "global is recommended by DSH! so, this is mjority
+of users"; "user might have both, global and local installs"; "ok. fix
+docs and checks"; "make them universal". Cause, recorded: the dsh and
+umka hosts keep DSH as a dependency of a long-lived pnpm project in
+the home directory and upgrade it in place; pnpm then leaves peer-only
+DSH packages on the old version, and every resulting failure since
+D-043 was answered with one more check, pin or repair step until the
+host runbook passed 2,200 lines and the product READMEs inherited its
+assumptions (home path, pnpm only, one install, companion pins). The
+architect approved each step and did not apply rule 3. The same day's
+evidence: a global install is a fresh resolution and came out uniform
+with no repair (mac, 289 records); a plain profile add boots and
+passes the runtime check without companion pins (pdev, dsh). Rulings:
+(1) The install documentation of dashi and of @sessionbus/dsh is what
+an ordinary DSH user does with whatever DSH install they have: global
+(npm, pnpm, npx) first because DSH recommends it, a project install
+second, both present at once stated plainly. No home path, no
+package-manager assumption beyond what DSH itself requires, no link to
+the host runbook as the way to install. (2) Every command sequence the
+documentation gives is run by a hosted leg on a clean machine, per
+package manager and per supported OS; a sequence without a leg is not
+documented. (3) Checks, in the installer, the launcher, CI and the
+runbook, assert runtime facts through DSH's own resolution from the
+DSH that is actually executing (one DSH version, the floor, one copy
+of each of our packages, the plugin's peers resolved), never a layout
+(a path under the home directory, the number of DSH installs, pins
+present in a profile lock, a particular package manager). (4) The host
+runbook is an operations procedure for upgrading a project install in
+place; D-043's repair, companion pins and lock-uniformity rules apply
+inside that procedure only. D-049 is unchanged: the real host remains
+the proof. (5) What cannot be made to work for a layout is named with
+its owner (DSH, pnpm, a third-party plugin) and the exact remedy,
+never patched around silently. (6) Whether our own hosts move to a
+global install is a separate owner decision, not taken here.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -4836,6 +4875,46 @@ means (profiles and sessions are shared; a 0.2 profile needs DSH
 >=0.2.1), how to see which DSH a launcher started. Consequence analysis
 first. Evidence: launcher tests for co-installed, PATH-only and neither;
 a packed two-install fixture; hosted gates; rides 0.2.0-alpha.3.
+
+Amendment 2026-10-11 (D-050). Scope widened from "global and mixed
+installs documented" to the universal install story for dashi: the
+README's install and upgrade sections lead with a global DSH (npm,
+pnpm, npx), then a project install, then both at once; the "npm is
+unsupported" sentence stays or goes on the evidence of the legs; the
+link to the host runbook as the upgrade path is replaced by the
+commands themselves. New hosted legs on clean Linux and macOS run each
+documented sequence end to end (install DSH, install the launcher the
+same way, `dsh plugin --profile dashi add`, boot smoke under a
+pseudo-terminal, an in-place upgrade from the previous release); the
+pnpm 11 global-store failure (upstream Discussion 9432) is reproduced
+by a leg and documented with its remedy. The gate's layout assumptions
+are listed and replaced by runtime assertions. The launcher changes
+stand as written; its diagnostic names the upstream problem and never
+injects NODE_PATH.
+
+### W-125 plugin: universal install docs and layout-independent checks; runbook scoped as operations — status: open (owner codex-roller)
+Per D-050. In sessionbus/sessionbus-dsh: (1) README install = any DSH
+on PATH, `dsh plugin --profile <p> add @sessionbus/dsh@<v>` and the
+installer command, for a lane profile and for a web profile; nothing
+host-specific; what the installer does for the user (rows, the exact
+provider pin) stated in two sentences. (2) Guards and checks listed
+one by one with the failure each prevents and the layout it assumes;
+those that assume a layout (home path, one install, companion pins in
+the profile lock, pnpm) are rewritten to assert the runtime fact
+through the executing DSH's own resolution, or moved into the
+operations procedure if they only make sense for an in-place upgrade
+of a project install; the DSH floor guard, the bundle-conflict refusal
+and the one-copy assertions stay. Whether companion pins are needed by
+anything other than our own lock checks is settled by a leg, not by
+argument. (3) docs/HOST-INSTALL.md is retitled and introduced as the
+operations procedure for upgrading a project install in place, with
+the operator naming the DSH install to act on instead of the script
+asserting there is exactly one under the home directory. (4) Hosted
+legs on clean Linux and macOS for a global npm DSH, a global pnpm DSH
+and a project install: install, lane round trip, web delivery,
+uninstall. Consequence analysis first; no shipped guard is weakened
+without a leg showing the failure it prevented is still caught.
+Version 0.1.0-pre.21 if shipped files change; host proof per D-049.
 
 ## Backlog
 
