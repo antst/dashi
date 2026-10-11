@@ -5242,6 +5242,43 @@ native completed turns against an endpoint that requires the key.
 Upstream request, not blocking: provider readiness and login-flow
 metadata on the Host seam, which today only the web client computes.
 
+Amendment 2026-10-11 (implementation). One new file,
+packages/dashi/src/model-setup.ts (157 lines), and one new peer,
+@deepseek-ai/schemastery, to read the role a settings field declares;
+the lock gains that one importer edge. The peer on dsh-llm-pi-ai
+allowed during design is withdrawn: it rewrote the lock (zod 4.6.5,
++43/-144), so after "Add provider" dashi offers DSH's registered
+sign-in list unfiltered instead of naming the provider's own flow.
+Writers are DSH's alone: credentials.set, settings.mutate with the
+section revision, authorization.begin; selection stays selectModel.
+A provider with no known settings address or no single key setting
+gets no claim and no log line; only a native read that threw is
+logged. Outcomes as ruled: a cancel after the provider was saved says
+so and that sign-in was cancelled; a rejected key write stays
+sanitized and unconfirmed; another sign-in failure shows DSH's own
+message, as /login does. The picker reopens from the existing
+settlement continuation, so a catalog error cannot replace a write
+receipt. Changed existing behaviour, both stated: an old /login
+completion no longer closes the UI of a newer root, and the
+launcher-parity test compares the frame that carries the notice. A
+renderer defect found on the way is fixed: a question with more
+choices than rows now windows them. Twelve native cases run real DSH
+packages against a loopback endpoint that requires a generated key;
+the key value is absent from session events, terminal output, the
+export and every regular file of the private DSH home except DSH's
+credential document.
+
+Accepted 2026-10-11 (antst/dashi PR #299 squash ff05a9ef9f1d4af687da203761ad9c551b0c2bd2; hosted run
+38179093632 at ca4fa81: both gates, ten Linux and nine macOS install
+rows, macos-gate 17m10 of its 20 minutes). Reviews by an opus agent at
+4cf8956 (accept with fixes: a cancel after "Add provider" reported as
+an unconfirmed write with an internal code; a red macOS gate through a
+frame race; two assertions that could not fail), at f84a5a6 (five of
+six items verified by mutating the built product, each new control
+failing as it should; three strings left) and at ca4fa81 (strings
+only). Not released: rides in dashi 0.2.0 (D-051) with the plugin
+pinned at 0.1.0.
+
 ### W-128 plugin: a failed lane turn carries its native reason — status: open (owner codex-roller, after the 0.1.0 release)
 Found in the W-126 review on 2026-10-11. When a turn fails after the
 user message is bound (a provider error, a missing credential, a model
@@ -5256,6 +5293,17 @@ existing record shape, with no secret and no host path. Consequence
 analysis first: what the kit's record allows and what DSH's turn end
 exposes. Failing-first: a replayed backend error on the first request.
 Ships as 0.1.1.
+
+### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
+On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
+17m10 (ca4fa81, a strings-only change): the run-to-run spread is
+about half a minute and the margin under the limit is under three.
+The limit is not raised (ruled in W-124). Deliver: measure where the
+time goes per spec file on the hosted macOS runner, then the smallest
+change that restores a margin of at least five minutes, most likely
+the same suite split by file across two macOS jobs, each with the
+full setup and both required. No test dropped, skipped, retried or
+moved to Linux only. Consequence analysis first.
 
 ## Backlog
 
