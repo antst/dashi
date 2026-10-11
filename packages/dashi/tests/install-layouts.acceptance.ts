@@ -30,8 +30,9 @@ const project = join(workspace, 'project')
 const tools = join(workspace, 'tools')
 const globalPrefix = join(workspace, 'npm-global')
 const pnpmHome = join(workspace, 'pnpm-global')
+const pnpmBin = join(workspace, 'global-bin')
 const artifactDir = join(workspace, 'candidate')
-for (const path of [home, project, tools, globalPrefix, pnpmHome, artifactDir]) mkdirSync(path)
+for (const path of [home, project, tools, globalPrefix, pnpmHome, pnpmBin, artifactDir]) mkdirSync(path)
 const npmPath = spawnSync('/bin/bash', ['--noprofile', '--norc', '-c', 'command -v npm'], { encoding: 'utf8' }).stdout.trim()
 const systemPath = [dirname(process.execPath), dirname(npmPath), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(delimiter)
 const env: NodeJS.ProcessEnv = {
@@ -99,8 +100,10 @@ it(layout + ': literal README installs converge from fresh and both published ba
     const pm = join(tools, 'bin', 'pnpm')
     env.PATH = [dirname(pm), systemPath].join(delimiter)
     if (layout?.includes('pnpm')) {
-      const globalBin = run(pm, ['bin', '--global']).trim()
-      env.PATH = [globalBin, env.PATH].join(delimiter)
+      // The fixture owns its bin directory, not pnpm's per-major layout or shell setup.
+      env.PATH = [pnpmBin, env.PATH].join(delimiter)
+      run(pm, ['config', 'set', 'global-bin-dir', pnpmBin])
+      expect(run(pm, ['bin', '--global']).trim()).toBe(pnpmBin)
     } else env.PATH = [join(globalPrefix, 'bin'), env.PATH].join(delimiter)
     run('node', ['--version'])
     run('npm', ['--version'])
