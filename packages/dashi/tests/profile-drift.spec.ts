@@ -46,10 +46,11 @@ describe('validated DSH patch surface', () => {
     const dshManifestPath = require.resolve('@deepseek-ai/dsh/package.json')
     const fromDsh = createRequire(dshManifestPath)
     const baseManifestPath = fromDsh.resolve('@deepseek-ai/dsh-base/package.json')
+    const webManifestPath = fromDsh.resolve('@deepseek-ai/dsh-web-app/package.json')
     const { tested } = JSON.parse(readFileSync(
       join(root, 'packages', 'dashi', 'validated-dsh-versions.json'), 'utf8',
     )) as { tested: string[] }
-    for (const path of [dshManifestPath, baseManifestPath]) {
+    for (const path of [dshManifestPath, baseManifestPath, webManifestPath]) {
       const installed = manifest(path)
       expect(tested, `${installed.name}@${installed.version} is not tested`).toContain(installed.version)
     }

@@ -4518,36 +4518,90 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
   }, 120_000)
 
-  it('creates, lists, rejects, and stops loops through DSH Schedule', async () => {
-    const shell = new PtyShell()
+  it('creates, fires, reads native history, and stops loops through DSH Schedule', async () => {
+    const measuredAt = performance.now()
+    const shell = new PtyShell(threeTurnFixture)
     let id = ''
     let scheduleId = ''
+    let barrierId = ''
+    const proofTexts: string[] = []
+    interface ScheduleProof {
+      history: {
+        id: string; code?: string;
+        records?: Array<{ messageId: string; prompt: string; scheduledAt: string; deliveredAt: string }>;
+      }
+      catalog: Array<{ id: string; scheduledAt: string; status: string; sessionId: string }>
+    }
+    const proof = async (input: string): Promise<string> => {
+      const count = sessionEvents(id).filter(event => event.type === 'command/run'
+        && event.data?.name === 'dashi-schedule-proof').length
+      shell.write(`/dashi-schedule-proof ${input}\r`)
+      let text = ''
+      await vi.waitFor(() => {
+        const events = sessionEvents(id)
+        const runs = events.filter(event => event.type === 'command/run'
+          && event.data?.name === 'dashi-schedule-proof')
+        expect(runs).toHaveLength(count + 1)
+        expect(String(runs.at(-1)?.data?.args).trim()).toBe(input)
+        const done = events.filter(event => event.type === 'command/done'
+          && event.data?.commandId === runs.at(-1)?.data?.commandId)
+        expect(done).toHaveLength(1)
+        expect(done.at(-1)?.data?.kind, String(done.at(-1)?.data?.text)).toBe('success')
+        text = String(done.at(-1)?.data?.text)
+      }, { timeout: testCeiling(20_000) })
+      proofTexts.push(text)
+      return text
+    }
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
 
       const createAt = shell.output.length
-      shell.write('/loop 5m check the release\r')
+      shell.write('/loop 1m check the release\r')
       await vi.waitFor(() => {
         const created = sessionEvents(id).find(event => event.type === 'command/done'
           && event.data?.kind === 'success' && String(event.data?.text).startsWith('scheduled '))
-        scheduleId = /^scheduled (schedule-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}) · every 5m · check the release$/u
+        scheduleId = /^scheduled (schedule-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}) · every 1m · check the release$/u
           .exec(String(created?.data?.text))?.[1] ?? ''
         expect(scheduleId).not.toBe('')
       }, { timeout: testCeiling(20_000), interval: 20 })
       await vi.waitFor(async () => {
         const transcript = (await parsedFrame(shell.output.slice(createAt))).transcript
-        expect(transcript).toContain(`scheduled ${scheduleId} · every 5m · check the`)
+        expect(transcript).toContain(`scheduled ${scheduleId} · every 1m · check the`)
         expect(transcript).toContain('release')
       }, { timeout: testCeiling(20_000), interval: 20 })
 
       const listAt = shell.output.length
       shell.write('/loop\r')
-      await shell.waitFor(`${scheduleId} · every 5m · check the release`, listAt)
+      await shell.waitFor(`${scheduleId} · every 1m · check the release`, listAt)
 
       const rejectedAt = shell.output.length
       shell.write('/loop 0m too frequent\r')
       await shell.waitFor('every_seconds must be at least 60.', rejectedAt)
+
+      // Observe the real native minute, not a fake clock or substituted storage/driver.
+      await vi.waitFor(() => {
+        const ends = sessionEvents(id).filter(event => event.type === 'turn/end')
+        expect(ends).toHaveLength(1)
+        expect(ends[0]?.data?.reason).toEqual({ kind: 'completed' })
+      }, { timeout: testCeiling(90_000) })
+      const fired = sessionEvents(id).filter(event => event.type === 'user/message'
+        && (event.data?.source as { kind?: string } | undefined)?.kind === 'schedule')
+      expect(fired).toHaveLength(1)
+      expect(JSON.stringify(fired[0]?.data?.content)).toContain(scheduleId)
+      expect(JSON.stringify(fired[0]?.data?.content)).toContain('check the release')
+      const beforeStop = JSON.parse(await proof(scheduleId)) as ScheduleProof
+      expect(beforeStop.history.id).toBe(scheduleId)
+      expect(beforeStop.history.records).toHaveLength(1)
+      expect(beforeStop.history.records?.[0]).toMatchObject({
+        messageId: fired[0]?.data?.id, prompt: 'check the release',
+      })
+      const receipt = beforeStop.history.records?.[0]
+      expect(Date.parse(receipt?.deliveredAt ?? '')).toBeGreaterThanOrEqual(Date.parse(receipt?.scheduledAt ?? ''))
+      expect(beforeStop.catalog).toEqual([expect.objectContaining({
+        id: scheduleId, sessionId: id, status: 'active',
+      })])
+      expect(Date.parse(beforeStop.catalog[0]?.scheduledAt ?? '') - Date.parse(receipt?.scheduledAt ?? '')).toBe(60_000)
 
       const stopAt = shell.output.length
       shell.write(`/loop stop ${scheduleId}\r`)
@@ -4556,6 +4610,37 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const emptyAt = shell.output.length
       shell.write('/loop\r')
       await shell.waitFor('no active schedules', emptyAt)
+      expect(JSON.parse(await proof(scheduleId))).toEqual({
+        history: { id: scheduleId, code: 'schedule_not_found' }, catalog: [],
+      })
+
+      // A native one-shot is the positive boundary: after another full minute,
+      // a deleted recurring reminder must still have produced only its first turn.
+      const barrier = JSON.parse(await proof('barrier')) as { id: string; kind: string; scheduledAt: string }
+      barrierId = barrier.id
+      expect(barrierId).toMatch(/^schedule-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/u)
+      expect(barrier.kind).toBe('after')
+      expect(Date.parse(barrier.scheduledAt)).toBeGreaterThanOrEqual(Date.parse(receipt?.scheduledAt ?? '') + 60_000)
+      await vi.waitFor(() => {
+        const ends = sessionEvents(id).filter(event => event.type === 'turn/end')
+        expect(ends).toHaveLength(2)
+        expect(ends.map(event => event.data?.reason)).toEqual([{ kind: 'completed' }, { kind: 'completed' }])
+      }, { timeout: testCeiling(90_000) })
+      const delivered = sessionEvents(id).filter(event => event.type === 'user/message'
+        && (event.data?.source as { kind?: string } | undefined)?.kind === 'schedule')
+      expect(delivered).toHaveLength(2)
+      expect(delivered.filter(event => JSON.stringify(event.data?.content).includes(scheduleId))).toHaveLength(1)
+      expect(JSON.stringify(delivered[1]?.data?.content)).toContain(barrierId)
+      expect(JSON.stringify(delivered[1]?.data?.content)).toContain('W114 deletion barrier')
+      const barrierStopAt = shell.output.length
+      shell.write(`/loop stop ${barrierId}\r`)
+      await shell.waitFor(`stopped ${barrierId}`, barrierStopAt)
+      const finalListAt = shell.output.length
+      shell.write('/loop\r')
+      await shell.waitFor('no active schedules', finalListAt)
+      expect(JSON.parse(await proof(scheduleId))).toEqual({
+        history: { id: scheduleId, code: 'schedule_not_found' }, catalog: [],
+      })
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
@@ -4565,16 +4650,23 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
     const events = sessionEvents(id)
     expect(events.filter(event => event.type === 'command/run'
-      && event.data?.name === 'loop')).toHaveLength(5)
+      && event.data?.name === 'loop')).toHaveLength(7)
     // Alpha.2 persists schedule changes in native storage, not the session event log.
     expect(events.filter(event => event.type === 'command/done').map(event => event.data)).toEqual([
-      expect.objectContaining({ kind: 'success', text: `scheduled ${scheduleId} · every 5m · check the release` }),
-      expect.objectContaining({ kind: 'success', text: `${scheduleId} · every 5m · check the release` }),
+      expect.objectContaining({ kind: 'success', text: `scheduled ${scheduleId} · every 1m · check the release` }),
+      expect.objectContaining({ kind: 'success', text: `${scheduleId} · every 1m · check the release` }),
       expect.objectContaining({ kind: 'error', text: 'every_seconds must be at least 60.' }),
+      expect.objectContaining({ kind: 'success', text: proofTexts[0] }),
       expect.objectContaining({ kind: 'success', text: `stopped ${scheduleId}` }),
       expect.objectContaining({ kind: 'success', text: 'no active schedules' }),
+      expect.objectContaining({ kind: 'success', text: proofTexts[1] }),
+      expect.objectContaining({ kind: 'success', text: proofTexts[2] }),
+      expect.objectContaining({ kind: 'success', text: `stopped ${barrierId}` }),
+      expect.objectContaining({ kind: 'success', text: 'no active schedules' }),
+      expect.objectContaining({ kind: 'success', text: proofTexts[3] }),
     ])
-  }, 60_000)
+    console.log(`performance: native-loop-fire-delete-barrier ${(performance.now() - measuredAt).toFixed(2)} ms`)
+  }, testCeiling(220_000))
 
   it('/btw and /recap answer in titled forks without changing the main conversation', async () => {
     const cwd = join(testDir, `btw-${String(Date.now())}`)

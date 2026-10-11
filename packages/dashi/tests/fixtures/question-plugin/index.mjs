@@ -3,9 +3,24 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
 
 export function apply(ctx) {
+  ctx.commands.register({
+    name: 'dashi-schedule-proof',
+    description: 'Read native schedule history or create a one-shot deletion barrier.',
+    handler: async ({ agent, rawInput }) => {
+      if (rawInput.trim() === 'barrier') {
+        return { kind: 'success', text: JSON.stringify(await ctx.schedule.create(agent.id, {
+          after_seconds: 60, title: 'W114 deletion barrier', prompt: 'W114 deletion barrier',
+        })) }
+      }
+      return { kind: 'success', text: JSON.stringify({
+        history: await ctx.schedule.history({ sessionId: agent.id, id: rawInput.trim(), limit: 10 }),
+        catalog: await ctx.schedule.catalog(),
+      }) }
+    },
+  })
   let unownedJob
   ctx.commands.register({
     name: 'dashi-unowned-job-proof',

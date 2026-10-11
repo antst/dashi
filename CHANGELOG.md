@@ -5,6 +5,7 @@
 - Move to DSH >=0.2.1-alpha.2, with one tested 0.2 line and Sessionbus 0.1.0-pre.18. Native V4 source kinds preserve shell notices and sender-labelled relay messages; recorded fixtures use DSH's released migration catalog.
 - Compose a terminal-owned `standard` preset with scoped subagent model selection. Preset authoring now belongs to profile patches; custom presets are additive and do not inherit standard-only rows.
 - Use native job-controller streams and non-consuming output reads, direct-child catalogs and activation-based subtasks. `/tasks` includes unowned jobs; background subagents are not job rows. DSH refuses schedule tools in children, and migration-required sessions are labelled with native cold-fork errors preserved.
+- Collapse context cells by DSH's context form; notices such as subagent-settled and plugin-owned notices render collapsed, while skill instructions and relay messages stay expanded.
 
 ## 0.1.3 — 2026-10-10
 
