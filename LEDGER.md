@@ -4730,6 +4730,44 @@ from a pre.18 lane profile resolving to one copy; host proof per
 D-049 on the dsh host's sessionbus and web profiles before the tag.
 Consequence analysis first (owner rule).
 
+Accepted 2026-10-11 (sessionbus/sessionbus-dsh PR #61 squash 8e2d7c2fd84ee870cdc32bac41d101dca3c355f6; released
+as 0.1.0-pre.20 from tag v0.1.0-pre.20 at d07cc7e0a6f3c7b449af90bcdfec813fc83a6b2d, run 38115968216, dist-tag
+pre). The upload provider is a peerDependency at the pre.18 range; the
+installer derives an exact pin for every profile it manages (from the
+installed dashi-app's exact dependency when present, else the highest
+release in range, chosen explicitly because pnpm's auto-install takes
+the latest tag), adds it by the ordinary path before any row write,
+never writes a provider row for web, and leaves dashi profiles to the
+app; uninstall leaves profile-owned pins. plugin.cjs, launcher.mjs and
+bin.mjs byte-identical to pre.19; packed deltas package.json,
+install.mjs, README. Proofs: old installer fails the new cases, the
+corrected one passes; strict missing-peer refusal (auto-install off)
+and pinned positive; in-place pre.19 lane upgrade resolves one
+provider with no cleanup; packed dashi case is a labelled coexistence
+control (pre.20 beside dashi-app's pre.18), not a one-provider claim.
+Reviews: opus at 099a1a9 (NEEDS CHANGES: multi-profile partial
+mutation before refusal; a test on the live registry), delta at
+d0e26f4 (removal tests still online), final head 4c29920 verified;
+CodeRabbit read at each head; verifier opus/sonnet agents 2026-10-11 (reviews at 099a1a9/d0e26f4/4c29920, host packet 3201/3201 and live profiles). The host proof's
+first attempt stopped on a runbook defect (the provider-pin and floor
+snippets resolved dsh-app-boot from a synthetic .bin anchor, absent on
+the real host where it lives in the pnpm virtual store); fixed by PR
+#62 (squash d07cc7e0a6f3c7b449af90bcdfec813fc83a6b2d: runbook and two checkers anchor at the real dsh
+package manifest, host-like CI control), tarball unchanged. D-049
+proof on the dsh host: the candidate packed from main 8e2d7c2
+(tarball a25bbe9c...7f18, plugin.cjs 8be71831...) upgraded the
+published pre.19 sessionbus and web profiles in place by the corrected
+runbook (baseline provider 0.1.1): one provider lock record and one
+physical copy at 0.2.0-alpha.1 per profile, profile and plugin
+importers resolving the same path, no cleanup; 13 DSH records alpha.2,
+companions one each (zod 4.5.4), closure 582/582; lane acceptance
+(idle send, completed, ack, close) and a web root on a loopback
+instance with the pure per-session model seam: real Codex wake,
+`/sessionbus-groups` show/set/reset with a same-group observer
+confirming each identity; home, dashi, owner process, group records
+and default model unchanged. Packet sessionbus-w122-host.A52lHEZi
+(manifest ce5b36d4...06f23, 3201 files, verification 16/16).
+
 ### W-123 macOS flake: "restores after stdin is already closed" times out — status: open (owner dsh-exec, after W-121)
 Seen on the docs-only W-121 PR (#274, head 0d9cbc8, run 38108453512,
 macos-gate 325/326): profile-pty.spec.ts:2389 "restores after stdin is
