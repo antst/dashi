@@ -879,6 +879,35 @@ describe('terminal renderer', () => {
     await shell.dispose()
   })
 
+  it('keeps an unsent draft and its editing cursor when a startup notice arrives after the first frame', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false,
+      initialRoot: { cwd: '/work', id: 'session', model: 'recorded', status: 'idle' },
+    })
+    try {
+      shell.start()
+      await shell.whenIdle(); await terminal.flush()
+      terminal.send('unsent draft')
+      terminal.send('\u001B[D')
+      await shell.whenIdle(); await terminal.flush()
+      const cursorX = terminal.screen.buffer.active.cursorX
+      shell.dispatch({ type: 'transcript-changed', rootId: 'session', cells: [{
+        key: 'startup-credential', kind: 'context',
+        text: 'credential DEEPSEEK_API_KEY is not configured; use /login or set the credential',
+      }] })
+      await shell.whenIdle(); await terminal.flush()
+      expect(terminal.lines().join('\n')).toContain('credential DEEPSEEK_API_KEY is not configured')
+      expect(terminal.lines().join('\n')).toContain('unsent draft')
+      expect(terminal.screen.buffer.active.cursorX).toBe(cursorX)
+      terminal.send('X')
+      await shell.whenIdle()
+      expect(shell.readState().composer).toBe('unsent drafXt')
+      expect(shell.readState().prompts).toEqual([])
+    } finally { await shell.dispose() }
+  })
+
   it('shows a new-output marker while the viewport is away from the tail', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const cells = Array.from({ length: 20 }, (_, index) => ({
