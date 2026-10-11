@@ -4768,6 +4768,11 @@ confirming each identity; home, dashi, owner process, group records
 and default model unchanged. Packet sessionbus-w122-host.A52lHEZi
 (manifest ce5b36d4...06f23, 3201 files, verification 16/16).
 
+Follow-up 2026-10-11: PR #63 (squash b42bc14d9275055958cd7f3bf5e52d74f33bd279) makes the plugin's packed
+dashi case prove one shared plugin copy and one provider against the
+published dashi-app alpha.2, with the expectation derived from the
+app's pin versus the candidate.
+
 ### W-123 macOS flake: "restores after stdin is already closed" times out — status: open (owner dsh-exec, after W-121)
 Seen on the docs-only W-121 PR (#274, head 0d9cbc8, run 38108453512,
 macos-gate 325/326): profile-pty.spec.ts:2389 "restores after stdin is
