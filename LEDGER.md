@@ -4404,6 +4404,48 @@ subagent shadows the host row against alpha.2 dsh-tools, and the scoped
 subagent row deliberately omits the web toolFilter because the schedule
 refusal is native.
 
+Accepted 2026-10-11 (antst/dashi PR #267, squash 89dc1485131007dea17490d99a8f7122ee2b7e24; released as
+0.2.0-alpha.1 for all four packages from tag v0.2.0-alpha.1, run
+38104130094, dist-tag alpha, `latest` untouched). Design 1c implemented as
+accepted: dsh-base host rows kept with only the system-prompt and
+session-query-sqlite overrides; persona override with the {{model}}
+variable only; `standard` preset of exactly five scoped rows (ask-user,
+present, ralph, time-context, subagent with modelSelectionSettings);
+tool-schedule and job-controller host-level; authorization dependency
+gone; fixtures produced by dsh-session-format-catalog and DSH's own
+encoders, no hand-encoded v4; listChildren; plugin:dashi augmentation;
+jobs through the native JobController/JobView; /subtask through the
+native subagent tool; /config shows ctx.settings.documentPath; /loop
+surfaces DSH's own schedule refusal; README deepseek-flash. Pins:
+@sessionbus/dsh 0.1.0-pre.18, @antst/roller 0.1.4, DSH >=0.2.1-alpha.2
+with CI/release matrix [0.2.1-alpha.2]; workspace linkWorkspacePackages
+deep (dev-only). Every changed test expectation cites the DSH 0.2
+fact that changed it; the storage-import guard stays unconditional
+(the schedule unit test became a shipped-profile PTY case on a real
+one-minute native schedule, ~124 s). Review: opus design review at
+590fdcb (acceptable; four corrections landed in one push at d24eb67,
+three green hosted attempts there); ops caught that dashi-app's
+`workspace:^` on @antst/dashi would publish as a caret range, so the
+release unit's sibling pins are exact from here on (`workspace:*`,
+one oracle made exact, head 8c309f7, one green hosted run); verifier
+sonnet/opus agents 2026-10-10/11 (design review at 590fdcb, correction deltas at d24eb67 and 8c309f7, hosted attempts, packed manifest, host packet 3534/3534 and live profile state). D-049 proof on the dsh host (DSH 0.2.1-alpha.2): two ordinary
+paths. In-place upgrade of the existing 0.1.3 profile = FAIL
+(W-121/W-122: the plugin's own provider dependency keeps 0.1.3 beside
+0.2.0-alpha.1 and pnpm dedupe collapses nothing); fresh profile =
+PASS: 32/32 DSH records alpha.2, one provider, cordis peers resolve to
+the host's own copies, closure 590/590, banner `dashi 0.2.0-alpha.1 on
+DSH 0.2.1-alpha.2`, real Codex turn, /config shows the settings
+document path, /agents standard, /loop fire and stop with empty
+catalog, /subtask child completed, /roller-restore usage surfaced,
+idle peer relay woke the session (`peer wake ok`), typed slash line
+reached the model (`slash ok`), /resume labels a v3 log migration
+required; profile content ruled on the way: dsh-plugin-subscriptions
+removed (no DSH 0.2.1 release exists), dsh-codex 0.3.2 with the
+catalog override, companions inherited from the host. Packet
+dsh-host-dashi-020-alpha1-proof-20261011, SHA256(SHA256SUMS)
+cb289849...2fdfa, 3534 members. dist-tag stays alpha; 0.2.0-alpha.2
+(pins pre.20) proves the upgrade path.
+
 ### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md) — scope per D-048: DSH 0.1.5 legs dropped, peer floor >=0.2.0-rc.2
 Per D-047 (2), (4), (5). plugin.cjs:176 emits source.kind "plugin"
 (form relay), rejected on DSH 0.2 by session-format-v3-to-v4
