@@ -4884,3 +4884,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - Posted 2026-09-19 (draft 09): DSH Discussion (Ideas): Take-once access for launchEnvironment secrets https://github.com/deepseek-ai/deepseek-harness/discussions/7187
 - Posted 2026-10-10: DSH Discussion (Ideas): Agent.steer during the running→idle transition strands the spliced next-step item https://github.com/deepseek-ai/deepseek-harness/discussions/9370
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9399: dsh-storage-domain: let plugins supply a record schema without their own zod
+- 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9419: dsh-settings: legacy settings.yaml import lands in one profile only
