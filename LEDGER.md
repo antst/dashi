@@ -4678,6 +4678,9 @@ groups, `-` deletes one override only; home and dashi bytes untouched,
 owner's default model unchanged. Four harness stops recorded, none a
 plugin defect. Packet sessionbus-w120-host.S2zX4q9b (ca3ca8a2...85f99).
 
+Follow-up 2026-10-11: PR #60 (squash 2aa65158cc7a97dcc23f7704e098558239544a7f) canonicalises the proof
+anchors (realpath) and records the host-proof cautions in the runbook.
+
 ### W-121 dashi: in-place upgrade leaves two upload-provider copies — status: open (owner dsh-exec, after W-114 proof)
 Found by the W-114 host proof: upgrading an existing dashi profile from
 0.1.3 with the ordinary `dsh plugin --profile <p> add
