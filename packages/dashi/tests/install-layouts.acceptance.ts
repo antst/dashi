@@ -13,8 +13,8 @@ import { startTestDaemon } from './sessionbus-harness.js'
 
 // README commands are literal except for three declared prepublication deviations:
 // published baseline version substitution; packed-candidate spec substitution;
-// native profile initialisation plus sibling-tarball overrides and a fixture-only
-// --no-frozen-lockfile consistency install before the documented add.
+// native profile initialisation plus sibling-tarball overrides before the documented add;
+// only the below-floor byte-snapshot control has a --no-frozen-lockfile consistency install.
 // The below-floor CLI version is an adverse control; replay/observer composition is a model fixture.
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const layout = process.env.DASHI_INSTALL_LAYOUT
@@ -169,14 +169,14 @@ it(layout + ': literal README installs converge from fresh and both published ba
       writeFileSync(file, (existsSync(file) ? readFileSync(file, 'utf8') : '')
         + "\noverrides:\n  '@antst/dashi-app>@antst/dashi': 'file:" + artifacts['@antst/dashi'] + "'\n"
         + "  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:" + artifacts['@antst/dsh-file-uploads-none'] + "'\n")
-      // Keep the pre-add lock consistent with the fixture's overrides, including on refusal.
-      sh(cliPrefix + ' plugin --profile dashi install --no-frozen-lockfile')
     }
     if (layout === 'below-floor') {
       const lines = commands('install:G-npm', current, true)
       sh(lines[0]!.replace('@deepseek-ai/dsh@' + version, '@deepseek-ai/dsh@0.2.0-rc.2'))
       sh(lines[1]!)
       prepareCandidate()
+      // Only this refusal control needs a consistent pre-add lock for byte-identity assertions.
+      sh(cliPrefix + ' plugin --profile dashi install --no-frozen-lockfile')
       const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
       const before = ['package.json', 'pnpm-lock.yaml'].map(file => readFileSync(join(profile, file)))
       const manifest = JSON.parse(execFileSync('tar', ['-xOf', artifacts['@antst/dashi']!, 'package/package.json'], { encoding: 'utf8' })) as { name: string; version: string }

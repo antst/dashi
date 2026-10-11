@@ -112,7 +112,8 @@ build scripts. The error includes:
 ERR_PNPM_IGNORED_BUILDS
 ```
 
-The DSH tools exercised by dashi's tests run with these builds not run.
+dashi's installation checks start DSH and run a shell tool call with these
+builds not run.
 To decline them, run this command, then repeat the installation above:
 
 <!-- install:P-pnpm11-decline-builds install:P-pnpm12-decline-builds -->
