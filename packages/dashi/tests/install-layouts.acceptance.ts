@@ -11,15 +11,35 @@ import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
 import { startTestDaemon } from './sessionbus-harness.js'
 
+// README commands are literal except for three declared prepublication deviations:
+// published baseline version substitution; packed-candidate spec substitution;
+// native profile initialisation plus sibling-tarball overrides and a fixture-only
+// --no-frozen-lockfile consistency install before the documented add.
+// The below-floor CLI version is an adverse control; replay/observer composition is a model fixture.
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const layout = process.env.DASHI_INSTALL_LAYOUT
-const layouts = ['G-npm', 'G-pnpm10', 'G-pnpm11', 'G-pnpm12', 'G-npx', 'P-npm', 'P-pnpm', 'below-floor']
+const layouts = ['G-npm', 'G-pnpm10', 'G-pnpm11', 'G-pnpm12', 'G-npx', 'P-npm', 'P-pnpm10', 'P-pnpm11', 'P-pnpm12', 'below-floor']
 if (!layouts.includes(layout ?? '')) throw new Error('DASHI_INSTALL_LAYOUT must name one hosted install cell')
 const pmVersion = process.env.DASHI_INSTALL_PNPM
 if (!pmVersion) throw new Error('DASHI_INSTALL_PNPM is owned by the workflow and must be explicit')
 const readme = readFileSync(join(root, 'README.md'), 'utf8')
-const fences: Record<string, string[]> = Object.fromEntries([...readme.matchAll(/<!-- ([\w: -]+) -->\s*```sh\n([\s\S]*?)\n```/gu)]
-  .flatMap(([, names, body]) => names!.split(' ').map(name => [name, body!.split('\n')])))
+const installSection = readme.split('\n## Install\n')[1]?.split('\n## ')[0]
+if (installSection === undefined) throw new Error('README Install section is missing')
+const fences: Record<string, string[]> = {}
+const markerOwners = new Map<string, string>()
+const consumedMarkers = new Set<string>()
+for (const fence of installSection.matchAll(/```sh\n([\s\S]*?)\n```/gu)) {
+  const marker = /<!-- ([\w: -]+) -->\s*$/u.exec(installSection.slice(0, fence.index))
+  if (!marker) throw new Error('README Install sh fence has no row marker: ' + fence[1])
+  for (const name of marker[1]!.split(' ')) {
+    const owner = layouts.find(row => ['install:', 'upgrade:'].some(prefix =>
+      name === prefix + row || name.startsWith(prefix + row + '-')))
+    if (!owner) throw new Error('README Install marker names no matrix row: ' + name)
+    if (fences[name]) throw new Error('README Install marker is duplicated: ' + name)
+    fences[name] = fence[1]!.split('\n')
+    markerOwners.set(name, owner)
+  }
+}
 const version = /@deepseek-ai\/dsh@(\S+)/u.exec(fences['install:G-npm']?.join('\n') ?? '')?.[1]
 if (!version) throw new Error('README global install does not declare an exact DSH version')
 const current = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')).version as string
@@ -104,23 +124,11 @@ it(layout + ': literal README installs converge from fresh and both published ba
       env.PATH = [pnpmBin, env.PATH].join(delimiter)
       run(pm, ['config', 'set', 'global-bin-dir', pnpmBin])
       expect(run(pm, ['bin', '--global']).trim()).toBe(pnpmBin)
-    } else env.PATH = [join(globalPrefix, 'bin'), env.PATH].join(delimiter)
+    }
+    env.PATH = [join(globalPrefix, 'bin'), env.PATH].join(delimiter)
     run('node', ['--version'])
     run('npm', ['--version'])
     expect(sh('pnpm --version').trim()).toBe(pmVersion)
-
-    if (layout === 'below-floor') {
-      const lines = fences['install:G-npm']!
-      sh(lines[0]!.replace('@deepseek-ai/dsh@' + version, '@deepseek-ai/dsh@0.2.0-rc.2'))
-      sh(lines[1]!)
-      const refused = sh(lines[2]!, 1)
-      expect(refused).toContain('Plugin @antst/dashi@0.2.0-alpha.2 is incompatible with dsh 0.2.0-rc.2: peerDependencies')
-      expect(refused).toContain('dsh: restored package.json, pnpm-lock.yaml, and node_modules.')
-      writeFileSync(join(workspace, 'result.json'), JSON.stringify({
-        layout, node: process.version, pmVersion, wallSeconds: (performance.now() - started) / 1000, passed: true,
-      }))
-      return
-    }
 
     const artifacts: Record<string, string> = {}
     const packedFiles: Record<string, string[]> = {}
@@ -138,10 +146,10 @@ it(layout + ': literal README installs converge from fresh and both published ba
       packedFiles[name] = execFileSync('tar', ['-tzf', artifacts[name]!], { encoding: 'utf8' }).split('\n')
         .filter(file => file.startsWith('package/') && !file.endsWith('/'))
     }
-    // Exactly two substitutions: published baseline version, or identified packed candidate.
     const commands = (marker: string, target: string, candidate = false): string[] => {
       const source = fences[marker]
       if (!source) throw new Error('README command fence missing: ' + marker)
+      consumedMarkers.add(marker)
       return source.map(line => line.replace(/@antst\/(?:dashi-app|dashi-launcher)@[\w.-]+/gu, spec => {
         const name = spec.slice(0, spec.lastIndexOf('@'))
         return candidate ? quote(artifacts[name]!) : name + '@' + target
@@ -150,17 +158,45 @@ it(layout + ': literal README installs converge from fresh and both published ba
     const installMarker = 'install:' + layout
     const upgradeMarker = layout === 'G-npx' ? installMarker : 'upgrade:' + layout
     const cliPrefix = layout === 'G-npx' ? 'npx --yes @deepseek-ai/dsh@' + version
-      : layout === 'P-npm' ? 'npm exec -- dsh' : layout === 'P-pnpm' ? 'pnpm exec dsh' : 'dsh'
-    const launcherPrefix = layout === 'P-npm' ? 'npm exec -- ' : layout === 'P-pnpm' ? 'pnpm exec ' : ''
+      : layout === 'P-npm' ? 'npm exec -- dsh' : layout?.startsWith('P-pnpm') ? 'pnpm exec dsh' : 'dsh'
+    const launcherPrefix = layout === 'P-npm' ? 'npm exec -- ' : layout?.startsWith('P-pnpm') ? 'pnpm exec ' : ''
+    const prepareCandidate = (): void => {
+      // Third deviation: the unpublished app cannot fetch its exact siblings from the registry.
+      sh(cliPrefix + ' plugin --profile dashi install')
+      const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
+      mkdirSync(profile, { recursive: true })
+      const file = join(profile, 'pnpm-workspace.yaml')
+      writeFileSync(file, (existsSync(file) ? readFileSync(file, 'utf8') : '')
+        + "\noverrides:\n  '@antst/dashi-app>@antst/dashi': 'file:" + artifacts['@antst/dashi'] + "'\n"
+        + "  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:" + artifacts['@antst/dsh-file-uploads-none'] + "'\n")
+      // Keep the pre-add lock consistent with the fixture's overrides, including on refusal.
+      sh(cliPrefix + ' plugin --profile dashi install --no-frozen-lockfile')
+    }
+    if (layout === 'below-floor') {
+      const lines = commands('install:G-npm', current, true)
+      sh(lines[0]!.replace('@deepseek-ai/dsh@' + version, '@deepseek-ai/dsh@0.2.0-rc.2'))
+      sh(lines[1]!)
+      prepareCandidate()
+      const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
+      const before = ['package.json', 'pnpm-lock.yaml'].map(file => readFileSync(join(profile, file)))
+      const manifest = JSON.parse(execFileSync('tar', ['-xOf', artifacts['@antst/dashi']!, 'package/package.json'], { encoding: 'utf8' })) as { name: string; version: string }
+      const refused = sh(lines[2]!, 1)
+      expect(refused).toContain('Plugin ' + manifest.name + '@' + manifest.version
+        + ' is incompatible with dsh 0.2.0-rc.2: peerDependencies')
+      for (const [index, file] of ['package.json', 'pnpm-lock.yaml'].entries()) {
+        expect(readFileSync(join(profile, file)), 'refused add preserves ' + file).toEqual(before[index])
+      }
+      writeFileSync(join(workspace, 'result.json'), JSON.stringify({
+        layout, candidate: manifest.name + '@' + manifest.version, node: process.version,
+        pmVersion, wallSeconds: (performance.now() - started) / 1000, passed: true,
+      }))
+      return
+    }
     const nativePackage = (command: string, packageName: string): string => {
-      const selected = sh(command + "/bin/bash --noprofile --norc -c 'command -v dashi'").trim()
+      const selected = realpathSync(resolve(project,
+        sh(command + "/bin/bash --noprofile --norc -c 'command -v dashi'").trim()))
       let directory: string
-      try {
-        directory = packageAt(selected)
-        if (JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).name !== packageName) {
-          directory = dirname(createRequire(selected).resolve(packageName + '/package.json'))
-        }
-      } catch {
+      if (layout?.startsWith('G-pnpm') && readFileSync(selected, 'utf8').startsWith('#!/bin/sh')) {
         // pnpm global packages have separate environments; use pnpm's package selection.
         const lists = JSON.parse(run(pm, ['list', '--global', '--json', '--depth', '0'])) as Array<{
           dependencies?: Record<string, { path: string }>
@@ -168,6 +204,15 @@ it(layout + ': literal README installs converge from fresh and both published ba
         const found = lists.flatMap(list => list.dependencies?.[packageName]?.path ?? [])
         expect(found, 'package selected by ' + selected).toHaveLength(1)
         directory = realpathSync(found[0]!)
+      } else {
+        directory = packageAt(selected)
+        if (JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).name !== packageName) {
+          directory = dirname(realpathSync(createRequire(selected).resolve(packageName + '/package.json')))
+        }
+      }
+      if (layout?.startsWith('P-') && command !== '') {
+        expect(directory, 'project invocation selects the project launcher').toBe(
+          dirname(realpathSync(createRequire(join(project, 'package.json')).resolve(packageName + '/package.json'))))
       }
       expect(JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).name).toBe(packageName)
       console.log('selected dashi: ' + selected + '; package=' + directory)
@@ -249,16 +294,6 @@ it(layout + ': literal README installs converge from fresh and both published ba
       const original = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
       writeFileSync(patchPath, original.replace(/^\[\]\s*$/mu, '') + '\n' + patch)
     }
-    const prepareCandidate = (): void => {
-      // Prepublication sibling tarball substitution only. No plugin/provider/DSH edge is rewritten.
-      sh(cliPrefix + ' plugin --profile dashi install')
-      const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
-      mkdirSync(profile, { recursive: true })
-      const file = join(profile, 'pnpm-workspace.yaml')
-      writeFileSync(file, (existsSync(file) ? readFileSync(file, 'utf8') : '')
-        + "\noverrides:\n  '@antst/dashi-app>@antst/dashi': 'file:" + artifacts['@antst/dashi'] + "'\n"
-        + "  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:" + artifacts['@antst/dsh-file-uploads-none'] + "'\n")
-    }
     const execute = (lines: string[], candidate = false): string => {
       const launch = lines.at(-1)!
       for (const command of lines.slice(0, -1)) {
@@ -272,21 +307,39 @@ it(layout + ': literal README installs converge from fresh and both published ba
       env.DSH_HOME = join(workspace, 'native-' + baseline)
       const target = baseline === 'fresh' ? current : baseline
       if (layout?.startsWith('G-pnpm')) {
-        for (const command of commands('install:global-pnpm-packages', target, baseline === 'fresh')) sh(command)
+        for (const command of commands(installMarker + '-packages', target, baseline === 'fresh')) sh(command)
         if (baseline === 'fresh' && layout === 'G-pnpm11') {
           const broken = sh('dsh --profile headless --help', false)
           expect(broken).toContain(nativeBindingError)
-          for (const command of commands('install:pnpm-global-remedy', target)) sh(command)
+          for (const command of commands(installMarker + '-remedy', target)) sh(command)
           expect(run(pm, ['config', 'get', 'enableGlobalVirtualStore']).trim()).toBe('false')
           sh('dsh --profile headless --help')
         }
         if (baseline === 'fresh' && layout === 'G-pnpm12') sh('dsh --profile headless --help')
       }
       if (baseline === 'fresh' && layout?.startsWith('P-')) {
-        const globalMarker = layout === 'P-npm' ? 'install:G-npm' : 'install:global-pnpm-packages'
-        for (const command of commands(globalMarker, current, true).slice(0, 2)) sh(command)
+        // Selection does not depend on the global manager; global pnpm has its own rows.
+        for (const command of commands('install:G-npm', current, true).slice(0, 2)) sh(command)
       }
-      const launch = execute(commands(installMarker, target, baseline === 'fresh'), baseline === 'fresh')
+      const lines = commands(installMarker, target, baseline === 'fresh')
+      if (baseline === 'fresh' && layout?.startsWith('P-pnpm') && layout !== 'P-pnpm10') {
+        const broken = sh(lines[0]!, 1)
+        expect(broken).toContain('ERR_PNPM_IGNORED_BUILDS')
+        const ignored = /Ignored build scripts:([\s\S]*?)(?=\n\s*(?:help:|Run )|$)/u.exec(broken)?.[1]
+        expect(ignored, 'pnpm lists the unreviewed builds').toBeDefined()
+        const names = [...ignored!.matchAll(/(?:^|[\s,])((?:@[\w.-]+\/)?[\w.-]+)@[\w.+-]+/gu)]
+          .map(match => match[1]!).sort()
+        const decline = commands(installMarker + '-decline-builds', target)[0]!
+        const declined = [...decline.matchAll(/'!([^']+)'/gu)].map(match => match[1]!).sort()
+        expect(names, 'README build decisions match pnpm output; update the single fence if it changes').toEqual(declined)
+        expect(names.length).toBeGreaterThan(0)
+        sh(decline)
+        const policy = JSON.parse(run(pm, ['config', 'get', 'allowBuilds', '--json'])) as Record<string, boolean>
+        expect(policy, 'none of the dependency builds is approved').toEqual(Object.fromEntries(names.map(name => [name, false])))
+        writeFileSync(join(workspace, 'build-control.json'), JSON.stringify({ install: lines[0], exit: 1,
+          error: 'ERR_PNPM_IGNORED_BUILDS', names, decline, policy }))
+      }
+      const launch = execute(lines, baseline === 'fresh')
       expect(sh(cliPrefix + ' --version').trim()).toBe(version)
       if (layout === 'G-npm' && baseline === 'fresh') {
         const missing = sh('dsh plugin --profile missing-pnpm add @antst/dashi-app@' + current, 127,
@@ -297,17 +350,17 @@ it(layout + ': literal README installs converge from fresh and both published ba
       const record = await smoke(launch, target, baseline + '-installed', baseline === 'fresh',
         layout === 'G-npx' ? launch.replace(/dashi$/u, '') : launcherPrefix)
       if (baseline === 'fresh' && layout?.startsWith('P-')) {
-        const globalBin = layout === 'P-pnpm' ? run(pm, ['bin', '--global']).trim() : join(globalPrefix, 'bin')
-        expect(sh('command -v dsh').trim()).toBe(join(globalBin, 'dsh'))
-        expect(sh('dashi --version').trim()).toBe(version)
-        expect(sh(launcherPrefix + 'dashi --version').trim()).toBe(version)
+        const inspection = commands(installMarker + '-inspect-global', current)
+        expect(sh(inspection[0]!).trim()).toBe(join(globalPrefix, 'bin', 'dsh'))
+        expect(sh(inspection[1]!).trim()).toBe(version)
+        for (const command of commands(installMarker + '-inspect-project', current)) expect(sh(command).trim()).toBe(version)
         const global = await smoke('dashi', current, 'mixed-global', true, '')
         expect(record.packages['@deepseek-ai/dsh']?.dir).not.toBe(global.packages['@deepseek-ai/dsh']?.dir)
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(project)).toBe(true)
       }
       if (layout === 'G-npx' && baseline === 'fresh') {
-        for (const command of commands('install:npx-direct-warm', current)) expect(sh(command).trim()).toBe(version)
-        await smoke(commands('install:npx-direct', current)[0]!, current, 'npx-direct', true,
+        for (const command of commands(installMarker + '-direct-warm', current)) expect(sh(command).trim()).toBe(version)
+        await smoke(commands(installMarker + '-direct', current)[0]!, current, 'npx-direct', true,
           launch.replace(/dashi$/u, ''))
       }
       if (baseline !== 'fresh') {
@@ -316,6 +369,8 @@ it(layout + ': literal README installs converge from fresh and both published ba
           layout === 'G-npx' ? upgraded.replace(/dashi$/u, '') : launcherPrefix)
       }
     }
+    expect([...markerOwners].filter(([marker, owner]) => owner === layout && !consumedMarkers.has(marker))
+      .map(([marker]) => marker), 'every Install marker assigned to this row is consumed').toEqual([])
     const wallSeconds = (performance.now() - started) / 1000
     const result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds, passed: true }
     writeFileSync(join(workspace, 'result.json'), JSON.stringify(result))

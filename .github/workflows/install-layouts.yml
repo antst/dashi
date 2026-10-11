@@ -22,7 +22,9 @@ jobs:
           - { layout: G-pnpm12, pnpm: 12.11.2 }
           - { layout: G-npx, pnpm: 10.28.1 }
           - { layout: P-npm, pnpm: 10.28.1 }
-          - { layout: P-pnpm, pnpm: 10.28.1 }
+          - { layout: P-pnpm10, pnpm: 10.28.1 }
+          - { layout: P-pnpm11, pnpm: 11.18.0 }
+          - { layout: P-pnpm12, pnpm: 12.11.2 }
         include:
           - os: ubuntu-latest
             cell: { layout: below-floor, pnpm: 10.28.1 }
@@ -41,7 +43,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: node scripts/provision-sessionbus.mjs
-      - name: Published install and upgrade, then identified packed candidate
+      - name: Fresh candidate and upgrades from alpha.1 and alpha.2
         env:
           DASHI_INSTALL_EVIDENCE: ${{ runner.temp }}
         run: pnpm exec vitest run --config scripts/install-layouts.config.mts
@@ -56,5 +58,6 @@ jobs:
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/pty-*.log
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/session-*.jsonl
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/hashes-*.json
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/build-control.json
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/result.json
           if-no-files-found: error

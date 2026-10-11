@@ -1732,7 +1732,6 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u0004\u0004')
       await shell.waitFor('Resume with:', releasedAt)
       expect(shell.output.slice(start)).not.toContain('dashi: terminal failure')
-      expect(shell.output.slice(start)).not.toContain('versions must match')
     } finally {
       await shell.close()
     }

@@ -25,7 +25,7 @@ dashi
 
 With pnpm 10 or pnpm 12:
 
-<!-- install:global-pnpm-packages -->
+<!-- install:G-pnpm10-packages install:G-pnpm11-packages install:G-pnpm12-packages -->
 ```sh
 pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
 pnpm add -g @antst/dashi-launcher@0.2.0-alpha.2
@@ -49,14 +49,16 @@ npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launch
 npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0-alpha.2 dashi
 ```
 
-Or start the installed profile directly:
+To start the installed profile directly, first check the CLI installation:
 
-<!-- install:npx-direct-warm -->
+<!-- install:G-npx-direct-warm -->
 ```sh
 npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 --version
 ```
 
-<!-- install:npx-direct -->
+Then start the profile:
+
+<!-- install:G-npx-direct -->
 ```sh
 npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 --profile dashi
 ```
@@ -74,7 +76,7 @@ The suffix identifies your platform. This DSH/pnpm layout issue is tracked
 in [Discussion 9432](https://github.com/deepseek-ai/deepseek-harness/discussions/9432).
 Disable the global virtual store and reinstall DSH:
 
-<!-- install:pnpm-global-remedy -->
+<!-- install:G-pnpm11-remedy -->
 ```sh
 pnpm config set --global --json enableGlobalVirtualStore false
 pnpm remove -g @deepseek-ai/dsh && pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
@@ -94,24 +96,60 @@ npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 npm exec -- dashi
 ```
 
-Or with pnpm:
+With pnpm 10, install as written:
 
-<!-- install:P-pnpm -->
+<!-- install:P-pnpm10 install:P-pnpm11 install:P-pnpm12 -->
 ```sh
 pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
 pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 pnpm exec dashi
 ```
 
+pnpm 11 and 12 stop at the first command until you decide about dependency
+build scripts. The error includes:
+
+```text
+ERR_PNPM_IGNORED_BUILDS
+```
+
+The DSH tools exercised by dashi's tests run with these builds not run.
+To decline them, run this command, then repeat the installation above:
+
+<!-- install:P-pnpm11-decline-builds install:P-pnpm12-decline-builds -->
+```sh
+pnpm approve-builds '!@deepseek-ai/dsh-subprocess-local' '!@google/genai' '!koffi' '!node-pty' '!protobufjs'
+```
+
+[`pnpm approve-builds`](https://pnpm.io/cli/approve-builds) without arguments
+lets you choose interactively. Handle any additional package pnpm lists the
+same way; `!name` declines its build.
+
 ### Global and project installations together
 
 `dashi` starts the `dsh` on PATH: run it the way you run DSH, through your
 global bin directory or `npm exec` / `pnpm exec` in a project. Those project
 commands put the project's binaries first; a bare global invocation uses
-your normal PATH. To inspect the selection, use `command -v dsh` and
-`dashi --version` globally, or `npm exec -- dashi --version` /
-`pnpm exec dashi --version` in the project. `--version` reports DSH;
-`dashi --help` reports both dashi and DSH.
+your normal PATH. Inspect the global selection:
+
+<!-- install:P-npm-inspect-global install:P-pnpm10-inspect-global install:P-pnpm11-inspect-global install:P-pnpm12-inspect-global -->
+```sh
+command -v dsh
+dashi --version
+```
+
+Or check the project selection with its manager:
+
+<!-- install:P-npm-inspect-project -->
+```sh
+npm exec -- dashi --version
+```
+
+<!-- install:P-pnpm10-inspect-project install:P-pnpm11-inspect-project install:P-pnpm12-inspect-project -->
+```sh
+pnpm exec dashi --version
+```
+
+`--version` reports DSH; `dashi --help` reports both dashi and DSH.
 
 Unless you set `DSH_HOME`, both installations use DSH's same `~/.dsh`
 profiles, settings and session history. A profile therefore needs to be
@@ -153,7 +191,7 @@ npm exec -- dashi
 
 For a project using pnpm:
 
-<!-- upgrade:P-pnpm -->
+<!-- upgrade:P-pnpm10 upgrade:P-pnpm11 upgrade:P-pnpm12 -->
 ```sh
 pnpm add --save-exact @antst/dashi-launcher@0.2.0-alpha.2
 pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
@@ -203,6 +241,8 @@ The native human command `/sessionbus-groups` shows the root's declared groups,
 profile defaults. It is not a model tool or skill; lane groups remain
 daemon-owned. Sessionbus names follow DSH's native session title, not a group
 name. With no Sessionbus daemon running, Sessionbus has no effect.
+
+## Running dashi
 
 dashi renders in the terminal's main screen by default. Use
 `dashi --fullscreen` for an application-owned viewport in the
