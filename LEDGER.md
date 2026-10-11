@@ -4743,6 +4743,14 @@ root cause from the recorded output and the case's wait conditions
 or the case's observation, prove with repeated hosted macOS runs of
 that case; if the rerun fails again this item moves ahead of W-121.
 
+Diagnostics armed 2026-10-11 (antst/dashi PR #279, squash 2815739240e5d83873ca26994a8d62a882fa9946; test
+only): the case's outer timeout now follows the suite's budget
+(testCeiling: 30 s locally, 90 s in CI) so the helpers' 60 s
+observed-state diagnostics print before any outer timer; waits and
+assertions unchanged. Cause still unlocalised; the item stays open
+until the next occurrence supplies evidence. Residual: several slow
+successful waits can still exhaust the budget before a stall prints.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
