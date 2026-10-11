@@ -245,6 +245,8 @@ name. With no Sessionbus daemon running, Sessionbus has no effect.
 
 ## Running dashi
 
+Use `/model` to add a provider or enter its key in a masked question, then select a model and send a new prompt. Providers are configured per DSH profile, while credentials use DSH's shared store.
+
 dashi renders in the terminal's main screen by default. Use
 `dashi --fullscreen` for an application-owned viewport in the
 alternate screen.

@@ -15,6 +15,11 @@ function agent(): Agent {
 }
 
 describe('terminal catalogs', () => {
+  it('keeps setup actions available beside an empty or failed native model catalog', () => {
+    const overlay = modelOverlay({ default: { model: 'm', provider: 'p' }, routableProviders: [], groups: [], failures: [{ name: 'P', id: 'p', message: 'native failure' }] }, undefined,
+      [{ label: 'Add provider', value: { kind: 'model-add-provider' } }])
+    expect(overlay).toMatchObject({ notice: 'P: native failure', options: [{ label: 'Add provider', value: { kind: 'model-add-provider' } }] })
+  })
   it('completes the fixed pnpm plugin vocabulary and leaves later arguments free', async () => {
     const ctx = {} as Context
     const options = await completionOptions(ctx, agent(), '/plugin ')

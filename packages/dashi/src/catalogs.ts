@@ -149,7 +149,7 @@ export function sessionOverlay(items: readonly SessionSummary[], currentId: stri
 }
 
 /** Flatten DSH's provider/model/effort catalog into one terminal picker. */
-export function modelOverlay(catalog: ModelCatalog, selected?: ModelSelection): Overlay {
+export function modelOverlay(catalog: ModelCatalog, selected?: ModelSelection, actions: readonly OverlayOption[] = []): Overlay {
   const options: OverlayOption[] = []
   for (const group of catalog.groups) {
     for (const model of group.models) {
@@ -175,7 +175,9 @@ export function modelOverlay(catalog: ModelCatalog, selected?: ModelSelection): 
       }
     }
   }
-  return { cursor: Math.max(0, options.findIndex(option => option.active === true)), kind: 'list', options, purpose: 'model', title: 'Model' }
+  return { cursor: Math.max(0, options.findIndex(option => option.active === true)), kind: 'list', options: [...options, ...actions], purpose: 'model', title: 'Model',
+    ...(catalog.failures.length === 0 ? {} : { notice: catalog.failures.map(failure => `${failure.name}: ${failure.message}`).join('; ') }),
+  }
 }
 
 /** Build the preset picker from the native preset service. */

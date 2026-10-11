@@ -383,4 +383,3 @@ it(layout + ': literal README installs converge from fresh and both published ba
     writeFileSync(join(workspace, 'commands.log'), output)
   }
 })
-

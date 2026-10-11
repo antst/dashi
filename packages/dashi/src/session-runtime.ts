@@ -66,6 +66,8 @@ import type {
   OverlayOption,
   OverlayValue,
   PendingDecision,
+  QuestionAnswer,
+  QuestionItem,
   RootView,
   SendMode,
   TerminalCell,
@@ -77,6 +79,7 @@ import { markdownTranscript } from './session-export.js'
 import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
+import { addModelProvider, credentialOptions, missingCredentialNotice, setModelCredential } from './model-setup.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
@@ -400,16 +403,25 @@ export async function createSessionRuntime(
     const from = bound.agent.session.seq
     const execution = ctx.commands.execute(bound.agent, line,
       images.map(image => ({ type: 'image' as const, ...image })), lifetime.signal)
+    const settled = (result: CommandExecution | undefined): void => {
+      if (result === undefined) return
+      onSettled?.(result)
+      const setup = bound.agent.session.snapshotEvents(from).some(event => event.type === 'command/run'
+        && event.data.commandId === result.commandId && event.data.name === 'model'
+        && (event.data.args?.trim() === 'add' || event.data.args?.trim().startsWith('credential ') === true))
+      if (setup && current() === bound && !bound.abort.signal.aborted && !lifetime.signal.aborted) {
+        // DSH has already recorded command/done; a picker read must not replace the write receipt.
+        void openModel(bound).catch((error: unknown) => { report(error, bound.root.id) })
+      }
+    }
     const accepted = bound.agent.session.snapshotEvents(from).some(event => event.type === 'command/run')
     if (!accepted) {
       const result = await execution
       if (result === undefined) return false
-      onSettled?.(result)
+      settled(result)
       return true
     }
-    void execution.then(result => {
-      if (result !== undefined) onSettled?.(result)
-    }).catch((error: unknown) => {
+    void execution.then(settled).catch((error: unknown) => {
       if (!lifetime.signal.aborted) report(error, bound.root.id)
     })
     return true
@@ -433,6 +445,28 @@ export async function createSessionRuntime(
       if (prompt.signal?.aborted !== true && (error as { code?: unknown }).code === 'ASK_ABORTED') throw new AuthorizationDeclinedError()
       throw error
     })
+  const login = async (bound: Binding, key: string, method: string | undefined, signal: AbortSignal): Promise<CommandResult> => {
+    const entry = ctx.authorization.describe(parseCredentialKey(key))
+    if (entry === undefined) return { kind: 'error', text: `no authorization flow for ${key}` }
+    const notices: string[] = []
+    const outcome = await ctx.authorization.begin({ key: entry.key, ...(method === undefined ? {} : { method }), signal,
+      interaction: { notify: notice => {
+        notices.push(notice.message, ...(notice.url === undefined ? [] : [notice.url]), ...(notice.code === undefined ? [] : [`Code: ${notice.code}`]))
+        dispatch({ type: 'open-overlay', overlay: { kind: 'info', title: 'Login', lines: notices } })
+      }, prompt: prompt => authorizationPrompt(bound, prompt, notices.join('\n')) },
+    }).finally(() => { if (current() === bound && !bound.abort.signal.aborted) dispatch({ type: 'overlay-close' }) })
+    return { kind: 'success', text: outcome.status === 'authorized' ? `signed in to ${entry.label}` : 'login cancelled' }
+  }
+  const setupQuestion = (bound: Binding, signal: AbortSignal) => async (question: QuestionItem): Promise<QuestionAnswer> => {
+    signal.throwIfAborted()
+    const result = await decide<Exclude<DecisionAnswer, string>>({
+      answers: [], cursor: 0, custom: '', id: `model-setup:${String(++decisionSequence)}`, index: 0, kind: 'question',
+      owner: { id: bound.root.id, ...(bound.root.title === undefined ? {} : { label: bound.root.title }) },
+      questions: [question], selected: [],
+    }, signal)
+    signal.throwIfAborted()
+    return result.answers[0] ?? { id: question.id, selected: [] }
+  }
   const transcriptCells = (bound: Binding): readonly TerminalCell[] => [
     ...foldCells(bound.events, bound.presenter, { truncatedStart: bound.hasMore }),
     ...bound.streamCells,
@@ -578,10 +612,10 @@ export async function createSessionRuntime(
   }
   const openModel = async (bound: Binding): Promise<void> => {
     const catalog = await ctx.sessionController.modelCatalog()
-    const overlay = modelOverlay(catalog, currentModel(ctx, bound.agent))
-    if (overlay.kind === 'list' && overlay.options.length === 0) {
-      throw new Error(catalog.failures.map(failure => `${failure.name}: ${failure.message}`).join('; ') || 'no models available')
-    }
+    const overlay = modelOverlay(catalog, currentModel(ctx, bound.agent), [
+      ...credentialOptions(ctx), { label: 'Add provider', value: { kind: 'model-add-provider' } },
+    ])
+    if (current() !== bound || bound.abort.signal.aborted) return
     dispatch({ type: 'open-overlay', overlay })
   }
 
@@ -891,16 +925,7 @@ export async function createSessionRuntime(
           const values = invocation.rawInput.trim().split(/\s+/u).filter(Boolean)
           if (values.length === 0) return { kind: 'success', text: ctx.authorization.list().map(entry => `${String(entry.key)} · ${entry.label} · ${entry.methods.map(method => `${method.id}: ${method.label}`).join(', ')}${entry.inFlight ? ' · in progress' : ''}`).join('\n') || 'no authorization flows' }
           if (values.length > 2) return { kind: 'error', text: 'usage: /login [KEY [METHOD]]' }
-          const entry = ctx.authorization.describe(parseCredentialKey(values[0]!))
-          if (entry === undefined) return { kind: 'error', text: `no authorization flow for ${values[0]}` }
-          const notices: string[] = []
-          const outcome = await ctx.authorization.begin({ key: entry.key, ...(values[1] === undefined ? {} : { method: values[1] }), signal: invocation.signal,
-            interaction: { notify: notice => {
-              notices.push(notice.message, ...(notice.url === undefined ? [] : [notice.url]), ...(notice.code === undefined ? [] : [`Code: ${notice.code}`]))
-              dispatch({ type: 'open-overlay', overlay: { kind: 'info', title: 'Login', lines: notices } })
-            }, prompt: prompt => authorizationPrompt(bound, prompt, notices.join('\n')) },
-          }).finally(() => { dispatch({ type: 'overlay-close' }) })
-          return { kind: 'success', text: outcome.status === 'authorized' ? `signed in to ${entry.label}` : 'login cancelled' }
+          return login(bound, values[0]!, values[1], invocation.signal)
         },
       },
       { name: 'logout', description: 'List or forget provider credentials', input: { hint: '[KEY]' },
@@ -1141,14 +1166,29 @@ export async function createSessionRuntime(
         },
       },
       {
-        name: 'model', description: 'Select the model and reasoning effort',
+        name: 'model', description: 'Select a model; /model credential PROVIDER sets its key, /model add adds a provider',
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
-          const invalid = usage(invocation.rawInput, '/model')
-          if (invalid !== undefined) return invalid
-          await openModel(bound)
-          return { kind: 'success' }
+          const input = invocation.rawInput.trim()
+          if (input === '') { await openModel(bound); return { kind: 'success' } }
+          const invalid = { kind: 'error', text: 'usage: /model [credential PROVIDER | add]; enter keys only in the masked question' } as const
+          if (input !== 'add' && !input.startsWith('credential ')) return invalid
+          const signal = AbortSignal.any([invocation.signal, lifetime.signal, bound.abort.signal])
+          try {
+            const ask = setupQuestion(bound, signal)
+            if (input === 'add') return await addModelProvider(ctx, ask, signal, (key, method) => login(bound, key, method, signal))
+            const raw = input.slice('credential '.length)
+            let provider: unknown
+            try { provider = raw.startsWith('"') ? JSON.parse(raw) : raw } catch { return invalid }
+            if (typeof provider !== 'string' || !ctx.llm.listConfigurableProviders().some(route => route.provider === provider)) {
+              return { kind: 'error', text: 'choose a provider from /model; enter keys only in the masked question' }
+            }
+            return await setModelCredential(ctx, provider, ask, signal)
+          } catch (error) {
+            if (signal.aborted || (error as { code?: unknown }).code === 'ASK_ABORTED') return { kind: 'success', text: 'model setup cancelled' }
+            throw error
+          }
         },
       },
       {
@@ -1313,6 +1353,11 @@ export async function createSessionRuntime(
     try {
       const bound = current()
       switch (value.kind) {
+        case 'model-credential':
+        case 'model-add-provider':
+          // Native command admission returns before its question waits on this same effect queue.
+          await executeAccepted(bound, value.kind === 'model-add-provider' ? '/model add' : `/model credential ${JSON.stringify(value.provider)}`, [])
+          break
         case 'fork':
         case 'new':
         case 'open-resume':
@@ -1508,6 +1553,13 @@ export async function createSessionRuntime(
       binding.pump = follow(binding)
       binding.controlPump = followControl(binding)
       binding.jobPump = followJobs(binding)
+      const bound = binding
+      void missingCredentialNotice(ctx, bound.root.provider).then(notice => {
+        if (notice === undefined || !accepting || current() !== bound || bound.abort.signal.aborted) return
+        dispatch({ type: 'transcript-changed', rootId: bound.root.id, cells: [
+          ...transcriptCells(bound), { key: 'startup-credential', kind: 'context', text: notice },
+        ] })
+      })
     },
     async submit(text, mode, attachments) {
       if (!accepting) return

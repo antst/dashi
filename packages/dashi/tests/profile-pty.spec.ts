@@ -803,15 +803,19 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
-  it('boots the same first frame through the dashi launcher', async () => {
-    const direct = new PtyShell()
+  it('boots the same credential-guidance frame through the dashi launcher', async () => {
+    const direct = new PtyShell(replayFixture, undefined, root, { DEEPSEEK_API_KEY: undefined })
     let id = ''
     let expected = ''
     try {
       const start = await launch(direct, `${quote(dsh)} --profile dashi`)
       id = sessionId(direct.output, start)
-      await direct.waitFor('idle ·', start)
-      expected = await firstFrame(direct.output.slice(start))
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(direct.output.slice(start))
+        expect(frame.transcript, frame.text).toContain('credential DEEPSEEK_API_KEY is not configured')
+        expect(frame.status, frame.text).toContain('idle ·')
+        expected = frame.text
+      }, { timeout: testCeiling(20_000), interval: 20 })
       const releasedAt = direct.output.length
       direct.write('\u0004\u0004')
       await direct.waitFor('Resume with:', releasedAt)
@@ -820,13 +824,20 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
 
     const viaLauncher = new PtyShell(replayFixture, undefined, root, {
+      DEEPSEEK_API_KEY: undefined,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
     })
     try {
       const start = await launch(viaLauncher,
         `${quote(process.execPath)} ${quote(dashiLauncher)} --resume ${quote(id)}`)
-      await viaLauncher.waitFor('idle ·', start)
-      expect(await firstFrame(viaLauncher.output.slice(start))).toBe(expected)
+      let actual = ''
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(viaLauncher.output.slice(start))
+        expect(frame.transcript, frame.text).toContain('credential DEEPSEEK_API_KEY is not configured')
+        expect(frame.status, frame.text).toContain('idle ·')
+        actual = frame.text
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      expect(actual).toBe(expected)
       const releasedAt = viaLauncher.output.length
       viaLauncher.write('\u0004\u0004')
       await viaLauncher.waitFor('Resume with:', releasedAt)
@@ -3330,7 +3341,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       let picker = ''
       await vi.waitFor(async () => {
         picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
-        expect(picker).toContain('↓ 53 more')
+        // W-127 appends Add provider to this fixture's 60 native model rows.
+        expect(picker).toContain('↓ 54 more')
         expect(picker).toContain('W054 provider · W054 row 00')
       }, { timeout: testCeiling(20_000), interval: 20 })
       expect(picker).not.toContain('W054 row 59')
@@ -3338,8 +3350,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u001B[B'.repeat(59))
       await vi.waitFor(async () => {
         picker = (await parsedFrame(shell.output.slice(start), 100, 12)).overlay
-        expect(picker).toContain('↑ 53 more')
+        expect(picker).toContain('↑ 54 more')
         expect(picker).toContain('W054 provider · W054 row 59')
+        expect(picker).toContain('Add provider')
       }, { timeout: testCeiling(20_000), interval: 20 })
       const selectedAt = shell.output.length
       shell.write('\r')

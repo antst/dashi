@@ -22,6 +22,23 @@ function fakeRenderer(log: string[], failRedraw = false): Renderer {
 }
 
 describe('terminal application', () => {
+  it('restores an unsent draft after a masked setup question without putting the answer in prompt history', async () => {
+    const log: string[] = []
+    const shell = createTerminalShell({ createView: () => fakeRenderer(log), cwd: '/work', exit: () => {}, inline: false })
+    shell.start()
+    shell.dispatch({ type: 'composer-changed', text: 'unsent draft' })
+    const result = shell.requestDecision({ answers: [], cursor: 0, custom: '', id: 'credential', index: 0, kind: 'question', owner: { id: 'session' }, selected: [],
+      questions: [{ header: 'Set credential', id: 'credential', multiSelect: false, options: [], question: 'Enter the credential', secret: true }],
+    })
+    shell.dispatch({ type: 'composer-changed', text: 'private test answer' })
+    expect(shell.readState().composer).toBe('unsent draft')
+    shell.dispatch({ type: 'decision-submit' }); await shell.whenIdle(); await result
+    expect(shell.readState().composer).toBe('unsent draft')
+    expect(shell.readState().prompts).toEqual([])
+    expect(shell.readState().decisions).toEqual([])
+    expect(log).toContain('discard')
+    await shell.dispose()
+  })
   it('runs effects in order and exits on the second empty Ctrl+C', async () => {
     const log: string[] = []
     const exits: number[] = []
@@ -143,6 +160,21 @@ describe('terminal application', () => {
     })
     await shell.dispose()
     await expect(result).rejects.toMatchObject({ name: 'UserQuestionError', code: 'ASK_CANCELLED' })
+  })
+
+  it('discards a masked pending answer on terminal loss without recording it as a prompt', async () => {
+    const log: string[] = []
+    const shell = createTerminalShell({ createView: () => fakeRenderer(log), cwd: '/work', exit: () => {}, inline: false })
+    shell.start()
+    const result = shell.requestDecision({ answers: [], cursor: 0, custom: '', id: 'credential', index: 0, kind: 'question', owner: { id: 'session' }, selected: [],
+      questions: [{ header: 'Set credential', id: 'credential', multiSelect: false, options: [], question: 'Enter the credential', secret: true }],
+    })
+    shell.dispatch({ type: 'composer-changed', text: 'private pending answer' })
+    await shell.dispose()
+    await expect(result).rejects.toMatchObject({ name: 'UserQuestionError', code: 'ASK_CANCELLED' })
+    expect(log).toContain('discard')
+    expect(log.join('\n')).not.toContain('private pending answer')
+    expect(shell.readState().prompts).toEqual([])
   })
 
   it('uses the cooked-terminal handoff while an external editor replaces text', async () => {

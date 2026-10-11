@@ -64,4 +64,3 @@ export class TestPtyShell {
     if (result === -1) this.process.kill('SIGKILL')
   }
 }
-
