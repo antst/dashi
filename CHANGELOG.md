@@ -7,6 +7,7 @@
 - Use native job-controller streams and non-consuming output reads, direct-child catalogs and activation-based subtasks. `/tasks` includes unowned jobs; background subagents are not job rows. DSH refuses schedule tools in children, and migration-required sessions are labelled with native cold-fork errors preserved.
 - Collapse context cells by DSH's context form; notices such as subagent-settled and plugin-owned notices render collapsed, while skill instructions and relay messages stay expanded.
 - Pin dashi-app's sibling packages to the exact release version so the four-package release unit cannot drift across versions.
+- Document the alpha.1 in-place upgrade defect (two upload-provider copies; dedupe does not repair it), the working fresh-profile path, the planned alpha.2/pre.20 upgrade release and third-party plugin requirements (W-121, W-122).
 
 ## 0.1.3 — 2026-10-10
 

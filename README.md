@@ -4,6 +4,9 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 
 ## Install
 
+For an existing profile, read the [upgrade caveat](#upgrading-an-existing-profile)
+before running these commands.
+
 Install DSH 0.2.1-alpha.2 and the matching dashi 0.2 prerelease:
 
 ```sh
@@ -15,9 +18,40 @@ dashi
 dashi 0.2 is a prerelease on DSH's 0.2 line; it replaces the 0.1 integration.
 Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.
-For an in-place upgrade, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile.
 A DSH profile must use one uniform DSH version. The minimum supported version
 is `0.2.1-alpha.2`; CI tests `0.2.1-alpha.2` with an exact, reproducible graph.
+
+### Upgrading an existing profile
+
+Upgrading an existing `0.1.x` profile to `0.2.0-alpha.1` leaves two
+`@antst/dsh-file-uploads-none` copies: the app's `0.2.0-alpha.1` and the
+Sessionbus plugin's retained `0.1.3` dependency (observed upgrading from `0.1.3`).
+The plugin's own provider dependency is the cause (W-122); `pnpm dedupe` does
+not collapse it. A fresh profile is the working path for alpha.1; preserve
+your existing profile and snapshots. The planned upgrade-path release is
+`0.2.0-alpha.2` with `@sessionbus/dsh@0.1.0-pre.20`; wait for that release
+for an in-place upgrade. It is not an alpha.1 repair step.
+
+For DSH graph upgrades, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile. That graph repair does not fix the alpha.1 provider duplicate.
+
+### Third-party plugins on DSH 0.2.1
+
+`dsh-codex@0.3.2` pins `@deepseek-ai/dsh-session-format-catalog` to
+`0.2.0-rc.1`. On DSH `0.2.1-alpha.2`, it needs this override in the profile's
+`package.json`. Merge this exact host block into the manifest, preserving
+other fields and any existing overrides (the block is a JSON fragment):
+
+```json
+  "pnpm": {
+    "overrides": {
+      "@deepseek-ai/dsh-session-format-catalog": "0.2.1-alpha.2"
+    }
+  },
+```
+
+`dsh-plugin-subscriptions` 0.9.9 and earlier declare DSH peers ending at
+`0.2.0-rc.2`; there is no DSH 0.2.1 release. DSH 0.2.1 refuses it at startup;
+remove it from a 0.2.1 profile unless a release with a 0.2.1 peer exists.
 
 Without the launcher package, run `dsh --profile dashi` directly or use the
 shell alias documented below.
