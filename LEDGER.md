@@ -4557,6 +4557,28 @@ change. Heading correction: the published 0.1.3 helper carries cordis
 peers only, not DSH 0.1.5-floor peers; the defect is the duplicate
 provider copy. Verifier: sonnet verifier agent 2026-10-10 (PR files/checks, package.json diff, extracted tarball diff, pack sha, semver boundary, CodeRabbit at head, no skip/todo/only).
 
+### W-120 plugin: per-session groups from the UI — status: open (owner codex-roller)
+Owner request 2026-10-11: a web profile hosts many DSH sessions, each
+its own peer row, but @sessionbus/dsh resolves groups once per process
+(plugin config key or SESSIONBUS_GROUPS; plugin.cjs:68) and the kit
+cannot change groups on a live attachment (rehello takes name/info
+only; replace needs another session id). Deliver in the plugin: one
+user-invocable, not model-invocable command through DSH's command
+service (`/sessionbus-groups`: no argument shows the session's groups,
+a comma list sets them, `-` resets to the profile default; existing
+group text validation), visible in the web palette and in dashi.
+Mechanism: shut the session's peer down and present it again with the
+same session id and the new groups (the existing create/dispose path);
+if pdev confirms a re-hello may carry groups, use that and drop the
+reconnect. Persistence: the per-session choice lives in the plugin's
+own DSH storage domain keyed by session id, applied at present, so it
+survives restart and resume; profile config and the launch variable
+remain the default for new sessions; no plugin file, no mirror.
+Owner rule: consequence analysis first. Evidence: packed alpha.2 web
+leg showing two sessions with different groups listed by a peer, the
+change surviving a process restart, the model refused the command;
+host proof on the dsh web profile per D-049 before the tag.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
