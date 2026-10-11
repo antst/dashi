@@ -1787,7 +1787,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     )) as { version: string }).version
     expect(manifests.map(manifest => manifest.version)).toEqual(Array(4).fill(workspaceVersion))
     expect(manifests[2]?.dependencies?.['@antst/dsh-file-uploads-none']).toBe(manifests[0]?.version)
-    expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(`^${manifests[1]?.version ?? ''}`)
+    expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(manifests[0]?.version)
     expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.4')
     expect(JSON.parse(readFileSync(
       join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
