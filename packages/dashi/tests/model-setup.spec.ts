@@ -29,11 +29,14 @@ function metadata() {
 const signal = (): AbortSignal => new AbortController().signal
 
 describe('native model setup boundary', () => {
-  it('reads the native credential-ref role, not a guessed field name', () => {
+  it('reads the native credential-ref role, not a guessed field name', async () => {
     const { ctx, section } = metadata()
     expect(credentialOptions(ctx)).toEqual([{ label: 'Set credential for Native', value: { kind: 'model-credential', provider: 'native' } }])
     section.schema = Schema.object({ apiKeyEnv: Schema.string().role('secret') }).toJSON()
     expect(credentialOptions(ctx)).toEqual([])
+    expect(await setModelCredential(ctx, 'native', vi.fn(), signal())).toEqual({
+      kind: 'error', text: 'Native has no single key setting dashi can fill; use /login or /config',
+    })
   })
 
   it('makes no readiness claim for an opaque route or configured reference', async () => {
@@ -77,7 +80,7 @@ describe('native model setup boundary', () => {
       section.value.apiKeyEnv = 'CHANGED_KEY'
       return { id: question.id, selected: [], custom: 'not-a-real-key' }
     }, signal())
-    expect(result.kind).toBe('error')
+    expect(result).toEqual({ kind: 'error', text: "Native's key setting changed; no key saved" })
     expect(set).not.toHaveBeenCalled()
   })
 

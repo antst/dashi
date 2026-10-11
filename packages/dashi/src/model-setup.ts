@@ -76,7 +76,7 @@ export async function setModelCredential(
   signal.throwIfAborted()
   const route = routeOf(ctx, provider)
   const ref = reference(descriptor(ctx, route), route.settingsPath)
-  if (ref === undefined) return { kind: 'error', text: `${route.displayName} declares no single credential reference; use /login or /config` }
+  if (ref === undefined) return { kind: 'error', text: `${route.displayName} has no single key setting dashi can fill; use /login or /config` }
   const confirm = async (): Promise<boolean> => (await ask({
     allowCustom: false, header: 'Replace credential', id: 'replace', multiSelect: false,
     options: [{ label: 'Replace' }, { label: 'Cancel' }],
@@ -91,7 +91,7 @@ export async function setModelCredential(
   })
   signal.throwIfAborted()
   if (reference(descriptor(ctx, route), route.settingsPath) !== ref) {
-    return { kind: 'error', text: `${route.displayName}'s credential reference changed; no credential written` }
+    return { kind: 'error', text: `${route.displayName}'s key setting changed; no key saved` }
   }
   if (!before.configured && (await ctx.credentials.describe(ref)).configured && !await confirm()) {
     return { kind: 'success', text: 'credential replacement cancelled' }
