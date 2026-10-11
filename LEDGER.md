@@ -4958,6 +4958,55 @@ time was 8m55s); runner work is unchanged. Evidence: the six Actions
 run IDs above (macOS job logs and job timestamps). Isolation is a load boundary,
 not a claim that the existing logs establish shared-capacity causation.
 
+Amendment 2026-10-11 (after independent review of PR #293). Four
+changes to the scope above, each on evidence. (1) The product's DSH
+version check is deleted, not rebuilt: it compared the CLI with its
+own exact dependency and could not fire in any documented layout,
+while the skew that can occur was invisible to it. DSH's own
+`plugin add` refuses an incompatible DSH and boot disables the rows
+with a diagnostic; a hosted leg shows the refusal on a DSH below the
+floor. (2) The launcher's "dsh not found" line changes in text only:
+it assumed a pnpm project in the home directory and now points at the
+install instructions. Nothing else in the launcher changes. (3) The
+root README is the only owner of install instructions; the four
+package READMEs are a description and a link. The hosted cells execute
+its fenced commands, read from the file. (4) The matrix is nine
+layouts on Linux and macOS: global npm, pnpm 10, 11, 12 and npx,
+project npm and pnpm 10, 11, 12. Each runs a fresh candidate and an
+upgrade from each published prerelease, a mixed global and project
+selection check and one shell tool call per turn, with every packed
+file hash-checked; one more leg is the below-floor refusal. Measured
+and documented: a pnpm 11 global install needs
+enableGlobalVirtualStore false (Discussion 9432); pnpm 11 and 12
+project installs stop at ERR_PNPM_IGNORED_BUILDS until five DSH
+dependency build scripts are declined with pnpm's own approve-builds,
+and the checks pass with them not run. Not documented as a step:
+`pnpm setup`, which on macOS with an npm-installed pnpm 12 writes a
+broken launcher (pnpm's defect). The provider that runs is read from
+the loaded module; published prereleases are observed, the candidate
+must converge to dashi-app's pin.
+One workflow consequence: with nine macOS rows running beside it,
+the macOS source gate's own time rose from about 15 minutes to over
+19 and it was cancelled at its 20 minute limit. The rows now start
+after that gate (one reusable workflow, called once per operating
+system); separated, the gate took 15m56s. The cause is consistent
+with competition and not proven; the limit and the tests are
+unchanged, and the preview build depends on the Linux rows only.
+
+Accepted for merge 2026-10-11 (antst/dashi PR #293 squash f47c89043fb972153af747ec6414dc0f9555fd04;
+hosted run 38152725106 at 225b0b2: 19 install cells and both source
+gates). Reviews by opus agents at 3a9d6e8 (one ruling conflict, six
+concerns), 3baabf1 (ten rulings met; two harness defects), 08ec2a0
+(a fixture step that pre-upgraded the baseline homes; one overstated
+sentence), 5b3dae7 (code met; macOS gate cancelled at its limit) and
+225b0b2 (verified, all checks green). No bot reviews this repository.
+Shipped behaviour changes: the version warning is removed, the resume
+hint and the launcher's not-found line are reworded. Not released:
+it rides 0.2.0-alpha.3, which pins plugin pre.21 as its last step,
+with host proof per D-049 on a global install and a project install.
+Open with the owner: the develop ruleset has no required status checks,
+so only the gate process blocks a red merge.
+
 ### W-125 plugin: universal install docs and layout-independent checks; runbook scoped as operations — status: open (owner codex-roller)
 Per D-050. In sessionbus/sessionbus-dsh: (1) README install = any DSH
 on PATH, `dsh plugin --profile <p> add @sessionbus/dsh@<v>` and the
