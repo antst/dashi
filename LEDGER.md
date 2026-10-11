@@ -4836,6 +4836,25 @@ the dsh-codex stale-peer disposition, failure guards on every repair
 caller, and the owner-only uploads assertion found by the umka upgrade
 (a profile without its own lock no longer crashes the closure check).
 
+Correction 2026-10-11 (W-125 evidence). The premise of W-119, W-121
+and this item was never a runtime fact. A profile holding two
+physical versions of the upload provider was booted for the first
+time on 2026-10-11 (W-125, isolated Linux, DSH 0.2.1-alpha.2, both
+orderings): exactly one fileUploads service is registered, the plugin
+never loads its own copy, native upload refusal and a recorded-model
+Sessionbus turn pass. The "two providers of one service" finding came
+from our copy-count check; the alpha.1 host proof stopped at the count
+and did not boot that profile. What the required peer did buy is a
+broken ordinary path: with the peer, the installer must add a package,
+and the documented `dsh plugin --profile <p> exec
+sessionbus-dsh-install` then waits on the profile lock its own parent
+holds and fails after 121 s on a fresh profile (published pre.20). The
+peer is superseded by W-125's design. One real effect was found, not
+the assumed one: DSH mounts a bundle row from the profile root, so the
+provider version that runs is the copy hoisted there, which in one
+ordering was the plugin's older in-range copy rather than dashi-app's
+pin (byte-identical files, no behavioural difference).
+
 ### W-123 macOS flake: "restores after stdin is already closed" times out — status: open (owner dsh-exec, after W-121)
 Seen on the docs-only W-121 PR (#274, head 0d9cbc8, run 38108453512,
 macos-gate 325/326): profile-pty.spec.ts:2389 "restores after stdin is
@@ -4933,6 +4952,28 @@ and a project install: install, lane round trip, web delivery,
 uninstall. Consequence analysis first; no shipped guard is weakened
 without a leg showing the failure it prevented is still caught.
 Version 0.1.0-pre.21 if shipped files change; host proof per D-049.
+
+Amendment 2026-10-11 (design, after the premise and feasibility
+controls). The plugin has neither a dependency nor a peer on
+@antst/dsh-file-uploads-none. It ships its own no-upload provider as a
+separate entry of its own package (`@sessionbus/dsh/file-uploads-none`,
+308 bytes, byte-identical to the dashi provider's lib) and the
+installer's lane row names that entry; the DSH 0.2.1-alpha.2 Loader
+mounts a package subpath row from the profile root (control: sole
+fileUploads implementation, native refusal, lane hello admitted; an
+unexported subpath is refused at boot). The installer writes rows only
+and performs no package operation: provider selection, the registry
+query, the app-pin validation and the runbook's pin step are deleted.
+The README path is `dsh plugin --profile <p> add --save-exact
+@sessionbus/dsh@<v>` then `dsh plugin --profile <p> exec
+sessionbus-dsh-install [--product dsh web]`, with the 121 s lock
+failure of published pre.20 as the failing-first control. A dashi
+profile then holds only dashi-app's provider; a web profile gets no
+provider package; an upgraded pre.20 lane profile keeps its old exact
+provider pin as an unused leftover, reported and never removed.
+Runtime oracle: the mounted row and the registered service, never
+physical or lock counts. plugin.cjs unchanged; the packed list gains
+the one entry file; version 0.1.0-pre.21.
 
 ## Backlog
 
