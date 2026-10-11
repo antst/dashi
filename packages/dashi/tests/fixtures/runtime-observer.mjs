@@ -1,10 +1,10 @@
-import { readFileSync, realpathSync, writeFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const name = 'dashi-runtime-observer'
-export const inject = ['appReady', 'pluginInventory', 'pluginPackages', 'fileUploads']
+export const inject = ['appReady', 'pluginInventory', 'pluginPackages', 'loader']
 
 // Read only DSH's active composition. Inactive disk copies and lock records are not an oracle.
 export function apply(ctx) {
@@ -29,8 +29,6 @@ export function apply(ctx) {
       ]
       // Bundle rows mount from the PROFILE ROOT, not the bundle's dependency importer.
       const packages = Object.fromEntries(names.map(name => [name, packageOf(name, profileRootImporter)]))
-      const dashi = packages['@antst/dashi']
-      dashi.entryHash = createHash('sha256').update(readFileSync(`${dashi.dir}/${dashi.manifest.main}`)).digest('hex')
       const importers = ['@antst/dashi', '@antst/dashi-app', '@antst/dsh-file-uploads-none', '@sessionbus/dsh']
       const peers = {}
       for (const importer of importers) {
@@ -47,12 +45,32 @@ export function apply(ctx) {
       })
       // Cordis exposes the active providing fiber, so correlate the service with its mounted row.
       const provider = ctx.reflect._getImpl('fileUploads')
+      let loadedPackage
+      if (provider !== undefined) {
+        // Entry.moduleNamespace is the raw namespace that Loader actually mounted.
+        // Public loader APIs expose its cached ModuleJob on both supported Node APIs.
+        const entry = provider.fiber.entry
+        const loader = ctx.loader.internal
+        if (!entry || !loader) throw new Error('Providing fiber has no loaded module identity')
+        const job = loader.version === 'v1'
+          ? await loader.getModuleJobForImport(entry.options.name, entry.context.baseUrl, {})
+          : await loader.getOrCreateModuleJob(entry.context.baseUrl, { specifier: entry.options.name, attributes: {} })
+        if (job.module?.getNamespace() !== entry.moduleNamespace) throw new Error('Provider namespace differs from the mounted module')
+        let directory = dirname(fileURLToPath(job.module.url))
+        while (!existsSync(join(directory, 'package.json'))) {
+          const parent = dirname(directory)
+          if (parent === directory) throw new Error('Loaded provider module has no package manifest')
+          directory = parent
+        }
+        const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'))
+        loadedPackage = { name: manifest.name, version: manifest.version, dir: directory, manifest, moduleURL: job.module.url }
+      }
       writeFileSync(process.env.DASHI_RUNTIME_RECORD, JSON.stringify({
         packages, peers, kit, active, resolution: resolution.entries, profileRootImporter,
         fileUploadsProvider: provider === undefined ? null : {
           name: provider.name, fiber: provider.fiber.name,
           importer: provider.fiber.ctx.baseUrl,
-          package: packageOf('@antst/dsh-file-uploads-none', profileRootImporter),
+          package: loadedPackage,
         },
         fileUploadsRegistered: ctx.get('fileUploads') !== undefined,
       }))

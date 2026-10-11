@@ -1,4 +1,4 @@
-import { readFile, readdir, realpath } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { extname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -80,7 +80,7 @@ for (const [, packageName, version] of lockedDsh) {
   if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
 }
 // Repository reproducibility only. User layouts are checked by the install matrix's native runtime oracle.
-const cliManifestPath = await realpath(createRequire(import.meta.url).resolve('@deepseek-ai/dsh/package.json'))
+const cliManifestPath = createRequire(import.meta.url).resolve('@deepseek-ai/dsh/package.json')
 const cliManifest = JSON.parse(await readFile(cliManifestPath, 'utf8'))
 if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must be ${testedVersion}`)
 const cliPins = deriveCliPins(cliManifest.dependencies)

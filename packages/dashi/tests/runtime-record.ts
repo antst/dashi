@@ -24,7 +24,7 @@ export function assertActiveRuntime(
   expect(record.fileUploadsRegistered).toBe(true)
   expect(record.fileUploadsProvider?.name).toBe('fileUploads')
   expect(record.fileUploadsProvider?.fiber).toBe('file-uploads-none')
-  expect(record.fileUploadsProvider?.package.dir).toBe(record.packages['@antst/dsh-file-uploads-none']?.dir)
+  expect(record.fileUploadsProvider?.package.name).toBe('@antst/dsh-file-uploads-none')
   expect(new URL('.', record.fileUploadsProvider?.importer).href).toBe(new URL('.', record.profileRootImporter).href)
   for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@sessionbus/dsh']) {
     expect(record.active.filter(entry => entry.moduleName === name), `single ACTIVE ${name}`).toHaveLength(1)
@@ -35,16 +35,15 @@ export function assertActiveRuntime(
     expect(record.packages[name]?.version, name).toBe(appVersion)
   }
   const app = record.packages['@antst/dashi-app']
+  expect(record.fileUploadsProvider?.package.version, 'actually loaded provider vs app pin')
+    .toBe(app?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
   for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@antst/roller', '@sessionbus/dsh']) {
     expect(record.packages[name]?.version, name).toBe(app?.manifest.dependencies?.[name])
   }
-  expect(record.kit.version).toBe('0.5.12')
+  expect(record.kit.version).toBe(record.packages['@sessionbus/dsh']?.manifest.dependencies?.['@sessionbus/kit'])
   for (const name of ['@deepseek-ai/dsh', '@deepseek-ai/dsh-base']) {
     expect(record.packages[name]?.version, name).toBe(dshVersion)
   }
-  const selected = record.resolution.filter(pkg => pkg.name.startsWith('@deepseek-ai/dsh'))
-  expect(selected.length).toBeGreaterThan(0)
-  for (const pkg of selected) expect(pkg.version, `${pkg.name} ${pkg.scope}`).toBe(dshVersion)
   for (const peers of Object.values(record.peers)) {
     for (const [name, pkg] of Object.entries(peers)) {
       if (name.startsWith('@deepseek-ai/dsh')) expect(pkg.version, name).toBe(dshVersion)

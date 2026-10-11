@@ -4932,7 +4932,9 @@ the argv bin's parent directory.
 Builder note: W-124's clean Linux/Node 22 pnpm 11.18.0 cell observed
 the published alpha.1 app pin `0.2.0-alpha.1` but the active profile-root
 fileUploads provider `0.1.2` (one mounted service; completed recorded turn),
-at `/tmp/dashi-G-pnpm11-vWjMoM/runtime-0.2.0-alpha.1-fresh-false.json`.
+in hosted run [38138819395](https://github.com/antst/dashi/actions/runs/38138819395),
+artifact `install-ubuntu-latest-G-pnpm11`, file
+`runtime-0.2.0-alpha.1-fresh-false.json`.
 Its literal registry upgrade to alpha.2 selected provider `0.2.0-alpha.2`;
 the identified packed candidate also converged to its exact app pin.
 Published provider versions are observations; candidate convergence,

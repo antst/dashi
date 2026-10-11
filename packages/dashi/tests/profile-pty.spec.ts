@@ -43,7 +43,6 @@ const pluginManagementFixture = join(root, 'packages', 'dashi', 'tests', 'fixtur
 const replayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'replay.patch.yml')
 const modelCatalogPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'model-catalog.patch.yml')
 const cleanReplayPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'clean-replay.patch.yml')
-const dshVersionMismatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'dsh-version-mismatch.yaml')
 const sessionListPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'session-list.patch.yml')
 const fakeEditor = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'fake-editor.mjs')
 const mcpStderrPatch = join(root, 'packages', 'dashi', 'tests', 'fixtures', 'mcp-stderr.patch.yml')
@@ -112,34 +111,6 @@ function packWorkspacePackage(directory: string, destination: string): string {
   const archive = readdirSync(destination).find(file => file.endsWith('.tgz') && !before.has(file))
   if (archive === undefined) throw new Error(`Packing ${directory} did not produce an archive`)
   return join(destination, archive)
-}
-
-function assertResolvedDshGraph(lockfile: string, expected: string): number {
-  const packageSection = lockfile.split('\nsnapshots:\n', 1)[0] ?? ''
-  const resolved = [...packageSection.matchAll(/^  '?(@deepseek-ai\/dsh[^@']*)@([^':]+)'?:$/gm)]
-    .map(([, name, version]) => `${name ?? 'unknown'}@${version ?? 'unknown'}`)
-  if (resolved.length === 0) throw new Error('resolved graph contains no DSH packages')
-  const mismatches = resolved.filter(value => !value.endsWith(`@${expected}`))
-  if (mismatches.length > 0) throw new Error(`resolved DSH version mismatch: ${mismatches.join(', ')}`)
-  return resolved.length
-}
-
-function assertSingleUploadProvider(profile: string): void {
-  // Repository source-link fixture only; user installations assert the ACTIVE service instead.
-  const app = realpathSync(join(profile, 'node_modules', '@antst', 'dashi-app', 'package.json'))
-  const plugin = createRequire(app).resolve('@sessionbus/dsh')
-  const providers = [app, plugin].map(anchor => {
-    let directory = dirname(realpathSync(createRequire(anchor).resolve('@antst/dsh-file-uploads-none')))
-    while (!existsSync(join(directory, 'package.json'))) directory = dirname(directory)
-    const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { name: string; version: string }
-    expect(manifest.name).toBe('@antst/dsh-file-uploads-none')
-    expect(manifest.version).toBe((JSON.parse(readFileSync(
-      join(root, 'packages', 'file-uploads-none', 'package.json'), 'utf8',
-    )) as { version: string }).version)
-    return directory
-  })
-  expect(new Set(providers).size).toBe(1)
-  process.stdout.write(`profile upload provider: 1 resolved copy at ${providers[0]}\n`)
 }
 
 function writeDshPinHook(directory: string): void {
@@ -649,8 +620,6 @@ function prepareTestProfile(profileHome: string): void {
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`], env,
     profileDir)
   run('pnpm', ['add', questionPlugin], env, profileDir)
-  assertResolvedDshGraph(readFileSync(join(profileDir, 'pnpm-lock.yaml'), 'utf8'), testedDshVersion)
-  assertSingleUploadProvider(profileDir)
 }
 
 beforeAll(() => {
@@ -677,9 +646,6 @@ beforeAll(() => {
   prepareTestProfile(presetHome)
   run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-mcp-client@${testedDshVersion}`],
     { ...process.env, DSH_HOME: mcpHome }, join(mcpHome, 'profiles', 'dashi'))
-  assertResolvedDshGraph(readFileSync(
-    join(mcpHome, 'profiles', 'dashi', 'pnpm-lock.yaml'), 'utf8',
-  ), testedDshVersion)
 }, 120_000)
 
 afterAll(() => {
@@ -1659,12 +1625,6 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
-  it('rejects a resolved graph containing a deliberate DSH version mismatch', () => {
-    expect(() => {
-      assertResolvedDshGraph(readFileSync(dshVersionMismatch, 'utf8'), testedDshVersion)
-    }).toThrow('@deepseek-ai/dsh-base@0.1.2-alpha.5')
-  })
-
   it('installs packed packages with published DSH and runs the daily flow through the launcher', async () => {
     const cleanRoot = mkdtempSync(join(testDir, 'clean-install-'))
     const archives = join(cleanRoot, 'archives')
@@ -2462,7 +2422,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(shell.output.slice(start)).toContain('printf DASHI_TOOL_ROUND_TRIP')
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
-      await shell.waitFor(`Resume with: dsh --profile dashi --resume ${id}`, releasedAt)
+      await shell.waitFor(`Resume with: start dashi again with --resume ${id}`, releasedAt)
       await shell.waitFor('\u001B[?1049l', releasedAt)
       await expectRestored(shell, baseline)
     } finally {

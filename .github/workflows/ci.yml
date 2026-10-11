@@ -48,7 +48,7 @@ jobs:
       - run: pnpm gate:docker
 
   preview:
-    needs: [gate, macos-gate, install-layouts]
+    needs: [gate, install-layouts]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Document and check global npm/pnpm, npx, project and mixed DSH installations on Linux and macOS; name pnpm 11's native-loader layout issue and its explicit remedy (W-124). The launcher remains PATH-based and unchanged. Runtime version warnings now use DSH's booted package resolution instead of guessing from a bin/shim path.
+- Document and check global npm/pnpm, npx, project and mixed DSH installations on Linux and macOS, including the pnpm global-store remedy (W-124). Package READMEs link to the single installation guide. Remove dashi's redundant version warning in favor of DSH's native compatibility checks; make the missing-DSH hint and resume instruction independent of installation layout.
 
 ## 0.2.0-alpha.2 — 2026-10-11
 

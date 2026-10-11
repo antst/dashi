@@ -1,6 +1,7 @@
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -12,25 +13,29 @@ import { startTestDaemon } from './sessionbus-harness.js'
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const layout = process.env.DASHI_INSTALL_LAYOUT
-const layouts = ['G-npm', 'G-pnpm10', 'G-pnpm11', 'G-npx', 'P-npm', 'P-pnpm']
+const layouts = ['G-npm', 'G-pnpm10', 'G-pnpm11', 'G-pnpm12', 'G-npx', 'P-npm', 'P-pnpm', 'below-floor']
 if (!layouts.includes(layout ?? '')) throw new Error('DASHI_INSTALL_LAYOUT must name one hosted install cell')
-const version = '0.2.1-alpha.2'
-const previous = '0.2.0-alpha.1'
-const current = '0.2.0-alpha.2'
-const nativeBindingError = `No usable native binding found for node-addon-require-builtin-${process.platform}-${process.arch}`
-const workspace = mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), `dashi-${layout}-`))
+const pmVersion = process.env.DASHI_INSTALL_PNPM
+if (!pmVersion) throw new Error('DASHI_INSTALL_PNPM is owned by the workflow and must be explicit')
+const readme = readFileSync(join(root, 'README.md'), 'utf8')
+const fences: Record<string, string[]> = Object.fromEntries([...readme.matchAll(/<!-- ([\w: -]+) -->\s*```sh\n([\s\S]*?)\n```/gu)]
+  .flatMap(([, names, body]) => names!.split(' ').map(name => [name, body!.split('\n')])))
+const version = /@deepseek-ai\/dsh@(\S+)/u.exec(fences['install:G-npm']?.join('\n') ?? '')?.[1]
+if (!version) throw new Error('README global install does not declare an exact DSH version')
+const current = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')).version as string
+const nativeBindingError = 'No usable native binding found for node-addon-require-builtin-' + process.platform + '-' + process.arch
+const workspace = mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), 'dashi-' + layout + '-'))
 const home = join(workspace, 'user')
 const project = join(workspace, 'project')
 const tools = join(workspace, 'tools')
 const globalPrefix = join(workspace, 'npm-global')
 const pnpmHome = join(workspace, 'pnpm-global')
-const dshHome = join(workspace, 'native-home')
 const artifactDir = join(workspace, 'candidate')
 for (const path of [home, project, tools, globalPrefix, pnpmHome, artifactDir]) mkdirSync(path)
 const npmPath = spawnSync('/bin/bash', ['--noprofile', '--norc', '-c', 'command -v npm'], { encoding: 'utf8' }).stdout.trim()
 const systemPath = [dirname(process.execPath), dirname(npmPath), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(delimiter)
 const env: NodeJS.ProcessEnv = {
-  ...process.env, HOME: home, DSH_HOME: dshHome,
+  ...process.env, HOME: home, DSH_HOME: join(workspace, 'native-fresh'),
   XDG_CONFIG_HOME: join(home, 'config'), XDG_CACHE_HOME: join(home, 'cache'),
   XDG_DATA_HOME: join(home, 'data'), XDG_STATE_HOME: join(home, 'state'),
   XDG_RUNTIME_DIR: join(home, 'runtime'), PNPM_HOME: pnpmHome,
@@ -46,20 +51,21 @@ writeFileSync(env.npm_config_userconfig as string, '')
 writeFileSync(join(project, 'package.json'), '{"private":true}\n')
 let output = ''
 function run(command: string, args: string[], cwd = project, extra: NodeJS.ProcessEnv = {}, success: boolean | number = true): string {
-  const result = spawnSync(command, args, {
-    cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 180_000,
-  })
-  const commandLine = `${command} ${args.join(' ')}`
-  const text = `${result.stdout ?? ''}${result.stderr ?? ''}`
-  output += `\n$ ${commandLine}\n${text}\nexit=${result.status}\n`
+  const result = spawnSync(command, args, { cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 180_000 })
+  const commandLine = command + ' ' + args.join(' ')
+  const text = (result.stdout ?? '') + (result.stderr ?? '')
+  output += '\n$ ' + commandLine + '\n' + text + '\nexit=' + result.status + '\n'
   writeFileSync(join(workspace, 'commands.log'), output)
-  console.log(`install cell: ${commandLine} -> ${result.status}`)
-  if (success === true && result.status !== 0) throw new Error(`${commandLine}: ${result.error ?? result.status}\n${text}`)
+  console.log('install cell: ' + commandLine + ' -> ' + result.status)
+  if (success === true && result.status !== 0) throw new Error(commandLine + ': ' + (result.error ?? result.status) + '\n' + text)
   if (success === false) expect(result.status, commandLine).not.toBe(0)
   if (typeof success === 'number') expect(result.status, commandLine).toBe(success)
   return success === true ? result.stdout : text
 }
-function quote(text: string): string { return `'${text.replaceAll("'", "'\\''")}'` }
+function quote(text: string): string { return "'" + text.replaceAll("'", "'\\''") + "'" }
+function sh(command: string, success: boolean | number = true, extra: NodeJS.ProcessEnv = {}): string {
+  return run('/bin/bash', ['--noprofile', '--norc', '-c', command], project, extra, success)
+}
 function findLog(directory: string, id: string): string | undefined {
   if (!existsSync(directory)) return undefined
   for (const entry of readdirSync(directory)) {
@@ -71,168 +77,50 @@ function findLog(directory: string, id: string): string | undefined {
   }
   return undefined
 }
+function packageAt(file: string): string {
+  let directory = dirname(realpathSync(file))
+  while (!existsSync(join(directory, 'package.json'))) {
+    const parent = dirname(directory)
+    if (parent === directory) throw new Error('No package owns ' + file)
+    directory = parent
+  }
+  return directory
+}
 
-it(`${layout}: published install, upgrade, native runtime and packed-candidate continuity`, async () => {
+it(layout + ': literal README installs converge from fresh and both published baselines', async () => {
   const started = performance.now()
   const daemon = await startTestDaemon()
   env.SESSIONBUS_SOCKET = daemon.socket
   env.SESSIONBUS_GROUPS = '["install-proof"]'
   try {
-    console.log(`install cell evidence: ${workspace}; Node ${process.version}; ${process.platform}-${process.arch}`)
+    console.log('install cell evidence: ' + workspace + '; Node ' + process.version + '; ' + process.platform + '-' + process.arch)
     env.PATH = systemPath
-    const pmVersion = layout === 'G-pnpm11' ? '11.18.0' : '10.28.1'
-    run('npm', ['install', '--global', '--prefix', tools, `pnpm@${pmVersion}`])
+    run('npm', ['install', '--global', '--prefix', tools, 'pnpm@' + pmVersion])
     const pm = join(tools, 'bin', 'pnpm')
     env.PATH = [dirname(pm), systemPath].join(delimiter)
     if (layout?.includes('pnpm')) {
-      run(pm, ['setup'], project, { SHELL: '/bin/bash' })
-      // Read the PATH from pnpm's own generated shell setup, not an assumed v10/v11 bin layout.
-      env.PATH = run('/bin/bash', ['--noprofile', '--norc', '-c', '. "$HOME/.bashrc"; printf "%s" "$PATH"']).trim()
-    }
-    const globalBin = layout?.includes('pnpm') ? run(pm, ['bin', '--global']).trim() : join(globalPrefix, 'bin')
-    env.PATH = [globalBin, dirname(pm), systemPath].join(delimiter)
+      sh(fences['install:pnpm-setup']?.join('\n') ?? '', true, { SHELL: '/bin/bash' })
+      env.PATH = sh('. "$HOME/.bashrc"; printf "%s" "$PATH"').trim()
+    } else env.PATH = [join(globalPrefix, 'bin'), env.PATH].join(delimiter)
     run('node', ['--version'])
     run('npm', ['--version'])
     expect(run(pm, ['--version']).trim()).toBe(pmVersion)
-    const npx = (args: string[]): string[] => ['--yes', `@deepseek-ai/dsh@${version}`, ...args]
-    let launcherPackage = `@antst/dashi-launcher@${current}`
-    const cli = (args: string[], success: boolean | number = true, extra: NodeJS.ProcessEnv = {}): string => {
-      if (layout === 'G-npx') return run('npx', npx(args), project, extra, success)
-      if (layout === 'P-npm') return run('npm', ['exec', '--', 'dsh', ...args], project, extra, success)
-      if (layout === 'P-pnpm') return run(pm, ['exec', 'dsh', ...args], project, extra, success)
-      return run('dsh', args, project, extra, success)
+
+    if (layout === 'below-floor') {
+      const lines = fences['install:G-npm']!
+      sh(lines[0]!.replace('@deepseek-ai/dsh@' + version, '@deepseek-ai/dsh@0.2.0-rc.2'))
+      sh(lines[1]!)
+      const refused = sh(lines[2]!, 1)
+      expect(refused).toContain('Plugin @antst/dashi@0.2.0-alpha.2 is incompatible with dsh 0.2.0-rc.2: peerDependencies')
+      expect(refused).toContain('dsh: restored package.json, pnpm-lock.yaml, and node_modules.')
+      writeFileSync(join(workspace, 'result.json'), JSON.stringify({
+        layout, node: process.version, pmVersion, wallSeconds: (performance.now() - started) / 1000, passed: true,
+      }))
+      return
     }
-    const installLauncher = (target: string): void => {
-      const packageName = target.endsWith('.tgz') ? target : `@antst/dashi-launcher@${target}`
-      launcherPackage = packageName
-      if (layout === 'G-npx') {
-        // Package acquisition uses the installer budget, not the PTY's native-ready wait.
-        expect(run('npx', ['--yes', `--package=@deepseek-ai/dsh@${version}`, `--package=${packageName}`, 'dashi', '--version']).trim()).toBe(version)
-        return
-      }
-      if (layout === 'G-npm') run('npm', ['install', '-g', packageName])
-      else if (layout?.startsWith('G-pnpm')) run(pm, ['add', '-g', packageName])
-      else if (layout === 'P-npm') run('npm', ['install', '--save-exact', packageName])
-      else run(pm, ['add', '--save-exact', packageName])
-    }
-    const launcher = (args: string[] = [], global = false): string => {
-      if (layout === 'G-npx') return `npx --yes --package=@deepseek-ai/dsh@${version} --package=${quote(launcherPackage)} dashi ${args.map(quote).join(' ')}`
-      if (global || layout?.startsWith('G-')) return `dashi ${args.map(quote).join(' ')}`
-      return `${layout === 'P-npm' ? 'npm exec -- dashi' : `${quote(pm)} exec dashi`} ${args.map(quote).join(' ')}`
-    }
-    if (layout === 'G-npm' || layout === 'P-npm') {
-      run('npm', ['install', '-g', `@deepseek-ai/dsh@${version}`])
-      run('npm', ['install', '-g', `@antst/dashi-launcher@${current}`])
-    } else if (layout !== 'G-npx') {
-      run(pm, ['add', '-g', `@deepseek-ai/dsh@${version}`])
-      run(pm, ['add', '-g', `@antst/dashi-launcher@${current}`])
-    }
-    if (layout === 'G-pnpm11') {
-      const broken = cli(['--profile', 'headless', '--help'], false)
-      expect(broken).toContain(nativeBindingError)
-      run(pm, ['config', 'set', '--global', '--json', 'enableGlobalVirtualStore', 'false'])
-      expect(run(pm, ['config', 'get', 'enableGlobalVirtualStore']).trim()).toBe('false')
-      run(pm, ['remove', '-g', '@deepseek-ai/dsh'])
-      run(pm, ['add', '-g', `@deepseek-ai/dsh@${version}`])
-      cli(['--profile', 'headless', '--help'])
-    }
-    if (layout?.startsWith('P-')) {
-      if (layout === 'P-npm') run('npm', ['install', '--save-exact', `@deepseek-ai/dsh@${version}`, `@antst/dashi-launcher@${previous}`])
-      else run(pm, ['add', '--save-exact', `@deepseek-ai/dsh@${version}`, `@antst/dashi-launcher@${previous}`])
-    }
-    if (layout === 'G-npm') {
-      const noPnpm = cli(['plugin', '--profile', 'missing-pnpm', 'add', `@antst/dashi-app@${current}`],
-        127, { PATH: [globalBin, dirname(process.execPath)].join(delimiter) })
-      expect(noPnpm).toContain('dsh: pnpm was not found; install pnpm and make it available on PATH.')
-    }
-    expect(cli(['--version']).trim()).toBe(version)
-    if (!layout?.startsWith('P-')) installLauncher(previous)
-    cli(['plugin', '--profile', 'dashi', 'add', `@antst/dashi-app@${previous}`])
-    // Recorded-model setup, not dependency repair: no hook, override or companion add.
-    cli(['plugin', '--profile', 'dashi', 'add', `@deepseek-ai/dsh-llm-replay@${version}`])
-    const snapshot = join(workspace, 'recorded.jsonl')
-    writeFileSync(snapshot, currentRecordedJsonl(join(root, 'packages/dashi/tests/fixtures/three-turn-session.jsonl')))
-    const observer = pathToFileURL(join(root, 'packages/dashi/tests/fixtures/runtime-observer.mjs')).href
-    const patch = join(workspace, 'recorded.patch.yml')
-    writeFileSync(patch, readFileSync(join(root, 'packages/dashi/tests/fixtures/clean-replay.patch.yml'), 'utf8')
-      + `\n- insert:\n    - id: runtime-observer\n      name: '${observer}'\n`)
-    const smoke = async (
-      target: string, resume?: string, global = false, phase: 'published' | 'candidate' = 'published', directNpx = false,
-    ): Promise<string> => {
-      const nativeHome = env.DSH_HOME as string
-      const priorLog = resume === undefined ? undefined : findLog(join(nativeHome, 'replay-sessions'), resume)
-      const priorEvents = priorLog === undefined ? [] : recordedSession(priorLog).events
-      const priorSeq = priorEvents.at(-1)?.seq ?? -1
-      const nativeTurn = priorEvents.filter(event => event.type === 'turn/start').length + 1
-      const label = `${target}-${resume ?? 'fresh'}-${global}${directNpx ? '-direct-npx' : ''}${nativeHome === dshHome ? '' : '-from-alpha1'}`
-      const runtimePath = join(workspace, `runtime-${label}.json`)
-      const shell = new TestPtyShell(project, {
-        ...env, DSH_SNAPSHOT_FILE: snapshot, DASHI_RUNTIME_RECORD: runtimePath,
-      })
-      try {
-        const args = ['--patch', patch, '--fullscreen', ...(resume === undefined ? ['install smoke'] : ['--resume', resume])]
-        const command = directNpx
-          ? `npx --yes @deepseek-ai/dsh@${version} --profile dashi ${args.map(quote).join(' ')}`
-          : launcher(args, global)
-        shell.write(`${command}; printf '\\n__W124_EXIT__%s\\n' "$?"\n`)
-        // Acquisition was warmed separately; this is a strict native-ready budget, including CI.
-        await vi.waitFor(() => { expect(shell.output, shell.output.slice(-4000)).toContain('idle ·') }, { timeout: 20_000 })
-        expect(shell.output).not.toContain('The following package was not found and will be installed')
-        expect(shell.output).not.toContain('Need to install the following packages')
-        const id = /session-[0-9a-f-]{36}/u.exec(shell.output)?.[0]
-        expect(id, shell.output.slice(-4000)).toBeDefined()
-        await vi.waitFor(() => { expect(existsSync(runtimePath), shell.output.slice(-4000)).toBe(true) }, { timeout: 20_000 })
-        const runtime = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
-        assertActiveRuntime(runtime, version, target, phase)
-        expect(runtime.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
-        console.log(`active runtime ${target}: ${JSON.stringify(Object.fromEntries(
-          Object.entries(runtime.packages).map(([name, pkg]) => [name, { version: pkg.version, dir: pkg.dir }])))}; DSH selections=${runtime.resolution.filter(pkg => pkg.name.startsWith('@deepseek-ai/dsh')).length}`)
-        if (resume !== undefined) shell.write('upgrade smoke\r')
-        await vi.waitFor(() => {
-          const log = findLog(join(nativeHome, 'replay-sessions'), id as string)
-          expect(log, shell.output.slice(-4000)).toBeDefined()
-          const events = recordedSession(log as string).events.filter(event => event.seq > priorSeq)
-          expect(events.filter(event => event.type === 'turn/start')).toHaveLength(1)
-          expect(events.some(event => event.type === 'assistant/message'
-            && JSON.stringify(event.data).includes('First turn complete.')
-            && (event.data as { turn: number }).turn === nativeTurn)).toBe(true)
-          expect(events.some(event => event.type === 'turn/end'
-            && (event.data as { turn: number; reason: { kind: string } }).turn === nativeTurn
-            && (event.data as { reason: { kind: string } }).reason.kind === 'completed')).toBe(true)
-        }, { timeout: 30_000 })
-        shell.write('/exit\r')
-        await shell.waitFor('__W124_EXIT__0')
-        expect(shell.output).not.toContain('versions must match')
-        return id as string
-      } finally {
-        writeFileSync(join(workspace, `pty-${label}.log`), shell.output)
-        await shell.close()
-      }
-    }
-    // npx pins the launcher in the command itself, not a durable global installation.
-    // Install alpha.1/alpha.2 profile through the same executing DSH and retain its native id.
-    const id = await smoke(previous)
-    installLauncher(current)
-    cli(['plugin', '--profile', 'dashi', 'add', `@antst/dashi-app@${current}`])
-    await smoke(current, id)
-    if (layout?.startsWith('P-')) {
-      // Ordinary bare global and manager-exec project invocation share one native home.
-      const globalVersion = run('/bin/bash', ['--noprofile', '--norc', '-c', 'command -v dsh; dashi --version']).trim().split('\n')
-      expect(globalVersion[0]).toBe(join(globalBin, 'dsh'))
-      expect(globalVersion.at(-1)).toBe(version)
-      expect(cli(['--version']).trim()).toBe(version)
-      const projectVersion = layout === 'P-npm'
-        ? run('npm', ['exec', '--', 'dashi', '--version']) : run(pm, ['exec', 'dashi', '--version'])
-      expect(projectVersion.trim()).toBe(version)
-      await smoke(current, undefined, true)
-      const nativeProject = JSON.parse(readFileSync(join(workspace, `runtime-${current}-${id}-false.json`), 'utf8')) as RuntimeRecord
-      const nativeGlobal = JSON.parse(readFileSync(join(workspace, `runtime-${current}-fresh-true.json`), 'utf8')) as RuntimeRecord
-      expect(nativeProject.packages['@deepseek-ai/dsh']?.dir).not.toBe(nativeGlobal.packages['@deepseek-ai/dsh']?.dir)
-      expect(nativeProject.packages['@deepseek-ai/dsh']?.dir.startsWith(project)).toBe(true)
-    }
-    if (layout === 'G-npx') await smoke(current, undefined, false, 'published', true)
-    // Packed candidate is explicitly not a future registry publication.
+
     const artifacts: Record<string, string> = {}
+    const packedFiles: Record<string, string[]> = {}
     for (const [name, directory] of Object.entries({
       '@antst/dsh-file-uploads-none': 'file-uploads-none', '@antst/dashi': 'dashi',
       '@antst/dashi-app': 'dashi-app', '@antst/dashi-launcher': 'dashi-launcher',
@@ -240,40 +128,198 @@ it(`${layout}: published install, upgrade, native runtime and packed-candidate c
       const before = new Set(readdirSync(artifactDir))
       const packed = run('pnpm', ['pack', '--pack-destination', artifactDir],
         join(root, 'packages', directory), process.env)
-      console.log(`candidate provenance ${name}: ${packed}`)
+      console.log('candidate provenance ' + name + ': ' + packed)
       const file = readdirSync(artifactDir).find(entry => entry.endsWith('.tgz') && !before.has(entry))
       expect(file).toBeDefined()
       artifacts[name] = join(artifactDir, file as string)
+      packedFiles[name] = execFileSync('tar', ['-tzf', artifacts[name]!], { encoding: 'utf8' }).split('\n')
+        .filter(file => file.startsWith('package/') && !file.endsWith('/'))
     }
-    // Prepublication sibling wiring ONLY; no DSH/companion declaration is rewritten.
-    const candidateVersion = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')).version as string
-    const installCandidate = async (): Promise<void> => {
-      const profileWorkspace = join(env.DSH_HOME as string, 'profiles', 'dashi', 'pnpm-workspace.yaml')
-      writeFileSync(profileWorkspace, readFileSync(profileWorkspace, 'utf8')
-        + `\noverrides:\n  '@antst/dashi-app>@antst/dashi': 'file:${artifacts['@antst/dashi']}'\n`
-        + `  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:${artifacts['@antst/dsh-file-uploads-none']}'\n`)
-      installLauncher(artifacts['@antst/dashi-launcher'] as string)
-      cli(['plugin', '--profile', 'dashi', 'add', artifacts['@antst/dashi-app'] as string])
-      await smoke(candidateVersion, undefined, false, 'candidate')
-      const suffix = env.DSH_HOME === dshHome ? '' : '-from-alpha1'
-      const candidateRuntime = JSON.parse(readFileSync(join(workspace, `runtime-${candidateVersion}-fresh-false${suffix}.json`), 'utf8'))
-      expect(candidateRuntime.packages['@antst/dashi'].entryHash).toBe(createHash('sha256')
-        .update(readFileSync(join(root, 'packages/dashi/lib/index.js'))).digest('hex'))
+    // Exactly two substitutions: published baseline version, or identified packed candidate.
+    const commands = (marker: string, target: string, candidate = false): string[] => {
+      const source = fences[marker]
+      if (!source) throw new Error('README command fence missing: ' + marker)
+      return source.map(line => line.replace(/@antst\/(?:dashi-app|dashi-launcher)@[\w.-]+/gu, spec => {
+        const name = spec.slice(0, spec.lastIndexOf('@'))
+        return candidate ? quote(artifacts[name]!) : name + '@' + target
+      }))
     }
-    await installCandidate()
-    // Direct alpha.1→candidate also converges; alpha.2 cannot first repair its shadow for us.
-    env.DSH_HOME = join(workspace, 'native-home-from-alpha1')
-    installLauncher(previous)
-    cli(['plugin', '--profile', 'dashi', 'add', `@antst/dashi-app@${previous}`])
-    cli(['plugin', '--profile', 'dashi', 'add', `@deepseek-ai/dsh-llm-replay@${version}`])
-    await smoke(previous)
-    await installCandidate()
+    const installMarker = 'install:' + layout
+    const upgradeMarker = layout === 'G-npx' ? installMarker : 'upgrade:' + layout
+    const cliPrefix = layout === 'G-npx' ? 'npx --yes @deepseek-ai/dsh@' + version
+      : layout === 'P-npm' ? 'npm exec -- dsh' : layout === 'P-pnpm' ? 'pnpm exec dsh' : 'dsh'
+    const launcherPrefix = layout === 'P-npm' ? 'npm exec -- ' : layout === 'P-pnpm' ? 'pnpm exec ' : ''
+    const nativePackage = (command: string, packageName: string): string => {
+      const selected = sh(command + "/bin/bash --noprofile --norc -c 'command -v dashi'").trim()
+      let directory: string
+      try {
+        directory = packageAt(selected)
+        if (JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).name !== packageName) {
+          directory = dirname(createRequire(selected).resolve(packageName + '/package.json'))
+        }
+      } catch {
+        // pnpm global packages have separate environments; use pnpm's package selection.
+        const lists = JSON.parse(run(pm, ['list', '--global', '--json', '--depth', '0'])) as Array<{
+          dependencies?: Record<string, { path: string }>
+        }>
+        const found = lists.flatMap(list => list.dependencies?.[packageName]?.path ?? [])
+        expect(found, 'package selected by ' + selected).toHaveLength(1)
+        directory = realpathSync(found[0]!)
+      }
+      expect(JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')).name).toBe(packageName)
+      console.log('selected dashi: ' + selected + '; package=' + directory)
+      return directory
+    }
+    const verifyPacked = (record: RuntimeRecord, commandPrefix: string, label: string): void => {
+      const installed = Object.fromEntries(Object.entries(record.packages).map(([name, pkg]) => [name, pkg.dir]))
+      installed['@antst/dsh-file-uploads-none'] = record.fileUploadsProvider!.package.dir
+      installed['@antst/dashi-launcher'] = nativePackage(commandPrefix, '@antst/dashi-launcher')
+      const hashes: Record<string, string> = {}
+      for (const [name, files] of Object.entries(packedFiles)) for (const file of files) {
+        const relative = file.slice('package/'.length)
+        const expected = createHash('sha256').update(execFileSync('tar', ['-xOf', artifacts[name]!, file])).digest('hex')
+        const actual = createHash('sha256').update(readFileSync(join(installed[name]!, relative))).digest('hex')
+        expect(actual, name + '/' + relative + ' matches packed candidate').toBe(expected)
+        hashes[name + '/' + relative] = actual
+      }
+      writeFileSync(join(workspace, 'hashes-' + label + '.json'), JSON.stringify(hashes))
+    }
+    const snapshot = join(workspace, 'recorded.jsonl')
+    writeFileSync(snapshot, currentRecordedJsonl(join(root, 'packages/dashi/tests/fixtures/replay-session.jsonl')))
+    const observer = pathToFileURL(join(root, 'packages/dashi/tests/fixtures/runtime-observer.mjs')).href
+    const patch = readFileSync(join(root, 'packages/dashi/tests/fixtures/clean-replay.patch.yml'), 'utf8')
+      + "\n- insert:\n    - id: runtime-observer\n      name: '" + observer + "'\n"
+    const smoke = async (
+      command: string, target: string, label: string, candidate = false, selectedPrefix = launcherPrefix,
+    ): Promise<RuntimeRecord> => {
+      const nativeHome = env.DSH_HOME as string
+      const runtimePath = join(workspace, 'runtime-' + label + '.json')
+      const shell = new TestPtyShell(project, {
+        ...env, DSH_SNAPSHOT_FILE: snapshot, DASHI_RUNTIME_RECORD: runtimePath,
+      })
+      let sessionLog: string | undefined
+      try {
+        shell.write(command + "; printf '\\n__W124_EXIT__%s\\n' \"$?\"\n")
+        await vi.waitFor(() => { expect(shell.output, shell.output.slice(-4000)).toContain('idle ·') }, { timeout: 20_000 })
+        expect(shell.output).not.toContain('The following package was not found and will be installed')
+        expect(shell.output).not.toContain('Need to install the following packages')
+        const id = /session-[0-9a-f-]{36}/u.exec(shell.output)?.[0]
+        expect(id, shell.output.slice(-4000)).toBeDefined()
+        await vi.waitFor(() => { expect(existsSync(runtimePath), shell.output.slice(-4000)).toBe(true) }, { timeout: 20_000 })
+        const record = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
+        assertActiveRuntime(record, version, target, candidate ? 'candidate' : 'published')
+        expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
+        console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
+          + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
+        if (candidate) verifyPacked(record, selectedPrefix, label)
+        shell.write('install smoke\r')
+        await vi.waitFor(() => { expect(shell.output, shell.output.slice(-4000)).toContain('Approval · bash') }, { timeout: 20_000 })
+        shell.write('\r')
+        await vi.waitFor(() => {
+          sessionLog = findLog(join(nativeHome, 'replay-sessions'), id as string)
+          expect(sessionLog, shell.output.slice(-4000)).toBeDefined()
+          const events = recordedSession(sessionLog as string).events
+          expect(events.filter(event => event.type === 'turn/start')).toHaveLength(1)
+          const result = events.filter(event => event.type === 'tool/result')
+          expect(result).toHaveLength(1)
+          expect(result[0]?.data, 'real bash stdout').toMatchObject({
+            message: { role: 'tool', isError: false, content: [{ type: 'text', text: 'DASHI_TOOL_ROUND_TRIP' }] },
+          })
+          expect(events.some(event => event.type === 'assistant/message'
+            && JSON.stringify(event.data).includes('Recorded answer: DASHI_TOOL_ROUND_TRIP complete.'))).toBe(true)
+          expect(events.some(event => event.type === 'turn/end'
+            && (event.data as { reason: { kind: string } }).reason.kind === 'completed')).toBe(true)
+        }, { timeout: 30_000 })
+        shell.write('/exit\r')
+        await shell.waitFor('__W124_EXIT__0')
+        return record
+      } finally {
+        if (sessionLog !== undefined) writeFileSync(join(workspace, 'session-' + label + '.jsonl'), readFileSync(sessionLog))
+        writeFileSync(join(workspace, 'pty-' + label + '.log'), shell.output)
+        await shell.close()
+      }
+    }
+    const prepareProfile = (): void => {
+      // Native replay composition only, not dependency hooks, companion pins or install repair.
+      sh(cliPrefix + ' plugin --profile dashi add @deepseek-ai/dsh-llm-replay@' + version)
+      const patchPath = join(env.DSH_HOME as string, 'profiles', 'dashi', 'cordis.patch.yml')
+      const original = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
+      writeFileSync(patchPath, original.replace(/^\[\]\s*$/mu, '') + '\n' + patch)
+    }
+    const prepareCandidate = (): void => {
+      // Prepublication sibling tarball substitution only. No plugin/provider/DSH edge is rewritten.
+      sh(cliPrefix + ' plugin --profile dashi install')
+      const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
+      mkdirSync(profile, { recursive: true })
+      const file = join(profile, 'pnpm-workspace.yaml')
+      writeFileSync(file, (existsSync(file) ? readFileSync(file, 'utf8') : '')
+        + "\noverrides:\n  '@antst/dashi-app>@antst/dashi': 'file:" + artifacts['@antst/dashi'] + "'\n"
+        + "  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:" + artifacts['@antst/dsh-file-uploads-none'] + "'\n")
+    }
+    const execute = (lines: string[], candidate = false): string => {
+      const launch = lines.at(-1)!
+      for (const command of lines.slice(0, -1)) {
+        if (candidate && command.includes(' plugin --profile dashi add ')) prepareCandidate()
+        const result = sh(command)
+        if (command.endsWith('dashi --version')) expect(result.trim()).toBe(version)
+      }
+      return launch
+    }
+    for (const baseline of ['fresh', '0.2.0-alpha.1', '0.2.0-alpha.2']) {
+      env.DSH_HOME = join(workspace, 'native-' + baseline)
+      const target = baseline === 'fresh' ? current : baseline
+      if (layout?.startsWith('G-pnpm')) {
+        for (const command of commands('install:global-pnpm-packages', target, baseline === 'fresh')) sh(command)
+        if (baseline === 'fresh' && layout === 'G-pnpm11') {
+          const broken = sh('dsh --profile headless --help', false)
+          expect(broken).toContain(nativeBindingError)
+          for (const command of commands('install:pnpm-global-remedy', target)) sh(command)
+          expect(run(pm, ['config', 'get', 'enableGlobalVirtualStore']).trim()).toBe('false')
+          sh('dsh --profile headless --help')
+        }
+        if (baseline === 'fresh' && layout === 'G-pnpm12') sh('dsh --profile headless --help')
+      }
+      if (baseline === 'fresh' && layout?.startsWith('P-')) {
+        const globalMarker = layout === 'P-npm' ? 'install:G-npm' : 'install:global-pnpm-packages'
+        for (const command of commands(globalMarker, current, true).slice(0, 2)) sh(command)
+      }
+      const launch = execute(commands(installMarker, target, baseline === 'fresh'), baseline === 'fresh')
+      expect(sh(cliPrefix + ' --version').trim()).toBe(version)
+      if (layout === 'G-npm' && baseline === 'fresh') {
+        const missing = sh('dsh plugin --profile missing-pnpm add @antst/dashi-app@' + current, 127,
+          { PATH: [join(globalPrefix, 'bin'), dirname(process.execPath)].join(delimiter) })
+        expect(missing).toContain('dsh: pnpm was not found; install pnpm and make it available on PATH.')
+      }
+      prepareProfile()
+      const record = await smoke(launch, target, baseline + '-installed', baseline === 'fresh',
+        layout === 'G-npx' ? launch.replace(/dashi$/u, '') : launcherPrefix)
+      if (baseline === 'fresh' && layout?.startsWith('P-')) {
+        const globalBin = layout === 'P-pnpm' ? run(pm, ['bin', '--global']).trim() : join(globalPrefix, 'bin')
+        expect(sh('command -v dsh').trim()).toBe(join(globalBin, 'dsh'))
+        expect(sh('dashi --version').trim()).toBe(version)
+        expect(sh(launcherPrefix + 'dashi --version').trim()).toBe(version)
+        const global = await smoke('dashi', current, 'mixed-global', true, '')
+        expect(record.packages['@deepseek-ai/dsh']?.dir).not.toBe(global.packages['@deepseek-ai/dsh']?.dir)
+        expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(project)).toBe(true)
+      }
+      if (layout === 'G-npx' && baseline === 'fresh') {
+        for (const command of commands('install:npx-direct-warm', current)) expect(sh(command).trim()).toBe(version)
+        await smoke(commands('install:npx-direct', current)[0]!, current, 'npx-direct', true,
+          launch.replace(/dashi$/u, ''))
+      }
+      if (baseline !== 'fresh') {
+        const upgraded = execute(commands(upgradeMarker, current, true), true)
+        await smoke(upgraded, current, baseline + '-candidate', true,
+          layout === 'G-npx' ? upgraded.replace(/dashi$/u, '') : launcherPrefix)
+      }
+    }
     const wallSeconds = (performance.now() - started) / 1000
-    const result = { layout, platform: `${process.platform}-${process.arch}`, node: process.version, wallSeconds, passed: true }
+    const result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds, passed: true }
     writeFileSync(join(workspace, 'result.json'), JSON.stringify(result))
     if (process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      `\nInstall ${layout} / ${result.platform}: PASS, ${wallSeconds.toFixed(2)}s (published alpha.1→alpha.2; both baselines→identified packed candidate).\n`)
-    console.log(`install cell PASS ${layout}; wall ${wallSeconds.toFixed(2)}s; evidence ${workspace}`)
+      '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + wallSeconds.toFixed(2)
+      + 's (fresh candidate, alpha.1→candidate, alpha.2→candidate).\n')
+    console.log('install cell PASS ' + layout + '; wall ' + wallSeconds.toFixed(2) + 's; evidence ' + workspace)
   } finally {
     await daemon.close()
     writeFileSync(join(workspace, 'commands.log'), output)
