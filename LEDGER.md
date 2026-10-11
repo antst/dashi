@@ -4579,6 +4579,19 @@ leg showing two sessions with different groups listed by a peer, the
 change surviving a process restart, the model refused the command;
 host proof on the dsh web profile per D-049 before the tag.
 
+Amendment 2026-10-11 (pdev answer, source-verified against kit/daemon
+v0.5.12): a same-connection group change is rejected by design
+(-32602 invalid_hello; PROTOCOL.md:155-165), so the re-hello option is
+closed. A new connection may claim the same session id with new groups
+at once; the daemon displaces the old attachment atomically and the
+old client receives session.superseded (-32012). Overlapping
+replacement preserves the peer's lane ownership; detach-first ends
+ownership of its non-persistent lanes. Mechanism therefore: connect
+the new peer first, treat the old peer's superseded close as expected,
+swap, then shut the old object down; the stored list is written only
+once the new peer is ready; lane ownership across the swap is proven
+by a test.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
