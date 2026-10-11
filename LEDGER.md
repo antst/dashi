@@ -5053,6 +5053,54 @@ Runtime oracle: the mounted row and the registered service, never
 physical or lock counts. plugin.cjs unchanged; the packed list gains
 the one entry file; version 0.1.0-pre.21.
 
+Amendment 2026-10-11 (implementation, after four independent reviews
+of PR #66). What the design above became, and what was added to it.
+The installer has one new dependency, js-yaml exact 4.3.2, used to
+read only: it never re-serializes a patch and edits by source position
+inside its own marked rows, so every other byte survives, including
+comments, DSH's header and `!!js` expressions (constructed inert). It
+edits two shapes, the block sequence DSH writes and DSH's stock empty
+template; it reads flow and JSON bundle files. One preflight covers
+all profiles and computes every output before the first write. It
+refuses, with nothing written: an unparseable or non-UTF-8 file, a
+non-empty flow or JSON patch, a dangling symlink, a malformed manifest
+container, an unmarked row that mounts a package, a marked row inside
+an indentless list, and a profile whose app already provides the
+sessionbus or upload-provider row (DSH lets the last row with an id
+win silently). An unmarked row that only overrides configuration is
+the owner's: kept byte-identical, the lane default not applied, one
+line printed. Each file is written like DSH's own writer does (sibling
+temp file, rename) but keeps the existing mode and the symlink's
+referent; a file changed since the preflight is not overwritten; an
+unchanged file is not written at all. Uninstall strips only marked
+rows. The installer no longer inspects the executing CLI: floor,
+anchor and base probes are deleted, and a hosted leg shows DSH's own
+refusal below the floor. Hints carry the installer's exact version.
+Measured boundary: strict peer settings do not refuse the ordinary
+add, because pnpm clears them for `add`; the README says only that
+the plugin is tested with DSH's profile defaults and takes its DSH
+peers from the executing installation. Proof harness: one process
+group per child, signalled only by its owner, with an emptiness check
+that can fail. Waived: an executable leg for the published pre.20
+failure; its evidence is committed (exec failed after 121,380 ms on
+the profile lock) and every installer exec in the legs is bounded.
+Reported upstream: DSH exits 0 when a profile names a bundle that is
+not installed.
+
+Accepted for merge 2026-10-11 (sessionbus/sessionbus-dsh PR #66 squash
+867764346aea7e6945bcca924ba3a62a0323a08b; hosted run 38156213539 at 7aecc7e: 17 jobs, of which 14 are
+Linux and macOS installs by global npm, pnpm 10, 11 with the documented
+remedy, 12, npx, project and mixed). Reviews by opus agents at 163587b
+(red gate; uninstall refused an accepted profile; a byte-order mark
+shifted every edit), dffd2ff (three installer defects), 29b7e2e (one
+regression) and 7aecc7e (verified; an owner's provider and
+default-model rows stay byte-identical in every shape tried);
+CodeRabbit read at each head. Packed candidate 2adb5acc...c962;
+plugin.cjs 8be71831... is unchanged from pre.20. Not released: W-126
+merges first, then host proof per D-049 on a global install and on the
+dsh host's project install, upgrading its pre.20 lane and web profiles
+in place, and only then the tag v0.1.0-pre.21.
+
 ### W-126 plugin: lane open options are session facts — status: open (owner codex-roller, after W-125, same release)
 Found on the dsh host on 2026-10-11 with published pre.20: spawning a
 lane with open.reasoning_effort rewrote the lane profile's own
