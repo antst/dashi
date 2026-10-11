@@ -8,6 +8,7 @@
 - Collapse context cells by DSH's context form; notices such as subagent-settled and plugin-owned notices render collapsed, while skill instructions and relay messages stay expanded.
 - Pin dashi-app's sibling packages to the exact release version so the four-package release unit cannot drift across versions.
 - Document the alpha.1 in-place upgrade defect (two upload-provider copies; dedupe does not repair it), the working fresh-profile path, the planned alpha.2/pre.20 upgrade release and third-party plugin requirements (W-121, W-122).
+- Test infrastructure: align the closed-stdin PTY case's outer deadline with the suite budget so helper diagnostics can surface in CI; cause remains unlocalised (W-123).
 
 ## 0.1.3 — 2026-10-10
 

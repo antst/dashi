@@ -2400,7 +2400,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     } finally {
       await shell.close()
     }
-  }, 30_000)
+  }, testCeiling(30_000))
 
   it('prints the effect failure before restoring the terminal', async () => {
     const { baseline, shell } = await prepareShell()
