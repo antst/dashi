@@ -4975,6 +4975,49 @@ Runtime oracle: the mounted row and the registered service, never
 physical or lock counts. plugin.cjs unchanged; the packed list gains
 the one entry file; version 0.1.0-pre.21.
 
+### W-126 plugin: lane open options are session facts — status: open (owner codex-roller, after W-125, same release)
+Found on the dsh host on 2026-10-11 with published pre.20: spawning a
+lane with open.reasoning_effort rewrote the lane profile's own
+cordis.patch.yml (the agent-default-model row gained reasoningEffort),
+so one lane's option became the default of every later lane. Cause is
+ours: plugin.cjs:164-168 calls ctx.sessionController.selectModel
+whenever open.model or open.reasoning_effort is given, and DSH
+documents that call as saving the profile default
+(dsh-api-session-controller lib/index.js:722-740, saveSelection at
+:738). open.model does the same, and a model without an effort can
+drop a stored default effort. Rule: a lane's open options belong to
+that lane's session; the owner and the installer are the only writers
+of a profile patch. Change: validate the requested provider, model and
+effort through DSH's own resolution, then apply them with
+sessionController.agents.selectForNextRequest; never selectModel or
+saveSelection. An effort given alone applies to the session's current
+selection, also on resume. Public service interfaces only, no copied
+DSH resolution code. Failing-first controls: model and effort, model
+only, effort only, resume, no options, invalid effort; the profile
+patch is byte-identical after open and after shutdown; the session's
+native selection matches the option; a second lane without options
+still gets the profile default. Own branch and pull request after
+W-125 (whose diff keeps plugin.cjs byte-identical); both ship in
+0.1.0-pre.21; one host proof per D-049 covers both.
+
+### W-127 dashi: a fresh profile reaches a working model from inside dashi — status: open (owner dsh-exec, after W-124)
+DSH 0.2 keeps provider and default-model settings in each profile's
+patch, and its one-time import of the old global settings file lands
+in whichever profile boots first, or in none. A dashi profile created
+by the documented install therefore starts with no provider of the
+user's own: on the dsh host on 2026-10-11 the owner's local model was
+absent from dashi although the web profile had it. Start with a
+survey, no code: what dashi shows today on a fresh profile without a
+usable provider; which native interfaces exist to add a provider, a
+credential and a default model from a terminal (config editor,
+credentials service, provider login methods, the default-model
+service). Bar: Claude Code's first run. Acceptance: a user with a
+fresh dashi profile gets to a working model without leaving dashi and
+without editing YAML by hand, through DSH's own writers only (dashi
+stores nothing); whatever cannot be done that way is named as a DSH
+gap and reported upstream. The README states the per-profile fact in
+one sentence. Consequence analysis first.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
