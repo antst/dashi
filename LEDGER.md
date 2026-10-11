@@ -1058,6 +1058,32 @@ its owner (DSH, pnpm, a third-party plugin) and the exact remedy,
 never patched around silently. (6) Whether our own hosts move to a
 global install is a separate owner decision, not taken here.
 
+### D-051 (2026-10-11) Plain versions; every publish goes to latest
+Owner, 2026-10-11, on learning that `latest` of @sessionbus/dsh still
+points at 0.1.0-pre.2 while pre.20 is current: "why this one need
+manual action and not automatically points to lates
+released/published? because of pre? but then stop using pre, as it
+always brings headache". Cause: npm moves `latest` only when a
+publish names no other tag, and our release workflows publish a
+prerelease version under its own tag (`pre`, `alpha`), so `latest`
+stayed where the last plain publish left it (plugin 0.1.0-pre.2,
+dashi 0.1.3). Rulings: (1) Our packages are published with plain
+versions only, and every publish goes to `latest`: no prerelease
+version strings and no extra dist-tags for dashi, the plugin or
+roller. (2) Next versions: @sessionbus/dsh 0.1.0, in place of
+0.1.0-pre.21, and the four dashi packages 0.2.0, in place of
+0.2.0-alpha.3; both sort above every published prerelease. (3) D-049
+stands and its multi-package clause changes: the proof before a
+publish is the packed candidate installed on the real host, the
+bytes to be published and hash-checked, not a prerelease publish.
+After the publish the literal registry install is checked on the
+same hosts; a failure there is answered by a patch release, never by
+moving a tag. (4) Exact pins between our own packages stay. DSH's
+own prerelease versions and tags are upstream's and are named
+exactly in our documents, as now. (5) The stale `pre` and `alpha`
+tags are left for the owner to remove or keep; nothing of ours reads
+them.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -5144,6 +5170,33 @@ stores nothing); whatever cannot be done that way is named as a DSH
 gap and reported upstream. The README states the per-profile fact in
 one sentence. Consequence analysis first.
 
+Amendment 2026-10-11 (design, after the builder's survey). DSH has
+every writer needed and dashi may call them directly: profile settings
+(ctx.settings.mutate), credential references (ctx.credentials.set),
+registered login flows (ctx.authorization.begin) and model selection.
+What is missing is a terminal surface, so no native gap is claimed for
+writing. Scope: the known-provider path only, meaning DSH's stock
+route, its registered login flows and its configurable catalog
+providers. A custom endpoint form is a separate backlog item; against
+the bar it is not a gap, and `/config` or the web Models page do it
+today. Readiness uses two native facts and nothing inferred: a turn
+that failed with MISSING_CREDENTIAL, and a route's declared credential
+reference reported as not configured. An advertised model is never
+treated as authenticated. Surface: one action line on that failed
+turn and one notice at start, neither blocking; in `/model`, "Set
+credential" for a route with a declared reference (masked entry) and
+"Add provider" for a dormant catalog entry (its addressed settings
+subtree, then its credential or login flow); then the existing
+picker. No wizard, no onboarding flag, no stored state. One path for
+the default: selectModel as today; dashi reports the selection, not a
+durable-default receipt. Profile and credential writes are separate
+commits, reported truthfully when only one succeeds and never
+compensated or replayed; replacing a shared reference needs a
+confirmation naming it; a failed prompt is never replayed. Proof needs
+native completed turns against an endpoint that requires the key.
+Upstream request, not blocking: provider readiness and login-flow
+metadata on the Host seam, which today only the web client computes.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -5164,6 +5217,40 @@ rules; only DSH-tool edits are covered, and shell/hook/external edits
 are stated as not covered; no Git reset or stash; bounded per-session
 size with a plain eviction rule. Not scheduled; opens after Phase B.
 Origin: owner request 2026-09-02, DESIGN.md 8.2.
+
+### B-004 dashi: custom endpoint provider form — status: backlog
+Split from W-127 on 2026-10-11. Adding a custom endpoint (base URL,
+protocol, key reference, model metadata, discovery through
+ctx.llm.discoverModels) from inside dashi, through DSH's writers only.
+Not a gap against the bar: Claude Code configures alternative
+endpoints through settings, and `/config` or DSH's web Models page do
+this today. Opens after W-127. A custom route's key reference name
+needs the user's explicit confirmation, never a derived convention.
+
+### B-005 sessionbus daemon: a silent federated host stalls every list — status: backlog (owner 2026-10-11: redesign ours, or from scratch)
+Upstream issue sessionbus/sessionbus 108 and pull request 109, from an
+outside contributor, against v0.5.12 (main fd85d7e). Reviewed
+2026-10-11 by two opus agents and one GLM lane; the problem was
+reproduced on the unchanged release in an isolated federation. A host
+link that stays open but stops answering is treated as live with no
+bound, so every operation that needs that host blocks: the unfiltered
+session.list on every other host, with local rows withheld; group and
+multi-target sends; every directed call; lane and turn operations. An
+idle silent link is reaped after about 150 s by TCP keepalive, one
+with a pending forward after about 15 minutes, a stopped process
+never. Pull request 109 is not merged as written: it closes the host
+link after about 30 s of silence whenever a short call waits, which
+ends cross-host nonpersistent lane ownership (running turns,
+uncollected results, staged messages) for a laptop that sleeps a
+minute, and its trigger includes operator roster legs and host_end,
+so one departure cascades. Direction for our design: keep a caller's
+patience and an attachment's lifetime apart. Bound the aggregate list
+at its own wait, as the operator roster already does, and decide the
+silent-link budget separately, by what is lost. It needs the owner's
+amendment of "partial lists have no public representation". Our DSH
+plugin's list tool has no timeout and hangs for the whole stall. The
+three review reports are kept on the dsh host under
+~/.local/state/dsh-architect/sessionbus-108/.
 
 ## Upstream reports
 
