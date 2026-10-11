@@ -44,7 +44,6 @@ Expected result: one `@sessionbus/dsh@0.1.0-pre.20` and one
 The Sessionbus plugin now consumes the upload provider as a required peer;
 dashi-app owns its exact sibling pin and mounts that provider once (W-122).
 
-**Proof pending:** the alpha.1-to-alpha.2 in-place path awaits the alpha.2 host packet.
 
 For DSH graph upgrades, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile. That graph repair does not fix the alpha.1 provider duplicate.
 
