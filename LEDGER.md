@@ -4706,6 +4706,13 @@ ordinary path, a fresh dashi profile, so alpha.2 carries only the
 re-pin; the packet names both paths (upgrade FAIL, fresh result). The
 README's upgrade section states the defect and the alpha.2 path.
 
+README part merged 2026-10-11 (antst/dashi PR #274, squash a377eb26a1b2ce8f4cd9f433d70628392ea1deea;
+docs only): the upgrade section states the retained 0.1.3 provider
+edge, the failed dedupe, the fresh-profile path, the planned alpha.2
+with plugin pre.20, the exact dsh-codex catalog override and the
+dsh-plugin-subscriptions fact. The item stays open until 0.2.0-alpha.2
+proves the in-place upgrade on the host.
+
 ### W-122 plugin pre.20: the upload provider becomes a peer the profile owns — status: open (owner codex-roller, after W-120)
 From W-121: @sessionbus/dsh's own dependency on
 @antst/dsh-file-uploads-none is the second owner of that fact; a
