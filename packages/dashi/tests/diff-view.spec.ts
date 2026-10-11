@@ -1,14 +1,12 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { diffOverlay } from '../src/diff-view.js'
 import { createToolPresenter } from '../src/tool-presentation.js'
+import { recordedEvents } from './fixtures/session-format.js'
 
-const events = readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  .slice(1).map(line => JSON.parse(line) as SessionEvent)
+const events = recordedEvents(new URL('./fixtures/open-turn-session.jsonl', import.meta.url))
 const diff = { card: 'diff' as const, diffs: [{ path: 'done.txt', oldText: null, newText: 'done' }], title: 'Write done.txt' }
 const presenter = createToolPresenter(() => ({
   presentCall: () => diff,

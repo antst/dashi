@@ -4,22 +4,20 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 
 ## Install
 
-Install DSH 0.1.5-rc.2 or newer and start dashi:
+Install DSH 0.2.1-alpha.2 and the matching dashi 0.2 prerelease:
 
 ```sh
-pnpm install @deepseek-ai/dsh@0.1.5-rc.2 @antst/dashi-launcher
-dsh plugin --profile dashi add @antst/dashi-app
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.1
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.1
 dashi
 ```
 
-dashi is stable from 0.1.0 onward, while DSH remains a prerelease dependency.
+dashi 0.2 is a prerelease on DSH's 0.2 line; it replaces the 0.1 integration.
 Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.
-When upgrading DSH, remove `node_modules` and the lockfile before installing so
-pnpm cannot retain stale peer-only DSH packages.
+For an in-place upgrade, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile.
 A DSH profile must use one uniform DSH version. The minimum supported version
-is `0.1.5-rc.2`; CI tests `0.1.5-rc.2`, `0.1.6-alpha.1`,
-`0.1.6-alpha.2`, and `0.1.5-rc.3` with exact, reproducible graphs.
+is `0.2.1-alpha.2`; CI tests `0.2.1-alpha.2` with an exact, reproducible graph.
 
 Without the launcher package, run `dsh --profile dashi` directly or use the
 shell alias documented below.
@@ -47,7 +45,7 @@ dashi --resume
 dashi --resume session-00000000-0000-0000-0000-000000000000
 dashi --resume session-00000000-0000-0000-0000-000000000000 --fork-session
 dashi --continue
-dashi --model deepseek-v4-flash --effort high
+dashi --model deepseek-flash --effort high
 dashi --permission read-only
 dashi --verbose
 dashi --tools read,bash
@@ -83,9 +81,6 @@ Both commands require an idle root because DSH forks of a running source seed
 and immediately run pending input, with no option to exclude post-boundary inbox items.
 DSH's cold list cannot surface a large seeded fork's title after relaunch, so
 that picker row may be untitled; its UUID remains resumable.
-DSH rc.1 can omit `turn/end` when a request is cancelled before response
-headers; dashi treats the idle agent as authoritative and ignores that open tail
-for completed-turn actions.
 
 ## Sessions
 
@@ -134,13 +129,18 @@ text when no command matches.
 
 `/reset`, `/continue`, `/branch`, and `/quit` alias `/clear`, `/resume`, `/fork`,
 and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
-through DSH's model selection. `/clear [NAME]` starts a fresh session, naming
-the previous one when NAME is supplied. `/agents` selects the current blank
+through DSH's model selection.
+DSH 0.2 refuses launch model/provider routes absent from its available model catalog;
+custom routes must first be declared through the native provider configuration.
+`/clear [NAME]` starts a fresh session, naming the previous one when NAME is supplied.
+`/agents` selects the current blank
 session's native DSH agent preset; after a conversation starts, choosing a
-preset starts a new session with it. `/agents new NAME` copies the selected
-preset and opens its composition in `$EDITOR`, because DSH preset authoring is
-copy-only; `/agents copy SRC DEST` and `/agents delete NAME` use the same native
-roster service. `/usage` shows DSH's whole-session token buckets,
+preset starts a new session with it. DSH 0.2 presets are declared in profile
+patches; `/agents` no longer creates, copies or deletes them. The shipped
+`standard` preset supplies dashi's question, presentation, Ralph, time-context
+and scoped subagent tools. Custom presets can add tools but cannot remove
+DSH's host-level tools, and do not implicitly inherit those standard-only rows.
+`/usage` shows DSH's whole-session token buckets,
 turns, steps, and measured model/tool time; plan limits and cost, per-model
 breakdown, and tool-call count are DSH gaps. `/context` shows DSH's heuristic system, tool-schema,
 and message estimates for the next request. `/init` atomically creates a starter
@@ -155,15 +155,21 @@ and descriptions; choosing one inserts its human invocation into the composer.
 `/diff` shows the working tree against `HEAD`; `/diff turn` shows write/edit
 hunks recorded by DSH for the last completed turn. `/tasks` opens the job and subagent
 details view, Enter reads selected job output, and `/tasks kill ID` stops a job;
-`/bashes` aliases it. `/subtask TEXT` starts a continuable child with TEXT as
-its first prompt. `/loop 5m TEXT` or `/loop 1h TEXT` creates a DSH-owned
+`/bashes` aliases it. The job list includes unowned jobs; background subagents
+are native activations shown in the separate child catalog, not job rows.
+Reading job output does not consume the model's job result. `/subtask TEXT`
+starts a native child activation with TEXT as its prompt. `/loop 5m TEXT` or `/loop 1h TEXT` creates a DSH-owned
 fixed-rate reminder whose firing submits TEXT as a prompt; `/loop` lists active
 schedules and `/loop stop ID` cancels one. DSH sets the minimum interval to
-five minutes. `/plugins` lists each
+one minute on DSH 0.2.1-alpha.2. Child agents see the schedule tools but DSH refuses their use.
+Sessions requiring a format migration are labelled in `/resume`; a cold fork
+that requires migration is refused by DSH rather than silently rewritten.
+`/plugins` lists each
 running profile row's id, module, enabled
 state, and fiber phase; MCP client rows also show their configured server name.
-`/config` lists every DSH settings namespace with its effective, base, and user
-layers; `/config NAMESPACE KEY=VALUE` writes through DSH's validated provider.
+`/config` shows DSH's settings document path and profile entry IDs with their
+effective, base, and user layers; `/config NAMESPACE KEY=VALUE` writes through
+DSH's validated provider using one of those entry IDs.
 `/login [KEY [METHOD]]` lists or starts DSH authorization flows; `/logout [KEY]`
 lists stored record metadata or forgets one credential without reading its value.
 `/plugin ARGS` passes ARGS to `dsh plugin --profile <running profile>` and
@@ -269,10 +275,11 @@ adds ASCII status markers, and suppresses the terminal bell.
 DSH does not currently enforce writer ownership across processes; do not
 resume the same root in two DSH processes.
 
-Cold resume is quadratic in event count in DSH 0.1.5-rc.2 (10k: 1.63 s;
+Historical cold-resume measurements on the retired DSH 0.1 line were quadratic
+in event count: DSH 0.1.5-rc.2 (10k: 1.63 s;
 50k: 11.88 s; 100k: 47.25 s; 200k: 183.09 s) and 0.1.6-alpha.2
 (50k: 11.76 s; 200k: 183.22 s) because
-its token-meter fold clones and scans the retained surface per event
+its token-meter fold cloned and scanned the retained surface per event
 (`packages/llm/token-meter/src/breakdown-projection.ts:56-75`, introduced by
 deepseek-ai/deepseek-harness commit `6525195953`).
 

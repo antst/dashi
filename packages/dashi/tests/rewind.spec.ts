@@ -1,11 +1,11 @@
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   historyInputs, inheritedTurn, latestCompletedTurn, rewindActionOverlay, rewindBoundaries, rewindModelSelection,
   rewindOverlay,
 } from '../src/rewind.js'
 import { inputHistory, inputHistoryEvents } from './fixtures/input-history.js'
+import { recordedEvents } from './fixtures/session-format.js'
 
 function events(): SessionEvent[] {
   return [
@@ -16,7 +16,7 @@ function events(): SessionEvent[] {
     { type: 'turn/end', seq: 2, time: 3, data: { turn: 1, reason: { kind: 'completed' } } },
     { type: 'turn/start', seq: 3, time: 4, data: { turn: 2 } },
     { type: 'user/message', seq: 4, time: 5, data: {
-      content: [{ type: 'text', text: 'injected' }], source: { kind: 'plugin', plugin: 'fixture', form: 'notice', summary: 'fixture' },
+      content: [{ type: 'text', text: 'injected' }], source: { kind: 'plugin:fixture', form: 'notice', summary: 'fixture' },
     }, surfaceOp: 'append' },
     { type: 'user/message', seq: 5, time: 6, data: {
       content: [{ type: 'text', text: 'second prompt' }], source: { kind: 'user' },
@@ -34,8 +34,7 @@ function events(): SessionEvent[] {
 }
 
 function openTurnEvents(): SessionEvent[] {
-  return readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .slice(1).map(line => JSON.parse(line) as SessionEvent)
+  return recordedEvents(new URL('./fixtures/open-turn-session.jsonl', import.meta.url))
 }
 
 describe('rewind boundaries', () => {

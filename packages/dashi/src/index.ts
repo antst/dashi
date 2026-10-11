@@ -19,7 +19,7 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'loader', 'permissionPresets', 'subagents',
-  'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
+  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
 ]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {

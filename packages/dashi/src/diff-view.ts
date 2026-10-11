@@ -23,10 +23,11 @@ export async function diffOverlay(
       title: `Last completed turn diff${boundary.open ? ' · trailing turn open' : ''}` }
   }
   const command = 'git diff --no-ext-diff --no-color HEAD --'
-  const result = await ctx.shell.run(ctx.shell.resolve({
+  const spec = ctx.shell.resolve({
     command, sandboxPolicy: ctx.sandboxPolicy.resolve({ session: agent.session }), signal,
     stdoutMaxBytes: HUMAN_SHELL_STREAM_BYTES, timeoutMs: 30_000, workdir: agent.session.header.cwd,
-  }))
+  })
+  const result = await (await ctx.shell.execute(spec)).result()
   const output = [result.stdout.text, result.stderr.text].filter(Boolean).join('\n')
   const cell: TerminalCell = {
     key: 'diff:working', kind: result.exitCode === 0 ? 'tool' : 'error', text: 'git diff',

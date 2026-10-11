@@ -57,22 +57,27 @@ describe('validated DSH patch surface', () => {
 
     const dashi = readFileSync(join(root, 'packages', 'dashi-app', 'cordis.patch.yml'), 'utf8')
     const base = readFileSync(join(dirname(baseManifestPath), 'cordis.patch.yml'), 'utf8')
-    const web = readFileSync(join(dirname(webManifestPath), 'cordis.patch.yml'), 'utf8')
     const dashiOverrides = rowsAt(dashi, 0)
     const baseRows = new Map(rowsAt(base, 4).map(row => [row.id, row]))
     for (const row of dashiOverrides) expect(baseRows.has(row.id), `base row ${row.id}`).toBe(true)
 
     const disabled = (rows: readonly PatchRow[]): string[] => rows.filter(row => row.disabled)
       .map(row => row.id).sort()
-    // Dashi keeps instructions active and leaves version-specific runtime/manager rows to DSH base.
-    const inherited = new Set(['agent-instructions', 'tool-plugin-manager', 'workflow-ptc', 'workflow-worker-thread'])
-    expect(disabled(dashiOverrides)).toEqual(disabled(rowsAt(web, 0)).filter(id => !inherited.has(id)))
-
-    const webInserts = new Map(rowsAt(web, 4).map(row => [row.id, row.name]))
-    // Authorization, Schedule, Sessionbus, and the terminal no-upload service do not belong to the web client.
-    for (const row of rowsAt(dashi, 4).filter(row =>
-      !['authorization', 'schedule', 'file-uploads-none', 'dashi', 'sessionbus', 'roller'].includes(row.id))) {
-      expect(webInserts.get(row.id), `web insert ${row.id}`).toBe(row.name)
-    }
+    // DSH base owns the host rows. Dashi owns only its terminal preset, not web presets.
+    expect(disabled(dashiOverrides)).toEqual([])
+    expect(dashiOverrides.map(row => row.id)).toEqual(['system-prompt', 'session-query-sqlite'])
+    const scoped = rowsAt(dashi, 10)
+    expect(scoped.map(row => [row.id, row.name])).toEqual([
+      ['tool-ask-user', '@deepseek-ai/dsh-tool-ask-user'],
+      ['tool-present', '@deepseek-ai/dsh-tool-present'],
+      ['tool-ralph', '@deepseek-ai/dsh-tool-ralph'],
+      ['time-context', '@deepseek-ai/dsh-time-context'],
+      ['tool-subagent', '@deepseek-ai/dsh-tool-subagent'],
+    ])
+    expect(rowsAt(dashi, 4).find(row => row.id === 'preset-standard')?.name)
+      .toBe('@deepseek-ai/dsh-agent-preset')
+    expect(dashi).toContain('modelSelectionSettings: true')
+    expect(dashi).not.toContain('toolFilter:')
+    expect(rowsAt(dashi, 4).some(row => row.id === 'authorization')).toBe(false)
   })
 })

@@ -2,7 +2,8 @@ import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { basename } from 'node:path'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type {} from '@deepseek-ai/dsh-agent-presets'
+import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import type { JobListFrame } from '@deepseek-ai/dsh-api-job-controller'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {
   ModelSelection,
@@ -18,7 +19,7 @@ import { parseCredentialKey } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-fs'
 import type { PluginInventoryGateway } from '@deepseek-ai/dsh-host-plugin-inventory'
 import { JobId } from '@deepseek-ai/dsh-jobs'
-import { createUserMessage, ToolCallId, type ContentBlock, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { boundContextSummary, createUserMessage, ToolCallId, type ContentBlock, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { expandAssistantStream } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {
@@ -128,6 +129,7 @@ interface Binding {
   readonly events: SessionEvent[]
   readonly controlIterator: AsyncIterator<SessionControlFrame>
   readonly iterator: AsyncIterator<SessionFollowFrame>
+  readonly jobIterator: AsyncIterator<JobListFrame>
   readonly presenter: ToolPresenter
   streamCells: readonly TerminalCell[]
   repo: string
@@ -136,6 +138,7 @@ interface Binding {
   disposers: Array<() => void>
   pump?: Promise<void>
   controlPump?: Promise<void>
+  jobPump?: Promise<void>
   hasMore: boolean
   presentationTimer: ReturnType<typeof setTimeout> | undefined
   root: RootView
@@ -233,13 +236,20 @@ async function firstControl(
   return first.value
 }
 
+async function firstJobs(iterator: AsyncIterator<JobListFrame>): Promise<JobListFrame> {
+  const first = await iterator.next()
+  if (first.done === true) throw new Error('DSH job list ended before its opening rows')
+  return first.value
+}
+
 async function gitRepo(ctx: Context, agent: Agent, signal: AbortSignal): Promise<string> {
   const fallback = basename(agent.session.header.cwd ?? '')
   try {
-    const result = await ctx.shell.run(ctx.shell.resolve({
+    const spec = ctx.shell.resolve({
       command: 'git rev-parse --show-toplevel && git branch --show-current', sandboxPolicy: ctx.sandboxPolicy.resolve({ mode: 'read-only' }),
       signal, stdoutMaxBytes: 1_024, timeoutMs: 2_000, workdir: agent.session.header.cwd,
-    }))
+    })
+    const result = await (await ctx.shell.execute(spec)).result()
     const [root, branch] = result.stdout.text.trim().split(/\r?\n/u)
     return result.exitCode === 0 && root !== undefined && branch !== undefined ? `${basename(root)}/${branch}` : fallback
   } catch { return fallback }
@@ -291,7 +301,7 @@ export async function createSessionRuntime(
       ? continuation((await ctx.sessionController.list({}, lifetime.signal)).items, options.cwd)
       : (await ctx.sessionController.create({ cwd: options.cwd, ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }), ...(options.sessionId === undefined ? {} : { sessionId: SessionId(options.sessionId) }) })).sessionId
     : SessionId(options.resume)
-  if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId })).sessionId
+  if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
 
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
     const abort = new AbortController()
@@ -323,8 +333,10 @@ export async function createSessionRuntime(
         address: { kind: 'session', sessionId }, assistantStream: true, maxMessages: 50,
       }, abort.signal)[Symbol.asyncIterator]()
       const controlIterator = ctx.sessionController.control(abort.signal)[Symbol.asyncIterator]()
-      const [opening, controlOpening, subagents, repo] = await Promise.all([
-        firstSnapshot(iterator), firstControl(controlIterator), subagentViews(ctx, sessionId, abort.signal),
+      const jobIterator = ctx.jobController.list({ sessionId }, abort.signal)[Symbol.asyncIterator]()
+      const [opening, controlOpening, jobOpening, subagents, repo] = await Promise.all([
+        firstSnapshot(iterator), firstControl(controlIterator), firstJobs(jobIterator),
+        subagentViews(ctx, sessionId, abort.signal),
         gitRepo(ctx, agent, abort.signal),
       ])
       title ??= projectionString(opening.projections, 'title')
@@ -344,6 +356,7 @@ export async function createSessionRuntime(
         events: eventsFromRecords(opening.records),
         hasMore: opening.hasMore,
         iterator,
+        jobIterator,
         presenter: createToolPresenter(tool => ctx.tools.get(tool, agent)),
         presentationTimer: undefined,
         streamCells: openingStream(opening.assistantStream),
@@ -351,7 +364,7 @@ export async function createSessionRuntime(
           ...(initialContextPercent === undefined ? {} : { contextPercent: initialContextPercent }),
           cwd: opening.header.cwd ?? options.cwd,
           id: String(sessionId),
-          jobs: jobViews(controlOpening.value.jobs[sessionId] ?? []),
+          jobs: jobViews(jobOpening.jobs),
           model: selected?.model ?? agent.options.model ?? 'default',
           permission: ctx.permissionPresets.current(agent.session),
           status: agent.status,
@@ -529,10 +542,6 @@ export async function createSessionRuntime(
         const frame = next.value
         if (frame.type === 'baseline') {
           report('DSH session control emitted a second baseline', bound.root.id)
-        } else if (frame.type === 'jobs' && String(frame.sessionId) === bound.root.id) {
-          const jobs = jobViews(frame.jobs)
-          bound.root = { ...bound.root, jobs }
-          dispatch({ type: 'root-presentation', jobs, rootId: bound.root.id })
         } else if (frame.type === 'projection') {
           if (String(frame.sessionId) === bound.root.id && frame.key === 'contextPressure') {
             const percent = contextPercent(frame.value)
@@ -543,6 +552,21 @@ export async function createSessionRuntime(
           if (frame.key === 'subagent' || frame.key === 'subagentTiming'
             || frame.key === 'title' || frame.key === 'tokenUsage') scheduleSubagents(bound)
         }
+      }
+    } catch (error) {
+      if (!bound.abort.signal.aborted) report(error, bound.root.id)
+    }
+  }
+
+  const followJobs = async (bound: Binding): Promise<void> => {
+    try {
+      for (;;) {
+        const next = await bound.jobIterator.next()
+        if (next.done === true || bound.abort.signal.aborted) break
+        if (current() !== bound) continue
+        const jobs = jobViews(next.value.jobs)
+        bound.root = { ...bound.root, jobs }
+        dispatch({ type: 'root-presentation', jobs, rootId: bound.root.id })
       }
     } catch (error) {
       if (!bound.abort.signal.aborted) report(error, bound.root.id)
@@ -576,6 +600,7 @@ export async function createSessionRuntime(
     if (started) {
       candidate.pump = follow(candidate)
       candidate.controlPump = followControl(candidate)
+      candidate.jobPump = followJobs(candidate)
     }
     await stop(previous)
   }
@@ -659,7 +684,7 @@ export async function createSessionRuntime(
         }
         return
       case 'fork': {
-        const child = await ctx.sessionController.fork({ sessionId: bound.agent.id })
+        const child = await ctx.sessionController.fork({ sessionId: bound.agent.id, allowMigration: false })
         await replace(child.sessionId)
         return
       }
@@ -683,7 +708,7 @@ export async function createSessionRuntime(
           return
         }
         const child = await ctx.sessionController.fork({
-          atSeq: operation.atSeq, sessionId: bound.agent.id,
+          atSeq: operation.atSeq, sessionId: bound.agent.id, allowMigration: false,
         })
         await replace(child.sessionId)
         if (operation.mode === 'both') await restoreFiles(current(), operation.atSeq)
@@ -708,8 +733,8 @@ export async function createSessionRuntime(
       }
       const match = /^kill\s+(\S+)$/u.exec(raw)
       if (match?.[1] === undefined) return { kind: 'error', text: 'usage: /tasks [kill ID]' }
-      const result = ctx.jobs.kill(JobId(match[1]), bound.agent, 'stopped by /tasks')
-      return { kind: 'success', text: result === 'requested' ? `stopping ${match[1]}` : `${match[1]} already finished` }
+      const result = ctx.jobController.kill({ jobId: JobId(match[1]), sessionId: bound.agent.id })
+      return { kind: 'success', text: result.outcome === 'requested' ? `stopping ${match[1]}` : `${match[1]} already finished` }
     }
     const loop = async (invocation: CommandInvocation): Promise<CommandResult> => {
       const stale = ensureCurrent(invocation)
@@ -723,6 +748,7 @@ export async function createSessionRuntime(
       const name = raw === '' ? 'schedule_list' : stop === null ? 'schedule_create' : 'schedule_delete'
       const args = raw === '' ? {} : stop === null ? {
         every_seconds: Number(create![1]) * (create![2] === 'h' ? 3_600 : 60), prompt: create![3],
+        title: boundContextSummary(create![3]!.replace(/\s+/gu, ' ').trim()),
       } : { id: stop[1] }
       const result = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
         agent: bound.agent, arguments: args, callId: ToolCallId(`${String(invocation.commandId)}:loop`),
@@ -743,7 +769,7 @@ export async function createSessionRuntime(
       if (bound.agent.status !== 'idle') return { kind: 'error', text: 'finish or interrupt the turn first' }
       const boundary = latestCompletedTurn(bound.agent.session.snapshotEvents())
       if (boundary.atSeq === undefined) throw new Error('the current session has no completed turn to fork')
-      const forked = await ctx.sessionController.fork({ atSeq: boundary.atSeq, sessionId: bound.agent.id })
+      const forked = await ctx.sessionController.fork({ atSeq: boundary.atSeq, sessionId: bound.agent.id, allowMigration: false })
       const resolved = await ctx.sessionController.resolveAgent(forked.sessionId)
       if ('error' in resolved) throw resolved.error
       const child = resolved.agent
@@ -845,9 +871,9 @@ export async function createSessionRuntime(
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
           const raw = invocation.rawInput.trim()
-          if (raw === '') return { kind: 'success', text: ctx.settings.describe({ redactSecrets: true }).map(item =>
+          if (raw === '') return { kind: 'success', text: [ctx.settings.documentPath, ...ctx.settings.describe({ redactSecrets: true }).map(item =>
             `${String(item.ns)}\n  value: ${configLayer(item.value)}\n  base: ${configLayer(item.base)}\n  user: ${configLayer(item.user)}`,
-          ).join('\n') }
+          )].join('\n') }
           const match = /^(\S+)\s+([^\s=]+)=(.*)$/su.exec(raw)
           if (match?.[1] === undefined || match[2] === undefined || match[3] === undefined) {
             return { kind: 'error', text: 'usage: /config [NAMESPACE KEY=VALUE]' }
@@ -1016,18 +1042,19 @@ export async function createSessionRuntime(
         handler: tasks,
       },
       {
-        name: 'subtask', description: 'Start a continuable child', input: { hint: 'TEXT' },
+        name: 'subtask', description: 'Start a background child', input: { hint: 'TEXT' },
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
           const text = invocation.rawInput.trim()
           if (text === '') return { kind: 'error', text: 'usage: /subtask TEXT' }
-          const started = await ctx.subagents.startContinuable({
-            label: text, provider: 'spawn',
-            request: { parent: bound.agent, prompt: [{ type: 'text', text }] },
-            signal: invocation.signal,
-          })
-          return { kind: 'success', text: `subtask ${String(started.childId)} started` }
+          const result = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
+            agent: bound.agent, arguments: { description: boundContextSummary(text.replace(/\s+/gu, ' ').trim()), prompt: text },
+            callId: ToolCallId(`${String(invocation.commandId)}:subtask`), name: 'subagent', signal: invocation.signal,
+          }))
+          if (result.isError) return { kind: 'error', text: result.error.message }
+          const started = result.value as { readonly subagentId: SessionId }
+          return { kind: 'success', text: `subtask ${String(started.subagentId)} started` }
         },
       },
       {
@@ -1043,8 +1070,7 @@ export async function createSessionRuntime(
         handler: invocation => usage(invocation.rawInput, '/recap') ?? askAside(invocation, RECAP_PROMPT),
       },
       {
-        name: 'agents', description: 'Choose or author a native DSH agent preset',
-        input: { hint: '[new NAME | copy SRC DEST | delete NAME]' },
+        name: 'agents', description: 'Choose a native DSH agent preset',
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
@@ -1052,23 +1078,9 @@ export async function createSessionRuntime(
           const blank = !bound.agent.session.snapshotEvents().some(event => event.type === 'turn/start')
           const selected = ctx.sessionProjections.stateOf(bound.agent.session, 'agentPreset')
             ?? ctx.agentPresets.defaultId
-          const create = /^new\s+(\S+)$/u.exec(raw)
-          const copy = /^copy\s+(\S+)\s+(\S+)$/u.exec(raw)
-          const remove = /^delete\s+(\S+)$/u.exec(raw)
-          if (create?.[1] !== undefined) {
-            await ctx.agentPresets.copy(selected, create[1])
-            dispatch({ type: 'open-file', path: (await ctx.agentPresets.resolve(create[1])).path })
-            return { kind: 'success', text: `created ${create[1]} from ${selected}` }
+          if (raw !== '') return {
+            kind: 'error', text: 'Use /agents to choose a preset. DSH has no preset authoring API; declare presets in profile configuration.',
           }
-          if (copy?.[1] !== undefined && copy[2] !== undefined) {
-            await ctx.agentPresets.copy(copy[1], copy[2])
-            return { kind: 'success', text: `copied ${copy[1]} to ${copy[2]}` }
-          }
-          if (remove?.[1] !== undefined) {
-            await ctx.agentPresets.remove(remove[1])
-            return { kind: 'success', text: `deleted ${remove[1]}` }
-          }
-          if (raw !== '') return { kind: 'error', text: 'usage: /agents [new NAME | copy SRC DEST | delete NAME]' }
           dispatch({
             type: 'open-overlay',
             overlay: agentPresetOverlay(await ctx.agentPresets.list(), selected, blank),
@@ -1263,6 +1275,7 @@ export async function createSessionRuntime(
     await bound.commandScope?.dispose()
     await bound.pump
     await bound.controlPump
+    await bound.jobPump
   }
 
   await install(binding)
@@ -1333,10 +1346,16 @@ export async function createSessionRuntime(
           break
         }
         case 'job-output': {
-          const result = ctx.jobs.read(JobId(value.jobId), bound.agent)
+          const result = ctx.jobs.readAt(JobId(value.jobId), 0, bound.agent.id)
+          const job = ctx.jobs.get(JobId(value.jobId), bound.agent.id)
+          const text = result.chunks.map(chunk => `${chunk.gapBefore ? '[output gap]\n' : ''}${chunk.text}`).join('')
           dispatch({ type: 'open-overlay', overlay: {
-            cells: [{ key: `job:${value.jobId}`, kind: 'outcome', text: result.text }],
-            kind: 'info', lines: [], title: `Job ${value.jobId} · ${result.snapshot.status}`,
+            cells: [{ key: `job:${value.jobId}`, kind: 'outcome', text: `${result.lossy ? '[earlier output evicted]\n' : ''}${text}` }],
+            kind: 'info', lines: [
+              ...(job.progress === undefined ? [] : [job.progress]),
+              ...(job.detail === undefined ? [] : [job.detail]),
+              ...(job.output.spillPaths ?? []).map(path => `Complete output: ${path}`),
+            ], title: `Job ${value.jobId} · ${job.status}`,
           } })
           break
         }
@@ -1488,6 +1507,7 @@ export async function createSessionRuntime(
       started = true
       binding.pump = follow(binding)
       binding.controlPump = followControl(binding)
+      binding.jobPump = followJobs(binding)
     },
     async submit(text, mode, attachments) {
       if (!accepting) return

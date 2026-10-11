@@ -21,6 +21,7 @@ export interface JobView {
   readonly id: string
   readonly kind: string
   readonly label: string
+  readonly progress?: string
   readonly startedAt: number
   readonly status: 'running' | 'stopping' | 'completed' | 'killed' | 'failed'
 }
@@ -30,8 +31,8 @@ export interface SubagentView {
   readonly elapsedMs?: number
   readonly id: string
   readonly label: string
-  readonly mode: 'continuable' | 'one-shot'
-  readonly state: 'inactive' | 'running'
+  readonly mode: 'continuable' | 'one-shot' | 'external' | 'unknown'
+  readonly state: 'inactive' | 'running' | 'unknown'
   readonly summary?: string
   readonly tokens?: number
 }

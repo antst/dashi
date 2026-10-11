@@ -105,8 +105,8 @@ const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', impo
 for (const path of packageFiles) {
   const manifest = JSON.parse(await readFile(path, 'utf8'))
   if (relative(root, path) === 'packages/dashi-app/package.json'
-    && manifest.dependencies?.['@antst/roller'] !== '0.1.3') {
-    failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.3')
+    && manifest.dependencies?.['@antst/roller'] !== '0.1.4') {
+    failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.4')
   }
   for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
     for (const dependency of Object.keys(manifest[field] ?? {})) {

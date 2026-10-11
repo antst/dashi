@@ -170,7 +170,7 @@ function latestPendingCommand(cells: readonly TerminalCell[]): TerminalCell | un
 function activityText(activity: Activity, now: number): string {
   if (activity.kind === 'job') {
     const job = activity.value
-    return `Job · ${job.label} · ${job.status} · ${duration(jobElapsed(job, now))}${job.detail === undefined ? '' : ` · ${job.detail}`}`
+    return `Job · ${job.label} · ${job.status} · ${duration(jobElapsed(job, now))}${job.progress === undefined ? '' : ` · ${job.progress}`}${job.detail === undefined ? '' : ` · ${job.detail}`}`
   }
   const subagent = activity.value
   const elapsed = subagentElapsed(subagent, now)

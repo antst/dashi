@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { AgentPreset } from '@deepseek-ai/dsh-agent-presets'
+import type { AgentPreset } from '@deepseek-ai/dsh-agent-preset-registry'
 import type { ModelCatalog, ModelSelection, SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-commands'
 import type { FileReferenceService } from '@deepseek-ai/dsh-file-reference'
@@ -139,7 +139,7 @@ export function sessionOverlay(items: readonly SessionSummary[], currentId: stri
     kind: 'list',
     options: items.filter(item => item.origin === undefined && (cwd === undefined || item.cwd === cwd)).map(item => ({
       active: String(item.sessionId) === currentId,
-      detail: `${item.cwd ?? 'cwd unavailable'} · ${new Date(item.updatedAt).toISOString()}`,
+      detail: `${item.cwd ?? 'cwd unavailable'} · ${new Date(item.updatedAt).toISOString()}${item.formatStatus === 'migration-required' ? ' · migration required' : ''}`,
       label: `${sessionTitle(item) ?? 'Untitled'} · ${String(item.sessionId)}`,
       value: { kind: 'resume', sessionId: String(item.sessionId) },
     })),

@@ -1,22 +1,19 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { foldAssistantStream, foldCells, pendingShellCells } from '../src/transcript.js'
+import { recordedEvents as restoreRecordedEvents } from './fixtures/session-format.js'
 
 function recordedEvents(): SessionEvent[] {
-  return readFileSync(new URL('./fixtures/recorded-turn.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .slice(1).map(line => JSON.parse(line) as SessionEvent)
+  return restoreRecordedEvents(new URL('./fixtures/recorded-turn.jsonl', import.meta.url))
 }
 
 function contextEvents(): SessionEvent[] {
-  return readFileSync(new URL('./fixtures/context-injection-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .slice(1).map(line => JSON.parse(line) as SessionEvent)
+  return restoreRecordedEvents(new URL('./fixtures/context-injection-session.jsonl', import.meta.url))
 }
 
 function openTurnEvents(): SessionEvent[] {
-  return readFileSync(new URL('./fixtures/open-turn-session.jsonl', import.meta.url), 'utf8').trim().split('\n')
-    .slice(1).map(line => JSON.parse(line) as SessionEvent)
+  return restoreRecordedEvents(new URL('./fixtures/open-turn-session.jsonl', import.meta.url))
 }
 
 describe('foldCells', () => {
@@ -63,7 +60,7 @@ describe('foldCells', () => {
   ])('collapses plugin context form %s from source fields', (form, extra, summary) => {
     const message = createUserMessage({
       content: [{ type: 'text', text: 'first line\nsecond line' }],
-      source: { form, kind: 'plugin', plugin: 'fixture', ...extra } as never,
+      source: { form, kind: 'plugin:fixture', ...extra } as never,
     })
     const events = [{ type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message }] as unknown as SessionEvent[]
     expect(foldCells(events)[0]).toMatchObject({
@@ -85,7 +82,7 @@ describe('foldCells', () => {
     const events = [
       { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: createUserMessage({
         content: [{ type: 'text', text: 'relay body' }],
-        source: { form: 'relay', kind: 'plugin', plugin: 'fixture' },
+        source: { form: 'relay', kind: 'plugin:sessionbus-dsh' } as never,
       }) },
       { type: 'user/message', seq: 2, time: 2, surfaceOp: 'append', data: createUserMessage({
         content: [{ type: 'text', text: 'skill body' }],
@@ -109,9 +106,8 @@ describe('foldCells', () => {
       } },
       { type: 'tool/call', seq: 4, time: 5, data: { turn: 1, step: 1, callId: 'call-1', name: 'inspect', arguments: '{"path":"a"}' } },
       { type: 'tool/result', seq: 5, time: 6, surfaceOp: 'append', data: {
-        turn: 1, step: 1, message: { id: 'r1', role: 'user', source: { kind: 'tool', callId: 'call-1' }, content: [
-          { type: 'tool-result', toolCallId: 'call-1', content: [{ type: 'text', text: 'ok' }] },
-        ] },
+        turn: 1, step: 1, message: { id: 'r1', role: 'tool', source: { kind: 'tool', callId: 'call-1' },
+          content: [{ type: 'text', text: 'ok' }] },
       } },
       { type: 'turn/end', seq: 6, time: 7, data: { turn: 1, reason: { kind: 'completed' } } },
     ] as unknown as SessionEvent[]
@@ -126,10 +122,28 @@ describe('foldCells', () => {
     ])
   })
 
+  it.each([
+    [[], false, 'tool'],
+    [[{ type: 'text', text: 'native failure' }], true, 'error'],
+  ])('uses first-class tool content %j and top-level isError %s', (content, isError, kind) => {
+    const events = [
+      { type: 'tool/call', seq: 0, time: 0, data: { turn: 1, step: 1, callId: 'native', name: 'inspect', arguments: '{}' } },
+      { type: 'tool/result', seq: 1, time: 1, surfaceOp: 'append', data: {
+        turn: 1, step: 1, message: {
+          id: 'native-result', role: 'tool', source: { kind: 'tool', callId: 'native' }, content, isError,
+        },
+      } },
+    ] as unknown as SessionEvent[]
+    expect(foldCells(events)).toEqual([expect.objectContaining({
+      kind, pending: false, text: 'inspect',
+      tool: { card: 'generic', title: 'inspect', ...(isError ? { body: 'native failure' } : {}) },
+    })])
+  })
+
   it('renders structural errors and ignores unknown plugin events without throwing', () => {
     const events = [
       { type: 'plugin/new-fact', seq: 0, time: 1, data: {}, ignorable: false },
-      { type: 'tool/result', seq: 1, time: 2, data: { message: { source: { callId: 'missing' }, content: [{ content: [] }] } } },
+      { type: 'tool/result', seq: 1, time: 2, data: { message: { role: 'tool', source: { kind: 'tool', callId: 'missing' }, content: [] } } },
       { type: 'turn/end', seq: 2, time: 3, data: { turn: 9, reason: { kind: 'completed' } } },
     ] as unknown as SessionEvent[]
     expect(foldCells(events).map(cell => cell.text)).toEqual([
@@ -140,7 +154,7 @@ describe('foldCells', () => {
 
   it('accepts a message-aligned truncated prefix while retaining later structural errors', () => {
     const events = [
-      { type: 'tool/result', seq: 40, time: 1, data: { message: { source: { callId: 'earlier' }, content: [{ content: [] }] } } },
+      { type: 'tool/result', seq: 40, time: 1, data: { message: { role: 'tool', source: { kind: 'tool', callId: 'earlier' }, content: [] } } },
       { type: 'turn/end', seq: 41, time: 2, data: { turn: 8, reason: { kind: 'completed' } } },
       { type: 'turn/end', seq: 42, time: 3, data: { turn: 9, reason: { kind: 'completed' } } },
     ] as unknown as SessionEvent[]
@@ -189,7 +203,7 @@ describe('foldCells', () => {
   it('renders dashi shell notices from pending inbox and durable history', () => {
     const message = createUserMessage({
       content: [{ type: 'text', text: '$ echo ok\n[stdout]\nok\n[exit 0]' }],
-      source: { form: 'notice', kind: 'plugin', plugin: 'dashi', summary: 'Shell: echo ok' },
+      source: { form: 'notice', kind: 'plugin:dashi', summary: 'Shell: echo ok' },
     })
     expect(pendingShellCells([message])).toEqual([expect.objectContaining({
       kind: 'shell', pending: true, text: expect.stringContaining('$ echo ok'),
@@ -249,7 +263,7 @@ describe('foldCells', () => {
     const checkpoint = (seq: number, id: string, sourceCommandId?: string) => ({
       type: 'user/message', seq, time: seq, surfaceOp: { op: 'replace', startSeq: 0, endSeq: 1 }, data: {
         content: [{ type: 'text', text: 'summary' }], id: `m-${String(seq)}`, role: 'user',
-        source: { kind: 'plugin', plugin: 'compact', compactionId: id,
+        source: { kind: 'compact-checkpoint', compactionId: id,
           ...(sourceCommandId === undefined ? {} : { sourceCommandId }) },
       },
     })
