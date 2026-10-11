@@ -33,7 +33,7 @@ child.on('error', error => {
   failed = true
   const missing = error.code === 'ENOENT'
   process.stderr.write(missing
-    ? "dashi: dsh not found; install it with 'npm install --global @deepseek-ai/dsh'\n"
+    ? "dashi: dsh not found; in your home install directory use 'pnpm add --save-exact @deepseek-ai/dsh@<the version dashi-app requires>' and add '$HOME/node_modules/.bin' to PATH\n"
     : `dashi: could not start dsh: ${error.message}\n`)
   process.exitCode = missing ? 127 : 1
 })

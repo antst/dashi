@@ -15,6 +15,13 @@ dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 dashi
 ```
 
+For a home pnpm install, `dsh`/`dashi` live in `$HOME/node_modules/.bin`.
+Add it to your login shell's PATH (e.g.
+`export PATH="$HOME/node_modules/.bin:$PATH"` in the appropriate shell rc), or
+invoke the bins by full path. Without editing an rc file, run `pnpm exec dashi`
+from the home install directory. The runbook's per-shell export and daemon
+drop-in cover scripts and the service, not your login shell.
+
 dashi 0.2 is a prerelease on DSH's 0.2 line; it replaces the 0.1 integration.
 Npm is unsupported for prerelease DSH because it cannot constrain a scoped
 package family to one prerelease.

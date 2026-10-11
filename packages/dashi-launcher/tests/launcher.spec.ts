@@ -119,7 +119,7 @@ describe('dashi launcher', () => {
     })
     expect(result.status).toBe(127)
     expect(result.stderr).toBe(
-      "dashi: dsh not found; install it with 'npm install --global @deepseek-ai/dsh'\n",
+      "dashi: dsh not found; in your home install directory use 'pnpm add --save-exact @deepseek-ai/dsh@<the version dashi-app requires>' and add '$HOME/node_modules/.bin' to PATH\n",
     )
   })
 
