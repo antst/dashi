@@ -4446,6 +4446,19 @@ dsh-host-dashi-020-alpha1-proof-20261011, SHA256(SHA256SUMS)
 cb289849...2fdfa, 3534 members. dist-tag stays alpha; 0.2.0-alpha.2
 (pins pre.20) proves the upgrade path.
 
+Follow-up 2026-10-11: 0.2.0-alpha.2 (antst/dashi PR #282, squash
+60ab2997927fd45cf203c8674363de7cbbfae037; tag v0.2.0-alpha.2, run
+38118531091, dist-tag alpha) pins @sessionbus/dsh
+0.1.0-pre.20, whose upload provider is a peer the profile owns; README
+upgrade section rewritten as the actual in-place instruction, the
+stale groups paragraph replaced with the pre.19 facts, the
+dsh-plugin-subscriptions wording fixed. D-049 proof: the in-place
+upgrade of the dsh host's dashi profile from alpha.1 resolved one
+@sessionbus/dsh (pre.20) and one provider (alpha.2) with no cleanup,
+32 DSH records alpha.2, and the full feature list passed again; packet
+dsh-host-dashi-020-alpha2-proof-20261011 (6653b25a...363f9, 75
+files). Verifier: sonnet agents 2026-10-11 (PR #282 content, hosted run, host packet 75/75 and live home/profile state).
+
 ### W-115 sessionbus-dsh pre.17: v4 source kind, derived cordis pins, DSH 0.2 legs — status: open (owner dsh-exec, under the repository's AGENTS.md) — scope per D-048: DSH 0.1.5 legs dropped, peer floor >=0.2.0-rc.2
 Per D-047 (2), (4), (5). plugin.cjs:176 emits source.kind "plugin"
 (form relay), rejected on DSH 0.2 by session-format-v3-to-v4
@@ -4681,7 +4694,7 @@ plugin defect. Packet sessionbus-w120-host.S2zX4q9b (ca3ca8a2...85f99).
 Follow-up 2026-10-11: PR #60 (squash 2aa65158cc7a97dcc23f7704e098558239544a7f) canonicalises the proof
 anchors (realpath) and records the host-proof cautions in the runbook.
 
-### W-121 dashi: in-place upgrade leaves two upload-provider copies — status: open (owner dsh-exec, after W-114 proof)
+### W-121 dashi: in-place upgrade leaves two upload-provider copies — status: closed (owner dsh-exec, after W-114 proof)
 Found by the W-114 host proof: upgrading an existing dashi profile from
 0.1.3 with the ordinary `dsh plugin --profile <p> add
 @antst/dashi-app@0.2.0-alpha.1` keeps the retained
@@ -4712,6 +4725,10 @@ edge, the failed dedupe, the fresh-profile path, the planned alpha.2
 with plugin pre.20, the exact dsh-codex catalog override and the
 dsh-plugin-subscriptions fact. The item stays open until 0.2.0-alpha.2
 proves the in-place upgrade on the host.
+
+Closed 2026-10-11: the in-place upgrade path is proven by the alpha.2 host
+packet (see W-114 follow-up); the structural fix shipped as plugin
+pre.20 (W-122) and dashi 0.2.0-alpha.2.
 
 ### W-122 plugin pre.20: the upload provider becomes a peer the profile owns — status: open (owner codex-roller, after W-120)
 From W-121: @sessionbus/dsh's own dependency on
