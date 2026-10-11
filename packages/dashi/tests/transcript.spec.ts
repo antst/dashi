@@ -23,12 +23,16 @@ describe('foldCells', () => {
       { type: 'request/header', seq: 1, time: 2, data: { header: { config: { provider: 'native', model: 'm' } } } },
       { type: 'turn/end', seq: 2, time: 3, data: { turn: 1, reason: { kind: 'error', error: { code: 'MISSING_CREDENTIAL', message: 'missing' } } } },
     ] as unknown as SessionEvent[]
-    expect(foldCells(events).at(-1)?.text).toBe('missing [MISSING_CREDENTIAL]\nnative: use /login, or /model → Set credential for a route with a credential reference.')
+    expect(foldCells(events).at(-1)?.text).toBe('missing [MISSING_CREDENTIAL]\nnative: use /login to sign in, or /model → Set credential to enter a provider key.')
     const failure = events[2] as SessionEvent<'turn/end'>
     if (failure.data.reason.kind !== 'error') throw new Error('expected error')
     const different = { ...failure, data: { ...failure.data, reason: { ...failure.data.reason, error: { ...failure.data.reason.error, code: 'INVALID_CREDENTIAL' } } } } as SessionEvent
     expect(foldCells([events[0]!, events[1]!, different]).at(-1)?.text).toBe('missing [INVALID_CREDENTIAL]')
     expect(foldCells([events[0]!, failure]).at(-1)?.text).toBe('missing [MISSING_CREDENTIAL]')
+    expect(foldCells([...events,
+      { ...events[0]!, seq: 3, data: { turn: 2 } } as SessionEvent,
+      { ...failure, seq: 4, data: { ...failure.data, turn: 2 } } as SessionEvent,
+    ]).at(-1)?.text).toBe('missing [MISSING_CREDENTIAL]')
   })
   it('folds a recorded DSH session log and skips unrelated native events', () => {
     expect(foldCells(recordedEvents())).toEqual([

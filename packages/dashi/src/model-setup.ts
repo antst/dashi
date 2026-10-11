@@ -49,7 +49,7 @@ export function credentialOptions(ctx: Context): readonly OverlayOption[] {
 }
 
 export function credentialGuidance(provider: string): string {
-  return `${provider}: use /login, or /model → Set credential for a route with a credential reference.`
+  return `${provider}: use /login to sign in, or /model → Set credential to enter a provider key.`
 }
 
 /** Called only after the shell's first frame; unreadable/opaque routes make no readiness claim. */
@@ -57,8 +57,11 @@ export async function missingCredentialNotice(ctx: Context, provider: string | u
   try {
     // A fresh root has no request/selection projection yet. The native catalog owns its default.
     provider ??= (await ctx.sessionController.modelCatalog()).default.provider
-    const route = routeOf(ctx, provider)
-    const ref = reference(descriptor(ctx, route), route.settingsPath)
+    const route = ctx.llm.listConfigurableProviders().find(item => item.provider === provider)
+    if (route === undefined) return undefined
+    const section = ctx.settings.describe({ redactSecrets: true }).find(item => item.ns === route.settingsNs)
+    if (section === undefined) return undefined
+    const ref = reference(section, route.settingsPath)
     if (ref === undefined || (await ctx.credentials.describe(ref)).configured) return undefined
     return `${route.displayName}: credential ${ref} is not configured. ${credentialGuidance(provider)}`
   } catch (error) {
@@ -111,10 +114,10 @@ export async function addModelProvider(
   signal.throwIfAborted()
   const active = new Set(ctx.llm.listProviders().map(item => item.id))
   const dormant = ctx.llm.listConfigurableProviders().filter(item => !active.has(item.provider) && item.declared !== true)
-  if (dormant.length === 0) return { kind: 'success', text: 'no dormant catalog providers' }
+  if (dormant.length === 0) return { kind: 'success', text: 'all available providers are already added' }
   const described = ctx.settings.describe({ redactSecrets: true })
   const sections = dormant.map(route => described.find(section => section.ns === route.settingsNs))
-  const labels = dormant.map(route => `${route.displayName} (${route.provider})`)
+  const labels = dormant.map(route => route.displayName === route.provider ? route.displayName : `${route.displayName} (${route.provider})`)
   const answer = await ask({
     allowCustom: false, header: 'Add provider', id: 'provider', multiSelect: false,
     options: labels.map(label => ({ label })), question: 'Choose a provider DSH already knows.',
@@ -136,11 +139,11 @@ export async function addModelProvider(
     const choices = ctx.authorization.list().flatMap(flow => flow.methods.map(method => ({
       key: String(flow.key), method: method.id, label: `${flow.label} · ${flow.key} · ${method.label}`,
     })))
-    if (choices.length === 0) return { kind: 'success', text: `${saved}; no registered login flows` }
+    if (choices.length === 0) return { kind: 'success', text: `${saved}; no sign-in options are available; use /config for provider settings` }
     const selected = await ask({
       allowCustom: false, header: 'Login', id: 'login', multiSelect: false,
-      detail: `${saved}. Choose its sign-in flow from DSH's native list.`,
-      options: choices.map(({ label }) => ({ label })), question: 'Choose a registered sign-in flow.',
+      detail: `${saved}. Choose how to sign in to this provider.`,
+      options: choices.map(({ label }) => ({ label })), question: 'Choose a sign-in option.',
     })
     const choice = choices.find(item => item.label === selected.selected[0])
     if (choice === undefined) return { kind: 'success', text: `${saved}; sign-in cancelled` }
@@ -148,6 +151,7 @@ export async function addModelProvider(
     return { kind: result.kind, text: `${saved}; ${result.text}` }
   } catch (error) {
     const code = at(error, 'code')
-    return { kind: 'error', text: `${saved}; credential/sign-in outcome not confirmed${typeof code === 'string' ? ` [${code}]` : ''}; send a prompt to check, or use /login or /model to try again` }
+    if (signal.aborted || code === 'ASK_ABORTED') return { kind: 'success', text: `${saved}; sign-in cancelled` }
+    return { kind: 'error', text: `${saved}; sign-in failed: ${error instanceof Error ? error.message : String(error)}${typeof code === 'string' ? ` [${code}]` : ''}; use /login or /model to try again` }
   }
 }

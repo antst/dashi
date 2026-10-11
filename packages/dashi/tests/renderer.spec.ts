@@ -433,8 +433,8 @@ describe('terminal renderer', () => {
     expect(help).toContain(VERSION_LINE)
     expect(help).toContain('Shift+Tab permission')
     expect(help).toContain('/plugins /plugin')
-    // The two W-127 slash-help entries add three wrapped rows at this width.
-    expect(help).toContain('↓ 7 more')
+    // The two concise W-127 slash-help entries each occupy one row at this width.
+    expect(help).toContain('↓ 6 more')
     terminal.send('\u001B[6~')
     await shell.whenIdle(); await terminal.flush()
     expect(terminal.lines().join('\n')).toContain('--permission PRESET')

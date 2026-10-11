@@ -1,12 +1,18 @@
 import { randomUUID } from 'node:crypto'
-import { createServer } from 'node:http'
+import { createServer, type ServerResponse } from 'node:http'
 
 /** Test transport only: real DSH adapters must authenticate before this endpoint completes a request. */
 export async function keyRequiredEndpoint() {
   let key = randomUUID()
   const accepted: { marker: string; path: string }[] = []
   let rejected = 0
+  let login: ServerResponse | undefined
   const server = createServer(async (request, response) => {
+    if (request.url === '/w127/login-key') {
+      login = response
+      response.on('close', () => { if (login === response) login = undefined })
+      return
+    }
     if (request.headers['x-api-key'] !== key && request.headers.authorization !== `Bearer ${key}`) {
       rejected++
       response.writeHead(401, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { type: 'authentication_error', message: 'test endpoint requires its key' } }))
@@ -45,6 +51,16 @@ export async function keyRequiredEndpoint() {
     rejected: () => rejected,
     key: () => key,
     rotate: () => { key = randomUUID() },
-    close: () => new Promise<void>((resolve, reject) => { server.close(error => { if (error) reject(error); else resolve() }) }),
+    loginWaiting: () => login !== undefined,
+    releaseLogin: () => {
+      if (login === undefined) throw new Error('no native login is waiting at the test endpoint')
+      login.end(key)
+      login = undefined
+    },
+    cancelLogin: () => { login?.destroy(); login = undefined },
+    close: () => new Promise<void>((resolve, reject) => {
+      login?.destroy(); login = undefined
+      server.close(error => { if (error) reject(error); else resolve() })
+    }),
   }
 }

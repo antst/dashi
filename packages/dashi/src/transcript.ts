@@ -191,6 +191,7 @@ export function foldCells(
       case 'system/message':
         break
       case 'turn/start':
+        provider = undefined
         truncatedPrefix = false
         openTurns.add(event.data.turn)
         if (todoSlot !== undefined) {

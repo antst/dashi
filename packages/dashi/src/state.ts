@@ -374,8 +374,8 @@ function help(): Overlay {
       'Ctrl+S stash · Ctrl+G editor · F1 help · Ctrl+L redraw · Ctrl+Z suspend',
       '/new /clear /reset /resume /continue [--all] [NAME|UUID] /fork /branch /rewind /rename /model /effort /permission /agents /queue /status /usage /context',
       '/init /memory /skills /config /login /logout /diff /plugins /plugin /tasks /bashes /subtask /loop /btw /recap /history /export /copy /exit /quit',
-      '/model credential ROUTE — set its declared credential through a masked question (no secret or reference argument)',
-      '/model add — add a known provider and sign in (no secret or reference argument)',
+      '/model credential PROVIDER — set a provider key in a masked question',
+      '/model add — add a provider and sign in',
       ...FLAG_HELP,
     ],
   }

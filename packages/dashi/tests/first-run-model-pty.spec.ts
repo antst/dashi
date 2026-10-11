@@ -70,7 +70,7 @@ function events(home: string, id: string): any[] {
   return existsSync(path) ? readFileSync(path, 'utf8').trim().split('\n').slice(1).map(line => JSON.parse(line)) : []
 }
 
-async function boot(name: string, revisionControl = false, extraEnv: NodeJS.ProcessEnv = {}) {
+async function boot(name: string, control?: string, extraEnv: NodeJS.ProcessEnv = {}) {
   const home = join(directory, name)
   mkdirSync(join(home, 'profiles'), { recursive: true })
   // Only the immutable installed test profile is shared; settings, credentials and sessions are fresh per case.
@@ -78,17 +78,21 @@ async function boot(name: string, revisionControl = false, extraEnv: NodeJS.Proc
   cpSync(join(seed, 'profiles/dashi'), join(home, 'profiles/dashi'), { recursive: true, dereference: false })
   const patch = join(home, 'transport.patch.yml')
   writeFileSync(patch, "- id: session-title-llm\n  disabled: true\n- id: session-persistence-jsonl\n  config:\n    root: !!js dshHomePath('sessions')\n    compression: none\n")
-  if (revisionControl) appendFileSync(patch, `- insert:\n    - id: first-run-native-revision-control\n      name: '${fileURLToPath(new URL('./fixtures/first-run-revision.mjs', import.meta.url))}'\n`)
+  if (control) appendFileSync(patch, `- insert:\n    - id: first-run-control\n      name: '${fileURLToPath(new URL(`./fixtures/${control}.mjs`, import.meta.url))}'\n`)
   const cwd = join(home, 'cwd')
   mkdirSync(cwd)
+  return start(home, extraEnv)
+}
+
+async function start(home: string, extraEnv: NodeJS.ProcessEnv = {}) {
   const env = { ...process.env, DSH_HOME: home, DEEPSEEK_BASE_URL: endpoint.url,
     SESSIONBUS_SOCKET: daemon.socket, SESSIONBUS_GROUPS: '["w127"]', DSH_TELEMETRY_DISABLED: '1',
     PATH: `${join(root, 'node_modules/.bin')}:${process.env.PATH ?? ''}`, TERM: 'xterm-256color', PS1: '', PROMPT_COMMAND: '',
   }
   delete (env as NodeJS.ProcessEnv).DEEPSEEK_API_KEY
   Object.assign(env, extraEnv)
-  const shell = new TestPtyShell(cwd, env)
-  shell.write(`${quote(process.execPath)} ${quote(launcher)} --patch ${quote(patch)} --fullscreen; printf '__W127_EXIT__%s\\n' "$?"\n`)
+  const shell = new TestPtyShell(join(home, 'cwd'), env)
+  shell.write(`${quote(process.execPath)} ${quote(launcher)} --patch ${quote(join(home, 'transport.patch.yml'))} --fullscreen; printf '__W127_EXIT__%s\\n' "$?"\n`)
   try {
     await shell.waitFor('idle ·')
     const id = /session-[\da-f-]{36}/u.exec(shell.output)?.[0]
@@ -140,6 +144,17 @@ function noSecret(shell: TestPtyShell, home: string, id: string, key: string): v
     expect(shell.output.includes(value), 'secret leaked into raw PTY/scrollback').toBe(false)
     expect(JSON.stringify(events(home, id)).includes(value), 'secret leaked into native history/commands').toBe(false)
   }
+  const audit = (directory: string): void => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) audit(path)
+      else if (entry.isFile() && path !== join(home, '.credentials.yaml')) {
+        const bytes = readFileSync(path)
+        for (const value of [key, key.slice(0, 12)]) expect(bytes.includes(Buffer.from(value)), `secret leaked into ${path}`).toBe(false)
+      }
+    }
+  }
+  audit(home)
 }
 
 async function close(shell: TestPtyShell, home: string, id: string): Promise<void> {
@@ -153,10 +168,12 @@ async function close(shell: TestPtyShell, home: string, id: string): Promise<voi
     if (!(await screen(shell)).includes('idle ·')) await leavePicker(shell)
     shell.write('\u0004\u0004')
     await shell.waitFor('__W127_EXIT__0')
+    noSecret(shell, home, id, endpoint.key())
   } finally { await shell.close() }
 }
 
-async function leavePicker(shell: TestPtyShell): Promise<void> {
+async function leavePicker(shell: TestPtyShell, purpose = 'model'): Promise<void> {
+  await vi.waitFor(async () => { expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith(`${purpose} ·`)).toBe(true) }, { timeout: testCeiling(20_000) })
   shell.write('\u001B')
   await vi.waitFor(async () => { expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith('idle ·')).toBe(true) }, { timeout: testCeiling(20_000) })
 }
@@ -173,16 +190,18 @@ describe.sequential('known-provider first run, real native writers and authentic
       await shell.waitFor('credential DEEPSEEK_API_KEY is not configured')
       expect((await fetch(`${endpoint.url}/messages`, { method: 'POST' })).status).toBe(401)
       expect((await fetch(`${endpoint.url}/messages`, { method: 'POST', headers: { 'x-api-key': 'wrong-test-key' } })).status).toBe(401)
+      const rejected = endpoint.rejected()
       shell.write('W127_FIRST_PROMPT\r')
       await vi.waitFor(() => { expect(events(home, id).some(event => event.type === 'turn/end' && event.data.reason.error?.code === 'MISSING_CREDENTIAL')).toBe(true) }, { timeout: testCeiling(20_000) })
-      await shell.waitFor('deepseek-official: use /login')
+      await shell.waitFor('deepseek-official: use /login to sign in')
       expect(endpoint.accepted.length).toBe(requests)
+      expect(endpoint.rejected()).toBe(rejected)
       shell.write('/model\r')
       await selectRow(shell, 'Set credential for DeepSeek')
       await keyQuestion(shell, key)
       await commandDone(home, id, 'credential stored')
       expect(events(home, id).filter(event => event.type === 'turn/start')).toHaveLength(1)
-      shell.write('\u001B')
+      await leavePicker(shell)
       await vi.waitFor(async () => { expect(await screen(shell)).not.toContain('Set credential for DeepSeek') }, { timeout: testCeiling(20_000) })
       shell.write('W127_NEW_PROMPT\r')
       await completed(home, id, 'W127_NEW_PROMPT')
@@ -196,9 +215,16 @@ describe.sequential('known-provider first run, real native writers and authentic
       expect(exported.includes(key.slice(0, 12)), 'secret prefix leaked into native transcript export').toBe(false)
       shell.write('/history\r')
       await vi.waitFor(async () => { expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith('history ·')).toBe(true) }, { timeout: testCeiling(20_000) })
-      await leavePicker(shell)
+      await leavePicker(shell, 'history')
       noSecret(shell, home, id, key)
     } finally { await close(shell, home, id) }
+    // A second ordinary launch reads the real native credential document written above.
+    const configured = await start(home)
+    try {
+      configured.shell.write('W127_CONFIGURED_PROMPT\r')
+      await completed(home, configured.id, 'W127_CONFIGURED_PROMPT')
+    } finally { await close(configured.shell, home, configured.id) }
+    expect(configured.shell.output).not.toContain('credential DEEPSEEK_API_KEY is not configured')
   }, testCeiling(30_000))
   it('adds a dormant native catalog route and chooses its flow from the unfiltered native login list', async () => {
     const { home, shell, id } = await boot('catalog')
@@ -207,13 +233,13 @@ describe.sequential('known-provider first run, real native writers and authentic
       await shell.waitFor('Add provider')
       await selectRow(shell, 'Add provider')
       await shell.waitFor('Choose a provider DSH already knows')
-      await selectRow(shell, 'deepseek (deepseek)')
+      await selectRow(shell, 'deepseek')
       await vi.waitFor(async () => { expect(await screen(shell)).toContain('provider deepseek added') }, { timeout: testCeiling(20_000) })
       await selectRow(shell, 'DeepSeek · llm-pi-ai/deepseek')
       await shell.waitFor('Enter DeepSeek API key')
       shell.write(`${endpoint.key()}\r`)
       await commandDone(home, id, 'signed in to DeepSeek')
-      shell.write('\u001B')
+      await leavePicker(shell)
       await vi.waitFor(async () => { expect(await screen(shell)).not.toContain('Add provider') }, { timeout: testCeiling(20_000) })
       // Transport redirection only: W-127 adds the native catalog defaults, not a custom endpoint form.
       shell.write(`/config llm-pi-ai providers.deepseek.baseURL=${JSON.stringify(endpoint.url)}\r`)
@@ -292,8 +318,8 @@ describe.sequential('known-provider first run, real native writers and authentic
     try {
       shell.write('/model add\r')
       await shell.waitFor('Choose a provider DSH already knows')
-      await selectRow(shell, 'deepseek (deepseek)')
-      await shell.waitFor('Choose a registered sign-in flow')
+      await selectRow(shell, 'deepseek')
+      await shell.waitFor('Choose a sign-in option')
       await selectRow(shell, 'DeepSeek · llm-pi-ai/deepseek')
       await shell.waitFor('Enter DeepSeek API key')
       chmodSync(home, 0o500)
@@ -301,14 +327,16 @@ describe.sequential('known-provider first run, real native writers and authentic
       try { accessSync(home, constants.W_OK) } catch { refused = true }
       if (!refused) throw new Error('EACCES control invalid: this process can still write the credential directory (for example root)')
       shell.write(`${endpoint.key()}\r`)
-      await commandDone(home, id, 'provider deepseek added; credential/sign-in outcome not confirmed')
+      // Native pi-ai wraps the OS failure as code auth; its native message retains the EACCES cause.
+      await commandDone(home, id, 'EACCES: permission denied')
+      expect(events(home, id).find(event => event.type === 'command/done' && event.data.text?.includes('EACCES: permission denied'))?.data.text).toContain('provider deepseek added; sign-in failed:')
       expect(readFileSync(join(home, 'profiles/dashi/cordis.patch.yml'), 'utf8')).toContain('deepseek:')
       expect(credentialDigest(home)).toBe('absent')
       noSecret(shell, home, id, endpoint.key())
     } finally { chmodSync(home, 0o700); await close(shell, home, id) }
   }, testCeiling(30_000))
   it('refuses a stale native settings revision without deleting the concurrent provider or writing credentials', async () => {
-    const { home, shell, id } = await boot('revision', true)
+    const { home, shell, id } = await boot('revision', 'first-run-revision')
     const observer = await connectTestObserver(daemon.socket, 'w127', 'W127 revision observer')
     try {
       shell.write('/model add\r')
@@ -317,7 +345,7 @@ describe.sequential('known-provider first run, real native writers and authentic
       await vi.waitFor(async () => { target = (await observer.list()).sessions.find(row => row.session_id.startsWith(id + '@'))?.session_id ?? ''; expect(target).not.toBe('') }, { timeout: testCeiling(20_000) })
       await observer.send({ target, message: 'W127_CONCURRENT_NATIVE_WRITER' })
       await vi.waitFor(() => { expect(readFileSync(join(home, 'profiles/dashi/cordis.patch.yml'), 'utf8')).toContain('Concurrent native update') }, { timeout: testCeiling(20_000) })
-      await selectRow(shell, 'deepseek (deepseek)')
+      await selectRow(shell, 'deepseek')
       await vi.waitFor(() => { expect(events(home, id).some(event => event.type === 'command/done' && event.data.kind === 'error' && event.data.text.includes('changed since it was read'))).toBe(true) }, { timeout: testCeiling(20_000) })
       expect(readFileSync(join(home, 'profiles/dashi/cordis.patch.yml'), 'utf8')).toContain('Concurrent native update')
       expect(credentialDigest(home)).toBe('absent')
@@ -325,7 +353,7 @@ describe.sequential('known-provider first run, real native writers and authentic
   }, testCeiling(30_000))
 
   it('cancels provider selection and refuses an inherited read-only reference without accepting a key', async () => {
-    const { home, shell, id } = await boot('read-only', false, { DEEPSEEK_API_KEY: endpoint.key() })
+    const { home, shell, id } = await boot('read-only', undefined, { DEEPSEEK_API_KEY: endpoint.key() })
     try {
       shell.write('/model add\r')
       await shell.waitFor('Choose a provider DSH already knows')
@@ -337,8 +365,16 @@ describe.sequential('known-provider first run, real native writers and authentic
       await commandDone(home, id, 'DEEPSEEK_API_KEY is read-only in this DSH launch')
       expect(shell.output).not.toContain('Enter the credential')
       expect(credentialDigest(home)).toBe('absent')
+      await leavePicker(shell)
+      shell.write('/model credential "abc\r')
+      await commandDone(home, id, 'usage: /model [credential PROVIDER | add]')
+      expect(shell.output).not.toContain('SyntaxError')
+      await leavePicker(shell)
+      shell.write('W127_ENV_PROMPT\r')
+      await completed(home, id, 'W127_ENV_PROMPT')
       noSecret(shell, home, id, endpoint.key())
     } finally { await close(shell, home, id) }
+    expect(shell.output).not.toContain('credential DEEPSEEK_API_KEY is not configured')
   }, testCeiling(30_000))
 
   it('keeps an actual wrong-key authentication error distinct from a missing credential, without replay', async () => {
@@ -357,7 +393,7 @@ describe.sequential('known-provider first run, real native writers and authentic
       expect(endpoint.rejected()).toBe(rejected + 1)
       expect(endpoint.accepted.length).toBe(requests)
       expect(events(home, id).filter(event => event.type === 'turn/start')).toHaveLength(1)
-      expect(shell.output.slice(turnAt)).not.toContain('deepseek-official: use /login')
+      expect(shell.output.slice(turnAt)).not.toContain('deepseek-official: use /login to sign in')
       noSecret(shell, home, id, wrong)
     } finally { await close(shell, home, id) }
   }, testCeiling(30_000))
@@ -367,7 +403,7 @@ describe.sequential('known-provider first run, real native writers and authentic
     try {
       shell.write('/model add\r')
       await shell.waitFor('Choose a provider DSH already knows')
-      await selectRow(shell, 'deepseek (deepseek)')
+      await selectRow(shell, 'deepseek')
       await selectRow(shell, 'DeepSeek · llm-pi-ai/deepseek')
       await shell.waitFor('Enter DeepSeek API key')
       shell.write('\u001B')
@@ -376,5 +412,66 @@ describe.sequential('known-provider first run, real native writers and authentic
       expect(credentialDigest(home)).toBe('absent')
       expect(events(home, id).filter(event => event.type === 'turn/start')).toHaveLength(0)
     } finally { await close(shell, home, id) }
+  }, testCeiling(30_000))
+
+  it('keeps a provider saved when sign-in flow selection is cancelled before any login attempt', async () => {
+    const { home, shell, id } = await boot('cancel-flow')
+    try {
+      shell.write('/model add\r')
+      await shell.waitFor('Choose a provider DSH already knows')
+      await selectRow(shell, 'deepseek')
+      await shell.waitFor('Choose a sign-in option')
+      shell.write('\u001B')
+      await commandDone(home, id, 'provider deepseek added; sign-in cancelled')
+      expect(events(home, id).at(-1)?.data.text).not.toContain('ASK_ABORTED')
+      expect(readFileSync(join(home, 'profiles/dashi/cordis.patch.yml'), 'utf8')).toContain('deepseek:')
+      expect(credentialDigest(home)).toBe('absent')
+    } finally { await close(shell, home, id) }
+  }, testCeiling(30_000))
+
+  it('records a successful credential write before reporting a subsequent picker read failure', async () => {
+    const { home, shell, id } = await boot('picker-failure', 'first-run-catalog-failure')
+    try {
+      shell.write('/model credential deepseek-official\r')
+      await keyQuestion(shell, endpoint.key())
+      await commandDone(home, id, 'credential stored')
+      await shell.waitFor('W127_CATALOG_READ_FAILED')
+      const result = events(home, id).find(event => event.type === 'command/done')
+      expect(result?.data.kind).toBe('success')
+      expect(result?.data.text).toContain('credential stored')
+      expect(credentialDigest(home)).not.toBe('absent')
+      shell.write('W127_PICKER_FAILURE_PROMPT\r')
+      await completed(home, id, 'W127_PICKER_FAILURE_PROMPT')
+    } finally { await close(shell, home, id) }
+  }, testCeiling(30_000))
+
+  it('does not let an old plain-login completion dismiss the new root model picker', async () => {
+    const { home, shell, id } = await boot('old-login', 'first-run-delayed-login')
+    let currentId = id
+    try {
+      shell.write('/login w127/delayed-login key\r')
+      await shell.waitFor('W127_OLD_LOGIN_PENDING')
+      await vi.waitFor(() => { expect(endpoint.loginWaiting()).toBe(true) }, { timeout: testCeiling(20_000) })
+      shell.write('\u001B')
+      // Closing the notice does not settle the deliberately pending native login command.
+      await vi.waitFor(async () => { expect((await screen(shell)).split('\n').at(-1)?.trim()).toContain('running /login') }, { timeout: testCeiling(20_000) })
+      shell.write('/new\r')
+      await vi.waitFor(() => {
+        currentId = [...shell.output.matchAll(/session-[\da-f-]{36}/gu)].map(match => match[0]).find(value => value !== id) ?? id
+        expect(currentId).not.toBe(id)
+      }, { timeout: testCeiling(20_000) })
+      shell.write('/model\r')
+      await vi.waitFor(async () => { expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith('model ·')).toBe(true) }, { timeout: testCeiling(20_000) })
+      endpoint.releaseLogin()
+      await commandDone(home, id, 'signed in to W127 delayed login')
+      shell.write('\u001B[B')
+      await vi.waitFor(async () => { expect(await screen(shell)).toContain('› 2 DeepSeek') }, { timeout: testCeiling(20_000) })
+      expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith('model ·')).toBe(true)
+      expect(await screen(shell)).toContain(currentId)
+    } catch (error) {
+      console.error('W127 old-login frame', (await screen(shell)).replaceAll(endpoint.key(), '[redacted-test-key]').replaceAll(endpoint.key().slice(0, 12), '[redacted-test-prefix]'))
+      console.error('W127 old-login commands', JSON.stringify(events(home, id).filter(event => ['command/run', 'command/done'].includes(event.type))))
+      throw error
+    } finally { endpoint.cancelLogin(); await close(shell, home, currentId) }
   }, testCeiling(30_000))
 })

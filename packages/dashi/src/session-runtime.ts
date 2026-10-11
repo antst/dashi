@@ -403,16 +403,25 @@ export async function createSessionRuntime(
     const from = bound.agent.session.seq
     const execution = ctx.commands.execute(bound.agent, line,
       images.map(image => ({ type: 'image' as const, ...image })), lifetime.signal)
+    const settled = (result: CommandExecution | undefined): void => {
+      if (result === undefined) return
+      onSettled?.(result)
+      const setup = bound.agent.session.snapshotEvents(from).some(event => event.type === 'command/run'
+        && event.data.commandId === result.commandId && event.data.name === 'model'
+        && (event.data.args?.trim() === 'add' || event.data.args?.trim().startsWith('credential ') === true))
+      if (setup && current() === bound && !bound.abort.signal.aborted && !lifetime.signal.aborted) {
+        // DSH has already recorded command/done; a picker read must not replace the write receipt.
+        void openModel(bound).catch((error: unknown) => { report(error, bound.root.id) })
+      }
+    }
     const accepted = bound.agent.session.snapshotEvents(from).some(event => event.type === 'command/run')
     if (!accepted) {
       const result = await execution
       if (result === undefined) return false
-      onSettled?.(result)
+      settled(result)
       return true
     }
-    void execution.then(result => {
-      if (result !== undefined) onSettled?.(result)
-    }).catch((error: unknown) => {
+    void execution.then(settled).catch((error: unknown) => {
       if (!lifetime.signal.aborted) report(error, bound.root.id)
     })
     return true
@@ -1157,28 +1166,28 @@ export async function createSessionRuntime(
         },
       },
       {
-        name: 'model', description: 'Select a model; /model credential ROUTE sets its key, /model add adds a known provider',
+        name: 'model', description: 'Select a model; /model credential PROVIDER sets its key, /model add adds a provider',
         handler: async (invocation) => {
           const stale = ensureCurrent(invocation)
           if (stale !== undefined) return stale
           const input = invocation.rawInput.trim()
           if (input === '') { await openModel(bound); return { kind: 'success' } }
-          if (input !== 'add' && !input.startsWith('credential ')) return { kind: 'error', text: 'usage: /model [credential ROUTE | add]; no secret or reference argument' }
+          const invalid = { kind: 'error', text: 'usage: /model [credential PROVIDER | add]; enter keys only in the masked question' } as const
+          if (input !== 'add' && !input.startsWith('credential ')) return invalid
           const signal = AbortSignal.any([invocation.signal, lifetime.signal, bound.abort.signal])
           try {
             const ask = setupQuestion(bound, signal)
             if (input === 'add') return await addModelProvider(ctx, ask, signal, (key, method) => login(bound, key, method, signal))
             const raw = input.slice('credential '.length)
-            const provider: unknown = raw.startsWith('"') ? JSON.parse(raw) : raw
+            let provider: unknown
+            try { provider = raw.startsWith('"') ? JSON.parse(raw) : raw } catch { return invalid }
             if (typeof provider !== 'string' || !ctx.llm.listConfigurableProviders().some(route => route.provider === provider)) {
-              return { kind: 'error', text: 'choose a configured route from /model; no secret or reference argument' }
+              return { kind: 'error', text: 'choose a provider from /model; enter keys only in the masked question' }
             }
             return await setModelCredential(ctx, provider, ask, signal)
           } catch (error) {
             if (signal.aborted || (error as { code?: unknown }).code === 'ASK_ABORTED') return { kind: 'success', text: 'model setup cancelled' }
             throw error
-          } finally {
-            if (current() === bound && !signal.aborted) await openModel(bound)
           }
         },
       },
