@@ -4606,6 +4606,34 @@ the host. Later, structural: the plugin stops depending on the
 provider and the profile owns that pin (plugin item). Docs only here;
 no mechanism.
 
+Amendment 2026-10-11: `pnpm dedupe` in the upgraded profile exits 0
+and collapses nothing (lock byte-identical; three physical provider
+directories), so no ordinary operation repairs the in-place upgrade
+and the docs-only scope is withdrawn. The structural fix moves first:
+W-122 (plugin pre.20, provider as a peer the profile owns); dashi
+0.2.0-alpha.2 then pins pre.20 and its host proof is the in-place
+upgrade from alpha.1. The alpha.1 proof continues on the other
+ordinary path, a fresh dashi profile, so alpha.2 carries only the
+re-pin; the packet names both paths (upgrade FAIL, fresh result). The
+README's upgrade section states the defect and the alpha.2 path.
+
+### W-122 plugin pre.20: the upload provider becomes a peer the profile owns — status: open (owner codex-roller, after W-120)
+From W-121: @sessionbus/dsh's own dependency on
+@antst/dsh-file-uploads-none is the second owner of that fact; a
+profile upgraded in place keeps the old nested copy beside the one
+dashi-app pins, and nothing ordinary collapses it. One owner: the
+profile. The plugin declares the provider as a peerDependency (range
+covering 0.1 and the 0.2 line, as pre.18), never a dependency; a lane
+profile gets its exact pin from the installer and the runbook exactly
+like the cordis companions (derived from the published dashi-app when
+present, else the newest matching release); dashi-app's exact pin
+stays the single source in dashi profiles. Proof: packed alpha.2 lane
+and web legs with one physical provider copy; the published-dashi case
+with one copy inside the dashi profile; an in-place upgrade fixture
+from a pre.18 lane profile resolving to one copy; host proof per
+D-049 on the dsh host's sessionbus and web profiles before the tag.
+Consequence analysis first (owner rule).
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
