@@ -5306,3 +5306,6 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9399: dsh-storage-domain: let plugins supply a record schema without their own zod
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9419: dsh-settings: legacy settings.yaml import lands in one profile only
 - 2026-10-11 https://github.com/deepseek-ai/deepseek-harness/discussions/9432: DSH 0.2.1-alpha.2 does not boot from a pnpm 11 global install (native binding resolved from the loader's own module context)
+- 2026-10-11 DSH Discussion (Ideas): dsh exits 0 when a profile names a bundle that is not installed; boot and --dump-config exit 0, --dump-config-schema exits 1 (W-125). https://github.com/deepseek-ai/deepseek-harness/discussions/9451
+- 2026-10-11 DSH Discussion (Q&A): a project install of DSH 0.2.1-alpha.2 exits 1 with pnpm 11 and 12, ERR_PNPM_IGNORED_BUILDS for five build scripts, one of them DSH's own postinstall (W-124). https://github.com/deepseek-ai/deepseek-harness/discussions/9452
+- 2026-10-11 pnpm issue: `pnpm setup` leaves a broken launcher when pnpm 12 was installed with npm on macOS, executable path not canonicalized (W-124). https://github.com/pnpm/pnpm/issues/16855
