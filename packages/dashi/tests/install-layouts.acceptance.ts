@@ -99,12 +99,12 @@ it(layout + ': literal README installs converge from fresh and both published ba
     const pm = join(tools, 'bin', 'pnpm')
     env.PATH = [dirname(pm), systemPath].join(delimiter)
     if (layout?.includes('pnpm')) {
-      sh(fences['install:pnpm-setup']?.join('\n') ?? '', true, { SHELL: '/bin/bash' })
-      env.PATH = sh('. "$HOME/.bashrc"; printf "%s" "$PATH"').trim()
+      const globalBin = run(pm, ['bin', '--global']).trim()
+      env.PATH = [globalBin, env.PATH].join(delimiter)
     } else env.PATH = [join(globalPrefix, 'bin'), env.PATH].join(delimiter)
     run('node', ['--version'])
     run('npm', ['--version'])
-    expect(run(pm, ['--version']).trim()).toBe(pmVersion)
+    expect(sh('pnpm --version').trim()).toBe(pmVersion)
 
     if (layout === 'below-floor') {
       const lines = fences['install:G-npm']!

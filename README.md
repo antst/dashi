@@ -11,6 +11,8 @@ with npm or run by npx.
 
 ### Global or on-demand DSH
 
+Make your package manager's global binaries available on PATH, following its own documentation ([npm](https://docs.npmjs.com/cli/commands/npm-prefix), [pnpm](https://pnpm.io/installation)).
+
 With npm:
 
 <!-- install:G-npm -->
@@ -21,14 +23,7 @@ dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 dashi
 ```
 
-With pnpm:
-
-<!-- install:pnpm-setup -->
-```sh
-pnpm setup
-```
-
-Open a new shell after setup so pnpm's global binaries are on PATH, then:
+With pnpm 10 or pnpm 12:
 
 <!-- install:global-pnpm-packages -->
 ```sh
