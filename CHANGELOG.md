@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Document and check global npm/pnpm, npx, project and mixed DSH installations on Linux and macOS, including the pnpm global-store remedy (W-124). Package READMEs link to the single installation guide. Remove dashi's redundant version warning in favor of DSH's native compatibility checks; make the missing-DSH hint and resume instruction independent of installation layout.
+
 ## 0.2.0-alpha.2 — 2026-10-11
 
 - Fix upload-provider ownership with Sessionbus 0.1.0-pre.20: dashi-app pins the provider and the plugin consumes it as a required peer, removing the plugin-owned dependency behind the alpha.1 upgrade duplicate (W-121, W-122). The alpha.1-to-alpha.2 in-place host proof is pending.

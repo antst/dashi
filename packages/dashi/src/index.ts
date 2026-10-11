@@ -1,6 +1,5 @@
-import { readFileSync, realpathSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { exitOnStdinEnd, type AppExit, type AppReady, type CmdlineArgs } from '@deepseek-ai/dsh-cmdline'
 import { createTerminalShell, type TerminalShell } from './application.js'
@@ -128,38 +127,10 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   }
 }
 
-function packageVersion(path: string): string {
-  const manifest = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
-  return typeof manifest.version === 'string' ? manifest.version : 'unknown'
-}
-
-function runningDshVersions(): readonly [string, string] {
-  try {
-    const entry = realpathSync(process.argv[1] ?? '')
-    const manifest = resolve(dirname(entry), '../package.json')
-    const version = packageVersion(manifest)
-    try {
-      return [version, packageVersion(createRequire(manifest).resolve('@deepseek-ai/dsh-base/package.json'))]
-    } catch {
-      return [version, 'unknown']
-    }
-  } catch {
-    return ['unknown', 'unknown']
-  }
-}
-
-function warnDshVersion(): void {
-  const [version, baseVersion] = runningDshVersions()
-  if (baseVersion !== version) {
-    process.stderr.write(`dashi: warning: DSH ${version} loads @deepseek-ai/dsh-base ${baseVersion}; versions must match\n`)
-  }
-}
-
 function installSessionList(ctx: Context, options: SessionListOptions, ready: AppReady, exit: AppExit): void {
   const abort = new AbortController()
   let listing: Promise<void> | undefined
   const announce = ready.onReady(() => {
-    warnDshVersion()
     listing = ctx.sessionController.list({}, abort.signal).then(({ items }) => {
       const cwd = options.all ? undefined : resolve(options.cwd ?? process.cwd())
       process.stdout.write(`${formatSessionList(items, cwd, options.json)}\n`)
@@ -215,7 +186,6 @@ export function apply(ctx: Context): void {
     if (current === undefined) shell?.dispatch({ type: 'root-cleared' })
   })
   const announce = ready.onReady(() => {
-    warnDshVersion()
     boot = (async () => {
       if (parsed.argumentError !== undefined) throw new LaunchArgumentError(parsed.argumentError)
       const cwd = process.cwd()

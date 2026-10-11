@@ -1,4 +1,5 @@
 import { readFile, readdir } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { extname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -78,7 +79,9 @@ if (lockedDsh.length === 0) failures.push('pnpm-lock.yaml: no @deepseek-ai/dsh p
 for (const [, packageName, version] of lockedDsh) {
   if (version !== testedVersion) failures.push(`pnpm-lock.yaml: ${packageName} must be ${testedVersion}`)
 }
-const cliManifest = JSON.parse(await readFile(join(root, 'node_modules/@deepseek-ai/dsh/package.json'), 'utf8'))
+// Repository reproducibility only. User layouts are checked by the install matrix's native runtime oracle.
+const cliManifestPath = createRequire(import.meta.url).resolve('@deepseek-ai/dsh/package.json')
+const cliManifest = JSON.parse(await readFile(cliManifestPath, 'utf8'))
 if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must be ${testedVersion}`)
 const cliPins = deriveCliPins(cliManifest.dependencies)
 try { assertPinnedGraph(lockfile, cliPins) } catch (error) { failures.push(`pnpm-lock.yaml: ${String(error)}`) }
@@ -157,6 +160,6 @@ if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)
 }
-console.log(`gate: DSH version passed (${lockedDsh.length} packages at ${testedVersion})`)
+console.log(`gate: repository DSH lock passed (${lockedDsh.length} packages at ${testedVersion}; not a user-layout rule)`)
 console.log(`gate: import lint passed (${sourceFiles.length} source files)`)
 console.log('gate: PASS — typecheck, build, lint, tests, DSH versions, import lint')

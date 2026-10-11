@@ -1397,7 +1397,7 @@ export async function createSessionRuntime(
     get initialPrompts() { return historyInputs(current().events) },
     get root() { return current().root },
     get statusLine() { const bound = current(); return sessionStatusLine(ctx, bound.agent, bound.root, bound.repo) },
-    get summary() { return `Resume with: dsh --profile dashi --resume ${current().root.id}` },
+    get summary() { return `Resume with: start dashi again with --resume ${current().root.id}` },
     activate,
     async attach(path) {
       try {

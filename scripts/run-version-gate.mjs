@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { assertPinnedGraph, deriveCliPins } from './dsh-cli-pins.mjs'
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+// This gate owns the workspace's reproducible test catalog, not a user's installation layout.
 const policy = JSON.parse(readFileSync(join(source, 'packages/dashi/validated-dsh-versions.json'), 'utf8'))
 const tested = Array.isArray(policy.tested) ? policy.tested : []
 const version = process.env.DSH_TEST_VERSION ?? tested[0]

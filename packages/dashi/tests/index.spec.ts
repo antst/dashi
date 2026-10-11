@@ -1,6 +1,3 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { provideCmdline, type AppReady } from '@deepseek-ai/dsh-cmdline'
@@ -48,38 +45,6 @@ describe('dashi profile plugin', () => {
     expect(stdout).toHaveBeenCalledWith(expect.stringContaining(second))
     expect(exits).toEqual([0])
     expect(shell.start).not.toHaveBeenCalled()
-  })
-
-  it('warns when the CLI and loaded dsh-base versions differ', async () => {
-    const fixture = mkdtempSync(join(tmpdir(), 'dashi-dsh-version-'))
-    const cli = join(fixture, 'node_modules', '@deepseek-ai', 'dsh')
-    const base = join(fixture, 'node_modules', '@deepseek-ai', 'dsh-base')
-    mkdirSync(join(cli, 'bin'), { recursive: true })
-    mkdirSync(base, { recursive: true })
-    writeFileSync(join(cli, 'bin', 'dsh.js'), '')
-    writeFileSync(join(cli, 'package.json'), '{"version":"0.1.2-alpha.5"}\n')
-    writeFileSync(join(base, 'package.json'), '{"version":"0.1.2-rc.1"}\n')
-    const entry = process.argv[1] ?? ''
-    let announce = (): void => {}
-    const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    const ctx = new Context()
-    provideCmdline(ctx, {
-      args: [], exit: () => {},
-      ready: { onReady(listener) { announce = listener; return () => { announce = (): void => {} } } },
-    })
-
-    try {
-      process.argv[1] = join(cli, 'bin', 'dsh.js')
-      apply(ctx)
-      announce()
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(
-        'DSH 0.1.2-alpha.5 loads @deepseek-ai/dsh-base 0.1.2-rc.1; versions must match',
-      ))
-      await ctx.fiber.dispose()
-    } finally {
-      process.argv[1] = entry
-      rmSync(fixture, { recursive: true, force: true })
-    }
   })
 
   it('acquires the terminal only after startup commits and releases it with the root', async () => {

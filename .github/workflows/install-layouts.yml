@@ -1,0 +1,64 @@
+name: Universal installation checks
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ matrix.cell.layout }} / ${{ inputs.os }}
+    runs-on: ${{ inputs.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        cell:
+          - { layout: G-npm, pnpm: 10.28.1 }
+          - { layout: G-pnpm10, pnpm: 10.28.1 }
+          - { layout: G-pnpm11, pnpm: 11.18.0 }
+          - { layout: G-pnpm12, pnpm: 12.11.2 }
+          - { layout: G-npx, pnpm: 10.28.1 }
+          - { layout: P-npm, pnpm: 10.28.1 }
+          - { layout: P-pnpm10, pnpm: 10.28.1 }
+          - { layout: P-pnpm11, pnpm: 11.18.0 }
+          - { layout: P-pnpm12, pnpm: 12.11.2 }
+        include: ${{ inputs.os == 'ubuntu-latest' && fromJSON('[{"cell":{"layout":"below-floor","pnpm":"10.28.1"}}]') || fromJSON('[]') }}
+    env:
+      DASHI_INSTALL_LAYOUT: ${{ matrix.cell.layout }}
+      DASHI_INSTALL_PNPM: ${{ matrix.cell.pnpm }}
+      SESSIONBUS_DAEMON_BIN: .cache/sessionbus/bin/sessionbus
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      # Workspace tooling is frozen; each USER installation has a new home/cache/prefix.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node scripts/provision-sessionbus.mjs
+      - name: Fresh candidate and upgrades from alpha.1 and alpha.2
+        env:
+          DASHI_INSTALL_EVIDENCE: ${{ runner.temp }}
+        run: pnpm exec vitest run --config scripts/install-layouts.config.mts
+      - name: Preserve commands, native selections and PTY evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: install-${{ inputs.os }}-${{ matrix.cell.layout }}
+          path: |
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/commands.log
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/runtime-*.json
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/pty-*.log
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/session-*.jsonl
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/hashes-*.json
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/build-control.json
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/result.json
+          if-no-files-found: error

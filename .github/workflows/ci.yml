@@ -15,6 +15,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  install-layouts-linux:
+    uses: ./.github/workflows/install-layouts.yml
+    with:
+      os: ubuntu-latest
+
+  # Keep timing-sensitive PTY gates away from our installation load (W-124).
+  install-layouts-macos:
+    needs: macos-gate
+    uses: ./.github/workflows/install-layouts.yml
+    with:
+      os: macos-latest
+
   versions:
     runs-on: ubuntu-latest
     outputs:
@@ -45,7 +57,7 @@ jobs:
       - run: pnpm gate:docker
 
   preview:
-    needs: gate
+    needs: [gate, install-layouts-linux]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:

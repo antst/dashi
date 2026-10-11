@@ -4929,6 +4929,35 @@ shown), the gate's layout assumptions, and the product's version check
 reading DSH's own resolution (packages/dashi/src/index.ts) instead of
 the argv bin's parent directory.
 
+Builder note: W-124's clean Linux/Node 22 pnpm 11.18.0 cell observed
+the published alpha.1 app pin `0.2.0-alpha.1` but the active profile-root
+fileUploads provider `0.1.2` (one mounted service; completed recorded turn),
+in hosted run [38138819395](https://github.com/antst/dashi/actions/runs/38138819395),
+artifact `install-ubuntu-latest-G-pnpm11`, file
+`runtime-0.2.0-alpha.1-fresh-false.json`.
+Its literal registry upgrade to alpha.2 selected provider `0.2.0-alpha.2`;
+the identified packed candidate also converged to its exact app pin.
+Published provider versions are observations; candidate convergence,
+active service ownership and completed native turns remain hard assertions.
+
+Builder note: W-124's macOS matrix consequence: existing CI runs
+38136222107 and 38141238695 on develop spent 15m17s and 14m12s in the
+gate; PR runs 38138819395, 38145010260, 38148537557 and 38150216475
+spent 15m15s, 16m02s, 17m22s and over 19m29s, respectively (the last
+cancelled at the unchanged 20-minute job limit). All six headers report
+the same image, toolchain and cache hit, but no CPU or physical-host
+identity; runner variance versus shared-capacity contention remains
+unlocalised. The last delta did not execute in the gate. Under the
+architect's isolation ruling, CI's macOS install rows now wait for
+macos-gate; Linux rows and preview remain independent. Both callers use
+one OS-parameterised row matrix, including the below-floor case only on
+Linux; release publishing still requires both operating systems. No
+test, readiness bound, oracle or job limit changes. Estimated macOS
+branch cost is gate plus about nine minutes (the previous matrix wall
+time was 8m55s); runner work is unchanged. Evidence: the six Actions
+run IDs above (macOS job logs and job timestamps). Isolation is a load boundary,
+not a claim that the existing logs establish shared-capacity causation.
+
 ### W-125 plugin: universal install docs and layout-independent checks; runbook scoped as operations — status: open (owner codex-roller)
 Per D-050. In sessionbus/sessionbus-dsh: (1) README install = any DSH
 on PATH, `dsh plugin --profile <p> add @sessionbus/dsh@<v>` and the
