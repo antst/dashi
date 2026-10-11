@@ -4892,6 +4892,24 @@ are listed and replaced by runtime assertions. The launcher changes
 stand as written; its diagnostic names the upstream problem and never
 injects NODE_PATH.
 
+Amendment 2026-10-11 (review of the builder's analysis). The launcher
+change is withdrawn: `dashi` keeps starting the `dsh` on PATH, and no
+diagnostic line is added. In every ordinary invocation PATH already
+selects the DSH of the same install (a global bin directory holds both
+bins; `npm exec` and `pnpm exec` put the project's bin directory
+first); a pnpm 11 global install keeps the two packages in separate
+environments, so own-first could not apply there; and running DSH's JS
+entry directly bypasses the package manager's shim, whose environment
+is what lets some layouts find the native binding (the mac probe that
+started bin.js directly failed where the shim boot passed). A hint
+printed on unrelated non-zero exits is worse than DSH's own error,
+which the README quotes with its remedy. Kept: the README, the hosted
+install matrix (one Node version; npm, pnpm 10, pnpm 11, npx globals
+and npm, pnpm projects on Linux and macOS, with the mixed invocations
+shown), the gate's layout assumptions, and the product's version check
+reading DSH's own resolution (packages/dashi/src/index.ts) instead of
+the argv bin's parent directory.
+
 ### W-125 plugin: universal install docs and layout-independent checks; runbook scoped as operations — status: open (owner codex-roller)
 Per D-050. In sessionbus/sessionbus-dsh: (1) README install = any DSH
 on PATH, `dsh plugin --profile <p> add @sessionbus/dsh@<v>` and the
