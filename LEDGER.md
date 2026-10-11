@@ -4790,6 +4790,13 @@ dashi case prove one shared plugin copy and one provider against the
 published dashi-app alpha.2, with the expectation derived from the
 app's pin versus the candidate.
 
+Follow-up 2026-10-11: PR #64 (squash 5006c0b68c50449cc4422eb7ab2525fb588fcd10) adds to the host runbook
+the staged one-shot settings import (hide the legacy file before any
+0.2 boot, owning profile boots first, marker plus keys-only evidence),
+the dsh-codex stale-peer disposition, failure guards on every repair
+caller, and the owner-only uploads assertion found by the umka upgrade
+(a profile without its own lock no longer crashes the closure check).
+
 ### W-123 macOS flake: "restores after stdin is already closed" times out — status: open (owner dsh-exec, after W-121)
 Seen on the docs-only W-121 PR (#274, head 0d9cbc8, run 38108453512,
 macos-gate 325/326): profile-pty.spec.ts:2389 "restores after stdin is
