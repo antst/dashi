@@ -18,7 +18,6 @@ jobs:
         layout: [G-npm, G-pnpm10, G-pnpm11, G-npx, P-npm, P-pnpm]
     env:
       DASHI_INSTALL_LAYOUT: ${{ matrix.layout }}
-      DASHI_INSTALL_EVIDENCE: ${{ runner.temp }}
       SESSIONBUS_DAEMON_BIN: .cache/sessionbus/bin/sessionbus
     steps:
       - uses: actions/checkout@v7
@@ -32,6 +31,8 @@ jobs:
       - run: pnpm build
       - run: node scripts/provision-sessionbus.mjs
       - name: Published install and upgrade, then identified packed candidate
+        env:
+          DASHI_INSTALL_EVIDENCE: ${{ runner.temp }}
         run: pnpm exec vitest run --config scripts/install-layouts.config.mts
       - name: Preserve commands, native selections and PTY evidence
         if: always()
