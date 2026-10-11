@@ -4634,6 +4634,50 @@ swap, then shut the old object down; the stored list is written only
 once the new peer is ready; lane ownership across the swap is proven
 by a test.
 
+Accepted 2026-10-11 (sessionbus/sessionbus-dsh PR #59 squash 1de2447d0798cdb5b2b155fcd4309ae0656e6a64; released
+as 0.1.0-pre.19 from tag v0.1.0-pre.19 at 1de2447d0798cdb5b2b155fcd4309ae0656e6a64, run 38109061761, dist-tag
+pre). Delivered as amended: `/sessionbus-groups` through dsh-commands
+(human command plane only; the model gets UNKNOWN_TOOL; lane mode and
+non-root agents refuse); overlapping replacement with a fresh env
+snapshot, one bounded caller.list/self_info check, adoption then
+shutdown of the old peer; cancellation honoured only before connectPeer;
+after a failed check the command answers "change in progress" and the
+per-root chain settles on the daemon's own terminal signals (candidate
+terminal error -> old stays; old superseded -> adopt and persist; old
+terminal error -> change rejected with that reason), never tearing
+down both; the candidate's delivery callback accepts the exact
+previous record until adoption; the unadopted candidate is closed by a
+temporary agent/disposed listener and a ctx.effect. Persistence in the
+plugin's storage domain sessionbus_groups (table groups, exact session
+id key, per-record layout), written only after adoption; a damaged
+record refuses activation with the table/key diagnostic and the README
+repair step (native put does not validate). zod joins the companions
+as a peer at dsh-storage-domain's own range, derived from that producer
+through the executing CLI; identity by name/version (DSH consumes the
+schema by parse only, proven by prove-domain-schema.mjs as a CI leg).
+Known limitation: an old peer mid-reconnect after a daemon outage can
+supersede an adopted candidate. The packed dashi case now runs against
+the published dashi-app 0.2.0-alpha.1 through the published launcher
+and proves coexistence (direct pre.19 beside dashi-app's pre.18), not
+the candidate inside dashi. Reviews: opus at 3a0406f (NEEDS CHANGES:
+failure path) and delta at 787347a (one blocker), both resolved at
+cc972e2, final head bdc0c8e; CodeRabbit read at each head; verifier
+opus/sonnet agents 2026-10-11 (design review 3a0406f, delta reviews 787347a and cc972e2, final head bdc0c8e, host packet 3124/3124 and live profiles). D-049 proof on the dsh host (DSH 0.2.1-alpha.2): the
+candidate packed
+from main 1de2447 (tarball 88c1fde3...7efe, plugin.cjs 8be71831...)
+installed into the sessionbus and web profiles by the ordinary path
+with producer-derived companions (zod 4.5.4); lane: spawn without
+idle_message, idle send, one completed record, ack, close; web: two
+real roots show defaults, take distinct groups, the daemon lists both
+with product dsh and their private groups, direct messages reach each
+with real Codex replies, a root owning a non-persistent lane changes
+groups and the real model collects and acks the lane's result through
+the new attachment, a scripted model call gets UNKNOWN_TOOL, lane mode
+refuses the command (labelled control), restart/resume keeps the
+groups, `-` deletes one override only; home and dashi bytes untouched,
+owner's default model unchanged. Four harness stops recorded, none a
+plugin defect. Packet sessionbus-w120-host.S2zX4q9b (ca3ca8a2...85f99).
+
 ### W-121 dashi: in-place upgrade leaves two upload-provider copies — status: open (owner dsh-exec, after W-114 proof)
 Found by the W-114 host proof: upgrading an existing dashi profile from
 0.1.3 with the ordinary `dsh plugin --profile <p> add
