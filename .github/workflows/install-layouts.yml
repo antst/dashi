@@ -2,19 +2,22 @@ name: Universal installation checks
 
 on:
   workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   install:
-    name: ${{ matrix.cell.layout }} / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.cell.layout }} / ${{ inputs.os }}
+    runs-on: ${{ inputs.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         cell:
           - { layout: G-npm, pnpm: 10.28.1 }
           - { layout: G-pnpm10, pnpm: 10.28.1 }
@@ -25,9 +28,7 @@ jobs:
           - { layout: P-pnpm10, pnpm: 10.28.1 }
           - { layout: P-pnpm11, pnpm: 11.18.0 }
           - { layout: P-pnpm12, pnpm: 12.11.2 }
-        include:
-          - os: ubuntu-latest
-            cell: { layout: below-floor, pnpm: 10.28.1 }
+        include: ${{ inputs.os == 'ubuntu-latest' && fromJSON('[{"cell":{"layout":"below-floor","pnpm":"10.28.1"}}]') || fromJSON('[]') }}
     env:
       DASHI_INSTALL_LAYOUT: ${{ matrix.cell.layout }}
       DASHI_INSTALL_PNPM: ${{ matrix.cell.pnpm }}
@@ -51,7 +52,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: install-${{ matrix.os }}-${{ matrix.cell.layout }}
+          name: install-${{ inputs.os }}-${{ matrix.cell.layout }}
           path: |
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/commands.log
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/runtime-*.json

@@ -14,8 +14,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  install-layouts:
+  install-layouts-linux:
     uses: ./.github/workflows/install-layouts.yml
+    with:
+      os: ubuntu-latest
+
+  install-layouts-macos:
+    uses: ./.github/workflows/install-layouts.yml
+    with:
+      os: macos-latest
 
   versions:
     runs-on: ubuntu-latest
@@ -47,7 +54,7 @@ jobs:
       - run: pnpm gate:docker
 
   publish:
-    needs: [verify, install-layouts]
+    needs: [verify, install-layouts-linux, install-layouts-macos]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
