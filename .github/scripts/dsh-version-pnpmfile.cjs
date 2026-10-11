@@ -1,3 +1,4 @@
+// Repository development catalog only; never copied into the universal user-install cells.
 const fields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']
 const cliPins = JSON.parse(process.env.DSH_CLI_PINS ?? '{}')
 

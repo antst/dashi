@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -50,33 +50,50 @@ describe('dashi profile plugin', () => {
     expect(shell.start).not.toHaveBeenCalled()
   })
 
-  it('warns when the CLI and loaded dsh-base versions differ', async () => {
+  it.each([
+    ['npm global symlink', '0.1.2-rc.1'], ['pnpm shim', '0.1.2-rc.1'],
+    ['npm global symlink', '0.1.2-alpha.5'], ['pnpm shim', '0.1.2-alpha.5'],
+  ])('checks native resolution rather than the %s layout (base %s)', async (layout, nativeBase) => {
     const fixture = mkdtempSync(join(tmpdir(), 'dashi-dsh-version-'))
     const cli = join(fixture, 'node_modules', '@deepseek-ai', 'dsh')
     const base = join(fixture, 'node_modules', '@deepseek-ai', 'dsh-base')
+    const bin = join(fixture, 'bin')
+    mkdirSync(bin)
     mkdirSync(join(cli, 'bin'), { recursive: true })
     mkdirSync(base, { recursive: true })
     writeFileSync(join(cli, 'bin', 'dsh.js'), '')
     writeFileSync(join(cli, 'package.json'), '{"version":"0.1.2-alpha.5"}\n')
-    writeFileSync(join(base, 'package.json'), '{"version":"0.1.2-rc.1"}\n')
+    // Deliberately opposite: filesystem lookup cannot decide the booted profile's version.
+    writeFileSync(join(base, 'package.json'), JSON.stringify({ version: nativeBase === '0.1.2-rc.1' ? '0.1.2-alpha.5' : '0.1.2-rc.1' }))
+    const invoked = join(bin, 'dsh')
+    if (layout === 'npm global symlink') symlinkSync(join(cli, 'bin', 'dsh.js'), invoked)
+    else writeFileSync(invoked, '#!/bin/sh\nexec node dsh.js "$@"\n')
     const entry = process.argv[1] ?? ''
     let announce = (): void => {}
     const warn = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     const ctx = new Context()
+    const packageOf = vi.fn((specifier: string) => ({
+      name: specifier, version: specifier === '@deepseek-ai/dsh' ? '0.1.2-alpha.5' : nativeBase,
+    }))
+    ctx.provide('pluginPackages', { packageOf })
     provideCmdline(ctx, {
       args: [], exit: () => {},
       ready: { onReady(listener) { announce = listener; return () => { announce = (): void => {} } } },
     })
 
     try {
-      process.argv[1] = join(cli, 'bin', 'dsh.js')
+      process.argv[1] = invoked
       apply(ctx)
       announce()
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining(
+      if (nativeBase === '0.1.2-rc.1') expect(warn).toHaveBeenCalledWith(expect.stringContaining(
         'DSH 0.1.2-alpha.5 loads @deepseek-ai/dsh-base 0.1.2-rc.1; versions must match',
       ))
-      await ctx.fiber.dispose()
+      else expect(warn).not.toHaveBeenCalled()
+      expect(packageOf.mock.calls.map(([specifier]) => specifier)).toEqual([
+        '@deepseek-ai/dsh', '@deepseek-ai/dsh-base',
+      ])
     } finally {
+      await ctx.fiber.dispose()
       process.argv[1] = entry
       rmSync(fixture, { recursive: true, force: true })
     }

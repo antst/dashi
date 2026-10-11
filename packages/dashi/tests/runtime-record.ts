@@ -1,0 +1,54 @@
+import { expect } from 'vitest'
+
+export interface RuntimePackage {
+  name: string
+  version: string
+  dir: string
+  manifest: { dependencies?: Record<string, string> }
+}
+export interface RuntimeRecord {
+  packages: Record<string, RuntimePackage>
+  peers: Record<string, Record<string, RuntimePackage>>
+  kit: RuntimePackage
+  active: Array<{ enabled: boolean; fiberPhase: string; moduleName: string }>
+  fileUploadsRegistered: boolean
+  profileRootImporter: string
+  fileUploadsProvider: { name: string; fiber: string; importer: string; package: RuntimePackage } | null
+  resolution: Array<{ name: string; version: string; scope: string; packageDir: string }>
+}
+
+/** Runtime selections only. An inactive second package on disk is not a failure. */
+export function assertActiveRuntime(
+  record: RuntimeRecord, dshVersion: string, appVersion: string, phase: 'published' | 'candidate' = 'candidate',
+): void {
+  expect(record.fileUploadsRegistered).toBe(true)
+  expect(record.fileUploadsProvider?.name).toBe('fileUploads')
+  expect(record.fileUploadsProvider?.fiber).toBe('file-uploads-none')
+  expect(record.fileUploadsProvider?.package.dir).toBe(record.packages['@antst/dsh-file-uploads-none']?.dir)
+  expect(new URL('.', record.fileUploadsProvider?.importer).href).toBe(new URL('.', record.profileRootImporter).href)
+  for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@sessionbus/dsh']) {
+    expect(record.active.filter(entry => entry.moduleName === name), `single ACTIVE ${name}`).toHaveLength(1)
+  }
+  // Immutable published states are measured, not retroactively repaired by fixture overrides.
+  if (phase === 'published') return
+  for (const name of ['@antst/dashi-app', '@antst/dashi', '@antst/dsh-file-uploads-none']) {
+    expect(record.packages[name]?.version, name).toBe(appVersion)
+  }
+  const app = record.packages['@antst/dashi-app']
+  for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@antst/roller', '@sessionbus/dsh']) {
+    expect(record.packages[name]?.version, name).toBe(app?.manifest.dependencies?.[name])
+  }
+  expect(record.kit.version).toBe('0.5.12')
+  for (const name of ['@deepseek-ai/dsh', '@deepseek-ai/dsh-base']) {
+    expect(record.packages[name]?.version, name).toBe(dshVersion)
+  }
+  const selected = record.resolution.filter(pkg => pkg.name.startsWith('@deepseek-ai/dsh'))
+  expect(selected.length).toBeGreaterThan(0)
+  for (const pkg of selected) expect(pkg.version, `${pkg.name} ${pkg.scope}`).toBe(dshVersion)
+  for (const peers of Object.values(record.peers)) {
+    for (const [name, pkg] of Object.entries(peers)) {
+      if (name.startsWith('@deepseek-ai/dsh')) expect(pkg.version, name).toBe(dshVersion)
+    }
+  }
+}
+

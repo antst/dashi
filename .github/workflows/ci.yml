@@ -15,6 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  install-layouts:
+    uses: ./.github/workflows/install-layouts.yml
+
   versions:
     runs-on: ubuntu-latest
     outputs:
@@ -45,7 +48,7 @@ jobs:
       - run: pnpm gate:docker
 
   preview:
-    needs: gate
+    needs: [gate, macos-gate, install-layouts]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:

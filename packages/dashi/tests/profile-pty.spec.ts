@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as pty from 'node-pty'
 import { prepareSessionSnapshotFixtureForComparison } from '@deepseek-ai/dsh-llm-replay'
 import { historicalSessionFormatCatalog, sessionFormatCatalog } from '@deepseek-ai/dsh-session-format-catalog'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
@@ -12,9 +11,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
 import { connectTestObserver, startTestDaemon, type TestObserver } from './sessionbus-harness.js'
 import { testCeiling } from './test-budget.js'
+import { TestPtyShell } from './pty-shell.js'
+import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { countAudibleBells } from './terminal-output.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
-import { assertPinnedGraph, deriveCliPins } from '../../../scripts/dsh-cli-pins.mjs'
+import { deriveCliPins } from '../../../scripts/dsh-cli-pins.mjs'
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
 const dsh = join(root, 'node_modules', '.bin', 'dsh')
@@ -124,6 +125,7 @@ function assertResolvedDshGraph(lockfile: string, expected: string): number {
 }
 
 function assertSingleUploadProvider(profile: string): void {
+  // Repository source-link fixture only; user installations assert the ACTIVE service instead.
   const app = realpathSync(join(profile, 'node_modules', '@antst', 'dashi-app', 'package.json'))
   const plugin = createRequire(app).resolve('@sessionbus/dsh')
   const providers = [app, plugin].map(anchor => {
@@ -155,12 +157,7 @@ module.exports = { hooks: { readPackage(pkg) {
 `)
 }
 
-class PtyShell {
-  readonly process: pty.IPty
-  readonly frameTimes: number[] = []
-  output = ''
-  private readonly exited: Promise<number>
-
+class PtyShell extends TestPtyShell {
   constructor(snapshot = replayFixture, rootEvents?: string, cwd = root, extraEnv: NodeJS.ProcessEnv = {}) {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -178,57 +175,7 @@ class PtyShell {
       if (value === undefined) delete env[name]
       else env[name] = value
     }
-    this.process = pty.spawn('/bin/bash', ['--noprofile', '--norc', '-i'], {
-      cols: 80, rows: 24, cwd, env,
-    })
-    this.process.onData(data => {
-      this.output += data
-      const frames = data.split('\u001B[?2026h').length - 1
-      for (let index = 0; index < frames; index++) this.frameTimes.push(performance.now())
-    })
-    this.exited = new Promise(resolveExit => {
-      this.process.onExit(event => { resolveExit(event.exitCode) })
-    })
-  }
-
-  write(data: string): void { this.process.write(data) }
-  resize(columns: number, rows: number): void { this.process.resize(columns, rows) }
-
-  async waitFor(text: string, start = 0, timeoutMs = 20_000): Promise<number> {
-    const deadline = Date.now() + testCeiling(timeoutMs)
-    while (Date.now() < deadline) {
-      const found = this.output.indexOf(text, start)
-      if (found !== -1) return found
-      await new Promise(resolveDelay => { setTimeout(resolveDelay, 20) })
-    }
-    throw new Error(`Timed out waiting for ${JSON.stringify(text)}\n${this.output.slice(-4000)}`)
-  }
-
-  async waitForAudibleBell(start = 0, timeoutMs = 10_000): Promise<void> {
-    const deadline = Date.now() + testCeiling(timeoutMs)
-    while (Date.now() < deadline) {
-      if (countAudibleBells(this.output.slice(start)) > 0) return
-      await new Promise(resolveDelay => { setTimeout(resolveDelay, 20) })
-    }
-    throw new Error('Timed out waiting for an audible terminal bell')
-  }
-
-  childPid(): number {
-    const output = execFileSync('ps', ['-ax', '-o', 'pid=', '-o', 'ppid='], { encoding: 'utf8' })
-    const child = output.split('\n').map(row => row.trim().split(/\s+/))
-      .find(([, parent]) => Number(parent) === this.process.pid)
-    const pid = Number(child?.[0])
-    if (!Number.isInteger(pid)) throw new Error(`No child process below PTY shell ${this.process.pid}`)
-    return pid
-  }
-
-  async close(): Promise<void> {
-    this.write('exit\n')
-    const result = await Promise.race([
-      this.exited,
-      new Promise<number>(resolveTimeout => { setTimeout(() => { resolveTimeout(-1) }, 2_000) }),
-    ])
-    if (result === -1) this.process.kill('SIGKILL')
+    super(cwd, env)
   }
 }
 
@@ -1741,12 +1688,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       '  protobufjs: false',
       '',
     ].join('\n'))
-    writeDshPinHook(prefix)
     run('pnpm', ['install', `@deepseek-ai/dsh@${testedDshVersion}`, launcherArchive], process.env, prefix)
     const cleanDsh = join(prefix, 'node_modules', '.bin', 'dsh')
     const cleanLauncher = join(prefix, 'node_modules', '.bin', 'dashi')
     const cleanEnv = { ...process.env, DSH_HOME: cleanHome }
-    writeDshPinHook(join(cleanHome, 'profiles', 'dashi'))
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'install'], cleanEnv)
 
     // @antst/dashi is not published yet. Resolve its normal package range to the
@@ -1757,41 +1702,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     appendFileSync(workspacePath, [
       '',
       'overrides:',
-      `  '@antst/dsh-file-uploads-none': 'file:${noUploadsArchive}'`,
-      `  '@antst/dashi': 'file:${pluginArchive}'`,
+      `  '@antst/dashi-app>@antst/dsh-file-uploads-none': 'file:${noUploadsArchive}'`,
+      `  '@antst/dashi-app>@antst/dashi': 'file:${pluginArchive}'`,
       '',
     ].join('\n'))
     run(cleanDsh, ['plugin', '--profile', 'dashi', 'add', appArchive], cleanEnv)
-    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`,
-      ...Object.entries(cliPins).map(([name, pin]) => `${name}@${pin}`)], cleanEnv, profile)
-    const cliLock = readFileSync(join(prefix, 'pnpm-lock.yaml'), 'utf8')
-    const profileLock = readFileSync(join(profile, 'pnpm-lock.yaml'), 'utf8')
-    const cliResolved = assertResolvedDshGraph(cliLock, testedDshVersion)
-    const profileResolved = assertResolvedDshGraph(profileLock, testedDshVersion)
-    assertPinnedGraph(cliLock, cliPins)
-    assertPinnedGraph(profileLock, cliPins)
-    assertSingleUploadProvider(profile)
-    expect(cliResolved).toBeGreaterThan(0)
-    expect(profileResolved).toBeGreaterThan(0)
-    const manifests = [
-      join(profile, 'node_modules', '@antst', 'dsh-file-uploads-none', 'package.json'),
-      join(profile, 'node_modules', '@antst', 'dashi', 'package.json'),
-      join(profile, 'node_modules', '@antst', 'dashi-app', 'package.json'),
-      join(prefix, 'node_modules', '@antst', 'dashi-launcher', 'package.json'),
-    ].map(path => JSON.parse(readFileSync(path, 'utf8')) as {
-      dependencies?: Record<string, string>
-      version: string
-    })
+    run('pnpm', ['add', '--save-exact', `@deepseek-ai/dsh-llm-replay@${testedDshVersion}`], cleanEnv, profile)
     const workspaceVersion = (JSON.parse(readFileSync(
       join(root, 'packages', 'dashi', 'package.json'), 'utf8',
     )) as { version: string }).version
-    expect(manifests.map(manifest => manifest.version)).toEqual(Array(4).fill(workspaceVersion))
-    expect(manifests[2]?.dependencies?.['@antst/dsh-file-uploads-none']).toBe(manifests[0]?.version)
-    expect(manifests[2]?.dependencies?.['@antst/dashi']).toBe(manifests[0]?.version)
-    expect(manifests[2]?.dependencies?.['@antst/roller']).toBe('0.1.4')
-    expect(JSON.parse(readFileSync(
-      join(profile, 'node_modules', '@antst', 'roller', 'package.json'), 'utf8',
-    )).version).toBe('0.1.4')
+    // The package manager selects the launcher; DSH selects the active profile packages.
+    const launcherManifest = createRequire(realpathSync(cleanLauncher)).resolve('@antst/dashi-launcher/package.json')
+    expect(JSON.parse(readFileSync(launcherManifest, 'utf8')).version).toBe(workspaceVersion)
 
     for (const path of [manifestPath, workspacePath, join(profile, 'pnpm-lock.yaml')]) {
       const installed = readFileSync(path, 'utf8')
@@ -1799,12 +1721,24 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(installed).not.toContain(root)
     }
 
+    const runtimePath = join(cleanRoot, 'runtime.json')
+    const runtimePatch = join(cleanRoot, 'runtime.patch.yml')
+    const observer = new URL('./fixtures/runtime-observer.mjs', import.meta.url).href
+    writeFileSync(runtimePatch, `- insert:\n    - id: runtime-observer\n      name: '${observer}'\n`)
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: cleanHome,
+      DASHI_RUNTIME_RECORD: runtimePath,
       PATH: `${join(prefix, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
     })
     try {
-      const start = await launch(shell, `${quote(cleanLauncher)} --patch ${quote(cleanReplayPatch)}`)
+      const start = await launch(shell, `${quote(cleanLauncher)} --patch ${quote(cleanReplayPatch)} --patch ${quote(runtimePatch)}`)
+      await vi.waitFor(() => { expect(existsSync(runtimePath), shell.output.slice(-4000)).toBe(true) }, {
+        timeout: testCeiling(20_000),
+      })
+      const runtime = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
+      assertActiveRuntime(runtime, testedDshVersion, workspaceVersion)
+      expect(runtime.packages['@antst/roller']?.version).toBe('0.1.4')
+      for (const pkg of Object.values(runtime.packages)) expect(pkg.dir).not.toContain(root)
       shell.write('clean install daily flow\r')
       await shell.waitFor('Approval · bash', start)
       shell.write('\r')

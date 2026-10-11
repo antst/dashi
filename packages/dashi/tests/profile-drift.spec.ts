@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,7 +43,7 @@ function manifest(path: string): { readonly name: string; readonly version: stri
 describe('validated DSH patch surface', () => {
   it('keeps dashi overrides and preset composition aligned with installed DSH', () => {
     const require = createRequire(import.meta.url)
-    const dshManifestPath = require.resolve('@deepseek-ai/dsh/package.json')
+    const dshManifestPath = realpathSync(require.resolve('@deepseek-ai/dsh/package.json'))
     const fromDsh = createRequire(dshManifestPath)
     const baseManifestPath = fromDsh.resolve('@deepseek-ai/dsh-base/package.json')
     const webManifestPath = fromDsh.resolve('@deepseek-ai/dsh-web-app/package.json')

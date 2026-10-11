@@ -4929,6 +4929,15 @@ shown), the gate's layout assumptions, and the product's version check
 reading DSH's own resolution (packages/dashi/src/index.ts) instead of
 the argv bin's parent directory.
 
+Builder note: W-124's clean Linux/Node 22 pnpm 11.18.0 cell observed
+the published alpha.1 app pin `0.2.0-alpha.1` but the active profile-root
+fileUploads provider `0.1.2` (one mounted service; completed recorded turn),
+at `/tmp/dashi-G-pnpm11-vWjMoM/runtime-0.2.0-alpha.1-fresh-false.json`.
+Its literal registry upgrade to alpha.2 selected provider `0.2.0-alpha.2`;
+the identified packed candidate also converged to its exact app pin.
+Published provider versions are observations; candidate convergence,
+active service ownership and completed native turns remain hard assertions.
+
 ### W-125 plugin: universal install docs and layout-independent checks; runbook scoped as operations — status: open (owner codex-roller)
 Per D-050. In sessionbus/sessionbus-dsh: (1) README install = any DSH
 on PATH, `dsh plugin --profile <p> add @sessionbus/dsh@<v>` and the

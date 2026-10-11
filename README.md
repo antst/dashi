@@ -4,55 +4,144 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 
 ## Install
 
-For an existing profile, read the [upgrade caveat](#upgrading-an-existing-profile)
-before running these commands.
-
-Install DSH 0.2.1-alpha.2 and the matching dashi 0.2 prerelease:
+Use Node 22.19 or newer on the Node 22 line, or Node 24+. DSH's profile
+manager needs `pnpm` on PATH even when DSH itself is installed with npm or
+run by npx. If you do not already have it:
 
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
+npm install -g pnpm@10.28.1
+```
+
+The minimum supported DSH is `0.2.1-alpha.2`; dashi 0.2 uses DSH's 0.2
+integration. Linux and macOS installation checks run the global, on-demand,
+project and mixed sequences below on Node 22. The workspace's frozen pnpm
+graph is a development check, not an installation requirement for users.
+
+### Global or on-demand DSH
+
+With npm:
+
+```sh
+npm install -g @deepseek-ai/dsh@0.2.1-alpha.2
+npm install -g @antst/dashi-launcher@0.2.0-alpha.2
 dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 dashi
 ```
 
-For a home pnpm install, `dsh`/`dashi` live in `$HOME/node_modules/.bin`.
-Add it to your login shell's PATH (e.g.
-`export PATH="$HOME/node_modules/.bin:$PATH"` in the appropriate shell rc), or
-invoke the bins by full path. Without editing an rc file, run `pnpm exec dashi`
-from the home install directory. The runbook's per-shell export and daemon
-drop-in cover scripts and the service, not your login shell.
+With pnpm (including pnpm 10.28.1):
 
-dashi 0.2 is a prerelease on DSH's 0.2 line; it replaces the 0.1 integration.
-Npm is unsupported for prerelease DSH because it cannot constrain a scoped
-package family to one prerelease.
-A DSH profile must use one uniform DSH version. The minimum supported version
-is `0.2.1-alpha.2`; CI tests `0.2.1-alpha.2` with an exact, reproducible graph.
+```sh
+pnpm setup
+# Open a new shell after setup so pnpm's global binaries are on PATH.
+pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
+pnpm add -g @antst/dashi-launcher@0.2.0-alpha.2
+```
+
+For pnpm 11.18.0, apply the [global-store remedy](#dsh-installed-globally-with-pnpm-11)
+below before starting DSH. Then:
+
+```sh
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+dashi
+```
+
+With npx, without a permanent CLI installation:
+
+```sh
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0-alpha.2 dashi --version
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0-alpha.2 dashi
+```
+
+Or start the installed profile directly:
+`npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 --profile dashi`.
+
+### DSH installed globally with pnpm 11
+
+On pnpm 11.18.0 the default global virtual store can prevent DSH's native
+loader from finding its installed platform binding. The error includes:
+
+```text
+No usable native binding found for node-addon-require-builtin-darwin-arm64
+```
+
+The suffix identifies your platform. This is the DSH/pnpm layout issue
+tracked in [Discussion 9432](https://github.com/deepseek-ai/deepseek-harness/discussions/9432),
+not a missing dashi dependency. Disable the global virtual store and
+reinstall DSH:
+
+```sh
+pnpm config set --global --json enableGlobalVirtualStore false
+pnpm remove -g @deepseek-ai/dsh && pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
+```
+
+The setting affects subsequent pnpm installations; it does not migrate
+existing installations by itself. No launcher environment injection or
+automatic retry is used.
+
+### Project DSH
+
+From your project directory, with npm:
+
+```sh
+npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npm exec -- dashi
+```
+
+Or with pnpm:
+
+```sh
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+pnpm exec dashi
+```
+
+### Global and project installations together
+
+`dashi` starts the `dsh` on PATH: run it the way you run DSH, through your
+global bin directory or `npm exec` / `pnpm exec` in a project. Those project
+commands put the project's binaries first; a bare global invocation uses
+your normal PATH. To inspect the selection, use `command -v dsh` and
+`dashi --version` globally, or `npm exec -- dashi --version` /
+`pnpm exec dashi --version` in the project. `--version` reports DSH;
+`dashi --help` reports both dashi and DSH.
+
+Unless you set `DSH_HOME`, both installations use DSH's same `~/.dsh`
+profiles, settings and session history. A profile therefore needs to be
+compatible with whichever DSH you start; a second installation is not a
+second profile or an automatic migration.
 
 ### Upgrading an existing profile
 
-Upgrading an existing `0.1.x` profile to `0.2.0-alpha.1` leaves two
-`@antst/dsh-file-uploads-none` copies: the app's `0.2.0-alpha.1` and the
-Sessionbus plugin's retained `0.1.3` dependency (observed upgrading from `0.1.3`).
-The plugin's own provider dependency is the cause (W-122); `pnpm dedupe` does
-not collapse it. A fresh profile is the working path for alpha.1; preserve
-your existing profile and snapshots.
-
-To upgrade a working `0.2.0-alpha.1` profile in place to `0.2.0-alpha.2`,
-snapshot the profile's `package.json`, `pnpm-lock.yaml` and patches first,
-preserving your provider configuration and other installed plugins. Then run:
+Exit dashi and preserve your profile's manifest, lockfile, patches and
+provider configuration before upgrading. Update the launcher with the
+manager and location you used to install it, then update the shared profile.
+For a global npm installation:
 
 ```sh
-pnpm add --save-exact @antst/dashi-launcher@0.2.0-alpha.2
+npm install -g @antst/dashi-launcher@0.2.0-alpha.2
 dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 ```
 
-Expected result: one `@sessionbus/dsh@0.1.0-pre.20` and one
-`@antst/dsh-file-uploads-none@0.2.0-alpha.2`, without cleanup or dedupe.
-The Sessionbus plugin now consumes the upload provider as a required peer;
-dashi-app owns its exact sibling pin and mounts that provider once (W-122).
+For global pnpm, replace the first command with
+`pnpm add -g @antst/dashi-launcher@0.2.0-alpha.2`.
+For a project, use `npm install --save-exact @antst/dashi-launcher@0.2.0-alpha.2`
+then `npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2`,
+or `pnpm add --save-exact @antst/dashi-launcher@0.2.0-alpha.2` then
+`pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2`.
+With npx, repeat the on-demand commands with the new exact versions.
+To update DSH itself, repeat your chosen DSH installation command with the
+supported version before updating the profile. No home-directory install,
+companion pins, lockfile repair or runbook detour is required by these paths.
 
-
-For DSH graph upgrades, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile. That graph repair does not fix the alpha.1 provider duplicate.
+Historical caveat: upgrading a `0.1.x` profile to `0.2.0-alpha.1` could leave
+the Sessionbus plugin's older upload-provider dependency shadowing the app's
+pin; `pnpm dedupe` did not repair that path. Alpha.2 changed the plugin to
+pre.20, which consumes the provider as a peer, and the in-place upgrade was
+proven on the dsh host. The universal checks record the provider actually
+mounted from the profile-root importer and its active `fileUploads` service,
+not counts of inactive copies on disk.
 
 ### Third-party plugins on DSH 0.2.1
 

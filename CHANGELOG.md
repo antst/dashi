@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Document and check global npm/pnpm, npx, project and mixed DSH installations on Linux and macOS; name pnpm 11's native-loader layout issue and its explicit remedy (W-124). The launcher remains PATH-based and unchanged. Runtime version warnings now use DSH's booted package resolution instead of guessing from a bin/shim path.
+
 ## 0.2.0-alpha.2 — 2026-10-11
 
 - Fix upload-provider ownership with Sessionbus 0.1.0-pre.20: dashi-app pins the provider and the plugin consumes it as a required peer, removing the plugin-owned dependency behind the alpha.1 upgrade duplicate (W-121, W-122). The alpha.1-to-alpha.2 in-place host proof is pending.

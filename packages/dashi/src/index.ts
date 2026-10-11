@@ -1,6 +1,5 @@
-import { readFileSync, realpathSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { exitOnStdinEnd, type AppExit, type AppReady, type CmdlineArgs } from '@deepseek-ai/dsh-cmdline'
 import { createTerminalShell, type TerminalShell } from './application.js'
@@ -19,7 +18,7 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'loader', 'permissionPresets', 'subagents',
-  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
+  'jobController', 'pluginInventory', 'pluginPackages', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
 ]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
@@ -128,28 +127,13 @@ function parseArgs(args: readonly string[]): ParsedArgs | undefined {
   }
 }
 
-function packageVersion(path: string): string {
-  const manifest = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
-  return typeof manifest.version === 'string' ? manifest.version : 'unknown'
-}
-
-function runningDshVersions(): readonly [string, string] {
-  try {
-    const entry = realpathSync(process.argv[1] ?? '')
-    const manifest = resolve(dirname(entry), '../package.json')
-    const version = packageVersion(manifest)
-    try {
-      return [version, packageVersion(createRequire(manifest).resolve('@deepseek-ai/dsh-base/package.json'))]
-    } catch {
-      return [version, 'unknown']
-    }
-  } catch {
-    return ['unknown', 'unknown']
-  }
-}
-
-function warnDshVersion(): void {
-  const [version, baseVersion] = runningDshVersions()
+function warnDshVersion(ctx: Context): void {
+  // DSH app-boot owns this service; do not derive its selection from a bin/shim path.
+  const packages = ctx.get('pluginPackages') as {
+    packageOf(specifier: string, parentURL: string): { version?: string } | undefined
+  } | undefined
+  const version = packages?.packageOf('@deepseek-ai/dsh', import.meta.url)?.version ?? 'unknown'
+  const baseVersion = packages?.packageOf('@deepseek-ai/dsh-base', import.meta.url)?.version ?? 'unknown'
   if (baseVersion !== version) {
     process.stderr.write(`dashi: warning: DSH ${version} loads @deepseek-ai/dsh-base ${baseVersion}; versions must match\n`)
   }
@@ -159,7 +143,7 @@ function installSessionList(ctx: Context, options: SessionListOptions, ready: Ap
   const abort = new AbortController()
   let listing: Promise<void> | undefined
   const announce = ready.onReady(() => {
-    warnDshVersion()
+    warnDshVersion(ctx)
     listing = ctx.sessionController.list({}, abort.signal).then(({ items }) => {
       const cwd = options.all ? undefined : resolve(options.cwd ?? process.cwd())
       process.stdout.write(`${formatSessionList(items, cwd, options.json)}\n`)
@@ -215,7 +199,7 @@ export function apply(ctx: Context): void {
     if (current === undefined) shell?.dispatch({ type: 'root-cleared' })
   })
   const announce = ready.onReady(() => {
-    warnDshVersion()
+    warnDshVersion(ctx)
     boot = (async () => {
       if (parsed.argumentError !== undefined) throw new LaunchArgumentError(parsed.argumentError)
       const cwd = process.cwd()

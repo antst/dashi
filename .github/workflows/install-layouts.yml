@@ -1,0 +1,46 @@
+name: Universal installation checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: ${{ matrix.layout }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        layout: [G-npm, G-pnpm10, G-pnpm11, G-npx, P-npm, P-pnpm]
+    env:
+      DASHI_INSTALL_LAYOUT: ${{ matrix.layout }}
+      DASHI_INSTALL_EVIDENCE: ${{ runner.temp }}
+      SESSIONBUS_DAEMON_BIN: .cache/sessionbus/bin/sessionbus
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      # Workspace tooling is frozen; each USER installation has a new home/cache/prefix.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node scripts/provision-sessionbus.mjs
+      - name: Published install and upgrade, then identified packed candidate
+        run: pnpm exec vitest run --config scripts/install-layouts.config.mts
+      - name: Preserve commands, native selections and PTY evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-${{ matrix.os }}-${{ matrix.layout }}
+          path: |
+            ${{ runner.temp }}/dashi-${{ matrix.layout }}-*/commands.log
+            ${{ runner.temp }}/dashi-${{ matrix.layout }}-*/runtime-*.json
+            ${{ runner.temp }}/dashi-${{ matrix.layout }}-*/pty-*.log
+            ${{ runner.temp }}/dashi-${{ matrix.layout }}-*/result.json
+          if-no-files-found: error
