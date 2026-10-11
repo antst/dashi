@@ -4592,6 +4592,20 @@ swap, then shut the old object down; the stored list is written only
 once the new peer is ready; lane ownership across the swap is proven
 by a test.
 
+### W-121 dashi: in-place upgrade leaves two upload-provider copies — status: open (owner dsh-exec, after W-114 proof)
+Found by the W-114 host proof: upgrading an existing dashi profile from
+0.1.3 with the ordinary `dsh plugin --profile <p> add
+@antst/dashi-app@0.2.0-alpha.1` keeps the retained
+@antst/dsh-file-uploads-none 0.1.3 edge under @sessionbus/dsh (pnpm
+does not re-resolve a still-satisfied range), so the profile holds
+0.1.3 beside 0.2.0-alpha.1; a fresh profile resolves one copy (W-119).
+Now: the README's upgrade section gains the dedupe step (`pnpm dedupe`
+in the profile directory, or DSH's own equivalent if one exists) with
+the expected lock result; the W-114 packet records the step as run on
+the host. Later, structural: the plugin stops depending on the
+provider and the profile owns that pin (plugin item). Docs only here;
+no mechanism.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
