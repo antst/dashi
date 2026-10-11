@@ -10,8 +10,8 @@ before running these commands.
 Install DSH 0.2.1-alpha.2 and the matching dashi 0.2 prerelease:
 
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.1
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.1
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
 dashi
 ```
 
@@ -28,9 +28,23 @@ Upgrading an existing `0.1.x` profile to `0.2.0-alpha.1` leaves two
 Sessionbus plugin's retained `0.1.3` dependency (observed upgrading from `0.1.3`).
 The plugin's own provider dependency is the cause (W-122); `pnpm dedupe` does
 not collapse it. A fresh profile is the working path for alpha.1; preserve
-your existing profile and snapshots. The planned upgrade-path release is
-`0.2.0-alpha.2` with `@sessionbus/dsh@0.1.0-pre.20`; wait for that release
-for an in-place upgrade. It is not an alpha.1 repair step.
+your existing profile and snapshots.
+
+To upgrade a working `0.2.0-alpha.1` profile in place to `0.2.0-alpha.2`,
+snapshot the profile's `package.json`, `pnpm-lock.yaml` and patches first,
+preserving your provider configuration and other installed plugins. Then run:
+
+```sh
+pnpm add --save-exact @antst/dashi-launcher@0.2.0-alpha.2
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+```
+
+Expected result: one `@sessionbus/dsh@0.1.0-pre.20` and one
+`@antst/dsh-file-uploads-none@0.2.0-alpha.2`, without cleanup or dedupe.
+The Sessionbus plugin now consumes the upload provider as a required peer;
+dashi-app owns its exact sibling pin and mounts that provider once (W-122).
+
+**Proof pending:** the alpha.1-to-alpha.2 in-place path awaits the alpha.2 host packet.
 
 For DSH graph upgrades, follow the [host installation runbook](https://github.com/sessionbus/sessionbus-dsh/blob/main/docs/HOST-INSTALL.md): snapshot first and repair stale peer-only packages and CLI companion pins without wiping `node_modules` or the lockfile. That graph repair does not fix the alpha.1 provider duplicate.
 
@@ -50,7 +64,8 @@ other fields and any existing overrides (the block is a JSON fragment):
 ```
 
 `dsh-plugin-subscriptions` 0.9.9 and earlier declare DSH peers ending at
-`0.2.0-rc.2`; there is no DSH 0.2.1 release. DSH 0.2.1 refuses it at startup;
+`0.2.0-rc.2`; no dsh-plugin-subscriptions release declares a DSH 0.2.1 peer.
+DSH 0.2.1 refuses it at startup;
 remove it from a 0.2.1 profile unless a release with a 0.2.1 peer exists.
 
 Without the launcher package, run `dsh --profile dashi` directly or use the
@@ -60,9 +75,13 @@ Create the `sessionbus` lane profile with the plugin's installer,
 `sessionbus-dsh-install` (see the @sessionbus/dsh README); the dashi profile's
 Sessionbus row ships in dashi-app. When `SESSIONBUS_LAUNCH_TOKEN` is present, the
 launcher selects that `sessionbus` profile; repeatable `-g`/`--group` options
-export its group names as `SESSIONBUS_GROUPS`. One group name becomes the
-Sessionbus session title, and groups are fixed for that session. With no
-Sessionbus daemon running, Sessionbus has no effect.
+export group names as `SESSIONBUS_GROUPS`. Interactive roots use defaults
+from the plugin's profile configuration (`groups`) or `SESSIONBUS_GROUPS`.
+The native human command `/sessionbus-groups` shows the root's declared groups,
+`/sessionbus-groups a,b` replaces them, and `/sessionbus-groups -` restores the
+profile defaults. It is not a model tool or skill; lane groups remain
+daemon-owned. Sessionbus names follow DSH's native session title, not a group
+name. With no Sessionbus daemon running, Sessionbus has no effect.
 
 dashi renders in the terminal's main screen by default. Use
 `dashi --fullscreen` for an application-owned viewport in the

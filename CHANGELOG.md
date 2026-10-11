@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0-alpha.2 — 2026-10-11
+
+- Fix upload-provider ownership with Sessionbus 0.1.0-pre.20: dashi-app pins the provider and the plugin consumes it as a required peer, removing the plugin-owned dependency behind the alpha.1 upgrade duplicate (W-121, W-122). The alpha.1-to-alpha.2 in-place host proof is pending.
+- Update installation and upgrade instructions, clarify third-party plugin requirements, and document the native per-root `/sessionbus-groups` command and session-title identity introduced in plugin pre.19. No dashi runtime changes.
+
 ## 0.2.0-alpha.1 — 2026-10-10
 
 - Move to DSH >=0.2.1-alpha.2, with one tested 0.2 line and Sessionbus 0.1.0-pre.18. Native V4 source kinds preserve shell notices and sender-labelled relay messages; recorded fixtures use DSH's released migration catalog.
