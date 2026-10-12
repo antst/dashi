@@ -22,12 +22,12 @@ jobs:
           - { layout: G-npm, pnpm: 10.34.7 }
           - { layout: G-pnpm10, pnpm: 10.34.7 }
           - { layout: G-pnpm11, pnpm: 11.28.5 }
-          - { layout: G-pnpm12, pnpm: 12.12.1 }
+          - { layout: G-pnpm12, pnpm: 12.11.2 }
           - { layout: G-npx, pnpm: 10.34.7 }
           - { layout: P-npm, pnpm: 10.34.7 }
           - { layout: P-pnpm10, pnpm: 10.34.7 }
           - { layout: P-pnpm11, pnpm: 11.28.5 }
-          - { layout: P-pnpm12, pnpm: 12.12.1 }
+          - { layout: P-pnpm12, pnpm: 12.11.2 }
         include: ${{ inputs.os == 'ubuntu-latest' && fromJSON('[{"cell":{"layout":"below-floor","pnpm":"10.34.7"}}]') || fromJSON('[]') }}
     env:
       DASHI_INSTALL_LAYOUT: ${{ matrix.cell.layout }}
