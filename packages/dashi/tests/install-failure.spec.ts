@@ -2,7 +2,29 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
-import { recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+
+it('accepts only the requested exit outcome using the literal truth table', () => {
+  const expectations = [true, false, 0, 1, 7] as const
+  const outcomes = [
+    { label: 'exit 0', result: { status: 0 }, expected: [true, false, true, false, false] },
+    { label: 'exit 1', result: { status: 1 }, expected: [false, true, false, true, false] },
+    { label: 'exit 7', result: { status: 7 }, expected: [false, true, false, false, true] },
+    { label: 'signal', result: { status: null }, expected: [false, false, false, false, false] },
+    { label: 'timeout', result: { status: null, error: Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }) },
+      expected: [false, false, false, false, false] },
+    { label: 'spawn error', result: { status: null, error: Object.assign(new Error('spawn'), { code: 'ENOENT' }) },
+      expected: [false, false, false, false, false] },
+    { label: 'ENOBUFS', result: { status: null, error: Object.assign(new Error('buffer'), { code: 'ENOBUFS' }) },
+      expected: [false, false, false, false, false] },
+    { label: 'error despite exit 0', result: { status: 0, error: new Error('error despite exit 0') },
+      expected: [false, false, false, false, false] },
+  ]
+  for (const outcome of outcomes) for (const [index, success] of expectations.entries()) {
+    expect(isExpectedInstallOutcome(outcome.result, success), outcome.label + ' expected ' + success)
+      .toBe(outcome.expected[index])
+  }
+})
 
 it('preserves successful and nonzero command outcomes without timeout diagnostics', async () => {
   const onTimeout = vi.fn()
@@ -54,8 +76,10 @@ it('captures the live command group and operation log before termination; a late
     const record = JSON.parse(readFileSync(join(capture!, 'timeout.json'), 'utf8'))
     expect(record.processGroup.value).toContain(String(record.pid))
     expect(record.processGroup.value).toContain(process.execPath)
-    const childRow = (record.processGroup.value as string).split('\n')
-      .map(row => row.trim().split(/\s+/u)).find(row => Number(row[0]) === child)
+    const rows = (record.processGroup.value as string).split('\n').map(row => row.trim().split(/\s+/u))
+    const leaderRow = rows.find(row => Number(row[0]) === record.pid)
+    const childRow = rows.find(row => Number(row[0]) === child)
+    expect(leaderRow?.slice(0, 3).map(Number)).toEqual([record.pid, process.pid, record.pid])
     expect(child).not.toBe(record.pid)
     expect(childRow?.slice(0, 3).map(Number)).toEqual([child, record.pid, record.pid])
     expect(record.logs.value.copied).toBe(true)

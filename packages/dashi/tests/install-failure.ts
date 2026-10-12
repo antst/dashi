@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
+export function isExpectedInstallOutcome(result: { status: number | null; error?: Error }, success: boolean | number): boolean {
+  return !result.error && result.status !== null &&
+    (success === true ? result.status === 0 : success === false ? result.status !== 0 : result.status === success)
+}
+
 function observed<T>(read: () => T): { value: T } | { error: string; code?: string; syscall?: string } {
   try { return { value: read() } }
   catch (error) {
