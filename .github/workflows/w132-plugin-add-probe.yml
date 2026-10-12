@@ -1,0 +1,36 @@
+name: W-132 bounded macOS plugin-add reproduction
+
+on:
+  push:
+    branches: [w-132-plugin-add-macos-probe]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Up to 200 fresh published-app profiles with one warm private store
+        run: node scripts/w132-plugin-add-probe.mjs
+      - name: Preserve the first failure or bounded non-reproduction
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: w132-plugin-add-macos-probe
+          path: |
+            ${{ runner.temp }}/w132-plugin-add-*/commands.log
+            ${{ runner.temp }}/w132-plugin-add-*/provenance.json
+            ${{ runner.temp }}/w132-plugin-add-*/result.json
+            ${{ runner.temp }}/w132-plugin-add-*/iterations.jsonl
+            ${{ runner.temp }}/w132-plugin-add-*/failure/**
+            ${{ runner.temp }}/w132-plugin-add-*/iteration-*/paths.json
+            ${{ runner.temp }}/w132-plugin-add-*/iteration-*/measured.json
+            ${{ runner.temp }}/w132-plugin-add-*/iteration-*/reports/*.json
+            ${{ runner.temp }}/w132-plugin-add-*/iteration-*/failure/**
+          if-no-files-found: error
