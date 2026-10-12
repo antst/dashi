@@ -20,19 +20,27 @@ it('preserves successful and nonzero command outcomes without timeout diagnostic
 
 it('captures the live command group and operation log before termination; a late exit remains a timeout', async () => {
   const evidence = mkdtempSync(join(tmpdir(), 'dashi-install-timeout-'))
+  let leader: number | undefined, child: number | undefined
   try {
     const nativeHome = join(evidence, 'native')
     const logs = join(nativeHome, 'profiles', 'dashi', '.plugin-manager', 'logs', 'operation-control')
     mkdirSync(logs, { recursive: true })
     const file = join(logs, 'pnpm.log')
+    const childPid = join(evidence, 'child.pid')
     const script = `const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(file)}, 'pnpm finished; command alive\\n');
-      require('node:child_process').spawn(process.execPath, ['-e', 'process.title = "W130_GROUP_CHILD"; setInterval(() => {}, 1000)']);
-      process.on('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n'); process.exit(0) });
+      const child = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+      fs.writeFileSync(${JSON.stringify(childPid)}, String(child.pid));
+      child.once('close', () => { process.exit(0) });
+      process.on('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n') });
       setInterval(() => {}, 1000)`
     let capture: string | undefined
     const result = await runInstallCommand({ command: process.execPath, args: ['-e', script],
       cwd: evidence, env: process.env, timeoutMs: 1_000,
       onTimeout: pid => {
+        leader = pid
+        child = Number(readFileSync(childPid, 'utf8'))
+        expect(Number.isInteger(child) && child > 0).toBe(true)
+        expect(() => { process.kill(child!, 0) }).not.toThrow()
         expect(() => { process.kill(pid, 0) }).not.toThrow()
         capture = recordInstallTimeout({ pid, command: process.execPath,
           args: ['plugin', '--profile', 'dashi', 'add', 'example'],
@@ -46,13 +54,56 @@ it('captures the live command group and operation log before termination; a late
     const record = JSON.parse(readFileSync(join(capture!, 'timeout.json'), 'utf8'))
     expect(record.processGroup.value).toContain(String(record.pid))
     expect(record.processGroup.value).toContain(process.execPath)
-    expect(record.processGroup.value).toContain('W130_GROUP_CHILD')
+    const childRow = (record.processGroup.value as string).split('\n')
+      .map(row => row.trim().split(/\s+/u)).find(row => Number(row[0]) === child)
+    expect(child).not.toBe(record.pid)
+    expect(childRow?.slice(0, 3).map(Number)).toEqual([child, record.pid, record.pid])
     expect(record.logs.value.copied).toBe(true)
     expect(readFileSync(join(capture!, 'plugin-manager-logs', 'operation-control', 'pnpm.log'), 'utf8'))
       .toBe('pnpm finished; command alive\n')
     expect(readFileSync(file, 'utf8')).toContain('terminated')
-    expect(() => { process.kill(record.pid, 0) }).toThrow()
-  } finally { rmSync(evidence, { recursive: true, force: true }) }
+    await vi.waitFor(() => {
+      expect(() => { process.kill(record.pid, 0) }).toThrow()
+      expect(() => { process.kill(child!, 0) }).toThrow()
+    }, { timeout: 500, interval: 10 })
+  } finally {
+    if (leader !== undefined) {
+      try { process.kill(-leader, 'SIGKILL') }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') console.error('install test cleanup failed: ' + String(error)) }
+    }
+    rmSync(evidence, { recursive: true, force: true })
+  }
+})
+
+it('KILL escalation removes an owned group member that ignores TERM', async () => {
+  const evidence = mkdtempSync(join(tmpdir(), 'dashi-install-kill-'))
+  const file = join(evidence, 'ready.log')
+  let pid: number | undefined, readyAtDeadline = false
+  try {
+    const script = `const fs = require('node:fs');
+      process.on('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'ignored TERM\\n') });
+      fs.writeFileSync(${JSON.stringify(file)}, 'ready\\n'); setInterval(() => {}, 1000)`
+    const result = await runInstallCommand({ command: process.execPath, args: ['-e', script],
+      cwd: evidence, env: process.env, timeoutMs: 1_000,
+      onTimeout: current => {
+        pid = current
+        expect(readFileSync(file, 'utf8')).toBe('ready\n')
+        readyAtDeadline = true
+      },
+    })
+    expect(readyAtDeadline).toBe(true)
+    expect(result.timedOut).toBe(true)
+    expect(result.status).toBeNull()
+    expect(result.error).toMatchObject({ code: 'ETIMEDOUT' })
+    expect(readFileSync(file, 'utf8')).toContain('ignored TERM')
+    await vi.waitFor(() => { expect(() => { process.kill(pid!, 0) }).toThrow() }, { timeout: 500, interval: 10 })
+  } finally {
+    if (pid !== undefined) {
+      try { process.kill(-pid, 'SIGKILL') }
+      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') console.error('install test cleanup failed: ' + String(error)) }
+    }
+    rmSync(evidence, { recursive: true, force: true })
+  }
 })
 
 it('keeps the former output-buffer limit fatal without invoking timeout capture', async () => {
@@ -88,16 +139,19 @@ it('captures a missing install path and its parents without changing the failed 
     writeFileSync(pm, `#!${process.execPath}\nconsole.log(${JSON.stringify(join(evidence, 'private-store'))})\n`)
     chmodSync(pm, 0o755)
     const path = join(project, 'missing', 'package.json')
-    const capture = recordInstallFailure({ command: 'pnpm', args: ['add', 'example'], cwd: project,
-      env: process.env, evidence, pnpm: pm, output: `EINVAL: invalid argument, open '${path}'`, status: 234 })
-    const record = JSON.parse(readFileSync(join(capture, 'failure.json'), 'utf8'))
-    expect(record.status).toBe(234)
-    expect(record.path).toBe(path)
-    expect(record.paths[0].lstat.code).toBe('ENOENT')
-    expect(record.paths[0].read.code).toBe('ENOENT')
-    expect(record.paths.at(-1).path).toBe('/')
-    expect(record.store.value).toBe(join(evidence, 'private-store'))
-    expect(record.debug.every((file: { absent: boolean }) => file.absent)).toBe(true)
+    for (const syscall of ['open', 'readlink', 'lstat', 'stat', 'rename', 'unlink', 'rmdir', 'mkdir',
+      'symlink', 'copyfile', 'scandir', 'future_syscall']) {
+      const capture = recordInstallFailure({ command: 'pnpm', args: ['add', 'example'], cwd: project,
+        env: process.env, evidence, pnpm: pm, output: `EINVAL: invalid argument, ${syscall} '${path}'`, status: 234 })
+      const record = JSON.parse(readFileSync(join(capture, 'failure.json'), 'utf8'))
+      expect(record.status).toBe(234)
+      expect(record.path).toBe(path)
+      expect(record.paths[0].lstat.code).toBe('ENOENT')
+      expect(record.paths[0].read.code).toBe('ENOENT')
+      expect(record.paths.at(-1).path).toBe('/')
+      expect(record.store.value).toBe(join(evidence, 'private-store'))
+      expect(record.debug.every((file: { absent: boolean }) => file.absent)).toBe(true)
+    }
   } finally { rmSync(evidence, { recursive: true, force: true }) }
 })
 

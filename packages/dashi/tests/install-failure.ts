@@ -111,7 +111,7 @@ export function recordInstallFailure(input: {
   evidence: string; pnpm: string; output: string; status: number | null;
 }): string {
   const directory = mkdtempSync(join(input.evidence, 'install-failure-'))
-  const path = /\b(?:open|readlink|lstat|stat|rename)\s+'(\/[^']+)'/u.exec(input.output)?.[1]
+  const path = /\b\w+\s+'(\/[^']+)'/u.exec(input.output)?.[1]
   const paths = []
   if (path !== undefined) for (let current = resolve(path);;) {
     paths.push({ path: current,

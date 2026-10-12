@@ -87,7 +87,9 @@ async function run(command: string, args: string[], cwd = project, extra: NodeJS
   output += '\n$ ' + commandLine + '\n' + text + '\nexit=' + result.status + '; durationMs=' + durationMs.toFixed(2) + '\n'
   writeFileSync(join(workspace, 'commands.log'), output)
   console.log('install cell: ' + commandLine + ' -> ' + result.status + '; durationMs=' + durationMs.toFixed(2))
-  if (result.status !== 0 && /(?:^|[\s/])(?:npm|pnpm|npx)(?:\s|$)|\bplugin\s+--profile\s+\S+\s+(?:add|remove|install)\b/u.test(commandLine)) {
+  const expected = !result.error && result.status !== null &&
+    (success === true ? result.status === 0 : success === false ? result.status !== 0 : result.status === success)
+  if (!expected && /(?:^|[\s/])(?:npm|pnpm|npx)(?:\s|$)|\bplugin\s+--profile\s+\S+\s+(?:add|remove|install)\b/u.test(commandLine)) {
     try {
       const capture = recordInstallFailure({ command, args, cwd, env: { ...env, ...extra },
         evidence: workspace, pnpm: join(tools, 'bin', 'pnpm'), output: text, status: result.status })
@@ -96,11 +98,8 @@ async function run(command: string, args: string[], cwd = project, extra: NodeJS
       console.error('install failure capture failed: ' + String(error))
     }
   }
-  // Expected native refusals still require a completed command, never a timeout or spawn failure.
-  if (result.error) throw new Error(commandLine + ': ' + result.error + '\n' + text)
-  if (success === true && result.status !== 0) throw new Error(commandLine + ': ' + (result.error ?? result.status) + '\n' + text)
-  if (success === false) expect(result.status, commandLine).not.toBe(0)
-  if (typeof success === 'number') expect(result.status, commandLine).toBe(success)
+  // Expected native refusals require an exit status, never a timeout, spawn failure or signal.
+  if (!expected) throw new Error(commandLine + ': ' + (result.error ?? result.status) + '\n' + text)
   return success === true ? result.stdout : text
 }
 function quote(text: string): string { return "'" + text.replaceAll("'", "'\\''") + "'" }
