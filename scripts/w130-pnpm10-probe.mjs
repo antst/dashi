@@ -71,7 +71,7 @@ writeFileSync(join(evidence, 'provenance.json'), JSON.stringify({ repo, candidat
   archive, archiveHash, node: process.version, pnpm: '10.28.1', iterations: 200,
   limits: 'launcher-only: no DSH closure; no preceding PTY smoke; shared warm private store',
 }, null, 2))
-requireSuccess('df', ['-T', evidence])
+requireSuccess('df', ['-h', evidence])
 requireSuccess('mount', [])
 const started = Date.now()
 for (let iteration = 1; iteration <= 200; iteration++) {
@@ -96,7 +96,7 @@ for (let iteration = 1; iteration <= 200; iteration++) {
       writeFileSync(join(project, 'failure.json'), JSON.stringify({ iteration, step, args, ...result, configRoots, facts: pathFacts(target) }, null, 2))
       const processes = call('ps', ['-ax', '-o', 'pid,ppid,command'])
       writeFileSync(join(project, 'processes.txt'), processes.stdout + processes.stderr)
-      call('df', ['-T', project])
+      call('df', ['-h', project])
       call('mount', [])
       for (const file of [join(project, 'pnpm-debug.log'), join(project, 'pnpm.log')]) {
         if (existsSync(file)) writeFileSync(join(project, `captured-${file.split('/').at(-1)}`), readFileSync(file))
