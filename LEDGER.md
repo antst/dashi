@@ -5417,6 +5417,27 @@ gains the payload check of D-052. The mac side procedure is dropped;
 instead the hosted global-install rows gain an in-place upgrade from
 the last published release if they have none.
 
+Amendment 2026-10-12 (after the builder's reading of the daemon). The
+exit-1 change is withdrawn. The released daemon (v0.5.12,
+bus/internal/daemon/lane.go) keeps the worker's spawn_failed, closes
+the wire and sends SIGTERM to the worker's process group, waits for
+the exit and returns one spawn_failed whose data carries the observed
+exit code; DSH's own SIGTERM handler requests exit 0 and the first
+code wins. A worker that tried to exit 1 would report 0 or 1 by race,
+and forcing it would need a signal handler or a timer. The caller's
+answer is the single spawn_failed with DSH's reason; the exit code in
+its data is the worker's shutdown status after the daemon stopped it
+and says nothing about the refusal. The README says so. An
+effort-only fresh open is validated before creation against DSH's
+public read of the default selection
+(ctx.agentDefaultModel.currentSelection), which the controller itself
+uses for a fresh session; the check at commit time stays. Publishing
+a prepared archive keeps provenance under the trusted publisher per
+npm's documentation and a dry run; the first real attestation is the
+0.1.1 release, ordered so that nothing public exists before the
+archive check has passed. The hosted global rows were fresh installs
+only and gain an upgrade in place from published 0.1.0.
+
 ### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
 On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
 17m10 (ca4fa81, a strings-only change): the run-to-run spread is
@@ -5445,6 +5466,23 @@ failure. If the runner's cores do not carry two such files at once,
 the builder stops and returns with the numbers and the two-job shape;
 no bound is raised and no retry added.
 
+Accepted 2026-10-12 (antst/dashi PR #304 squash 7419a109ca6a3843f32da858b034debcd706f2e8; three test
+files, no source, workflow or bound change). profile-pty.spec.ts is
+split at an existing boundary into two specs of 59 and 61 cases with
+the fixture in one test-only module. An opus agent compared the old
+file with the new ones statement by statement (107 statements, the
+describe body byte-identical, 356 collected names equal as a
+multiset) and found each spec isolated in its own forked process and
+no dependence of the second half on the first. Hosted run 38213993300
+at 6277230, measured three times: macos-gate 9m19, 10m46 and 10m32
+(17m10 before), Linux 9m56, 10m06 and 10m03, 356 of 356 each time,
+the two specs overlapping for the whole of the shorter one. On macOS
+the second spec is now the critical path; new PTY cases belong in the
+first until the lanes meet. Two jobs of the last attempt were red and
+were not re-run: preview (pkg.pr.new answered a server error, a third
+party) and install-layouts-macos / G-pnpm11 (W-132); neither can be
+reached from the three changed files.
+
 ### W-130 dashi: the macOS P-pnpm10 install row failed once with EINVAL — status: open (owner dsh-exec, cause first)
 On 2026-10-11 the row install-layouts-macos / P-pnpm10 failed on the
 ledger-only PR #301 (run 38181415835, job 114597523641), on code
@@ -5458,6 +5496,47 @@ defect, with its issue), our harness (two writers into one project or
 store), or the runner image; then the fix or the upstream report. A
 retry is not a fix. If a user can hit it with the README commands,
 the README says what to do.
+
+Amendment 2026-10-12 (after the builder's read-only report). Not
+localised: the failed and the earlier green row have the same runner
+image, Node, pnpm 10.28.1 and cache; harness, workflow, lock and
+launcher are identical; commands run one at a time; no known pnpm
+issue matches an EINVAL on open of a package.json. The failing step
+is one no user performs: the row reuses one project across phases, so
+the alpha.1 leg turns a file-installed candidate launcher into a
+registry-installed one. Ruling: (1) one bounded reproduction attempt
+on a throwaway branch, the launcher-only transition 200 times in one
+macOS job with full capture on the first failure, no retry; if it
+reproduces, a pnpm report with the reproducer. (2) Each baseline
+phase starts in its own empty project, after the builder states what
+that loses and costs. (3) The acceptance harness saves path metadata,
+the resolved store and the manager's debug log when a package-manager
+command fails. The item closes for the 0.2.0 release when the failure
+is reproduced and reported, or not reproduced in 200 with (2) and (3)
+merged and the one occurrence recorded as unexplained.
+
+Amendment 2026-10-12 (a second occurrence, found in review). The
+EINVAL is not a pnpm 10 matter and the heading above is too narrow:
+four minutes before the P-pnpm10 failure the develop push run
+38181238927 at ff05a9e failed in row P-pnpm11 (job 114597086228,
+22:56 UTC) at the same step with the same error on the same file. Two
+runners, two pnpm majors, one transition, one short window; never
+before and not since. The rulings stand.
+
+Result 2026-10-12: not reproduced. Run 38214231288 (throwaway branch,
+never merged): the launcher-only transition, candidate file then
+published alpha.1, 200 times in one macOS job with pnpm 10.28.1, one
+warm private store and a fresh project each time, all exit 0. Stated
+differences from the failing rows: no DSH closure in the project and
+no PTY work before the add. The two failing logs side by side: same
+runner image, two runners, 3.5 minutes apart, the same reused-project
+transition after successful turns; pnpm 11 prints the stack
+(readPackageJson from removeBinsOfDependency from
+removeDirectDependency), so pnpm failed reading the old file-installed
+launcher's manifest while removing it as a direct dependency, in an
+add that also links the DSH closure, which the lighter probe did not
+have. Cause inside pnpm not established; a pnpm report is drafted for
+the owner's decision.
 
 ### W-131 dashi 0.2.0: the first plain release — status: open (owner dsh-exec, after W-129 and W-130)
 Per D-051 and D-052. Four packages at 0.2.0, exact siblings, the
@@ -5478,6 +5557,38 @@ packet; then the tag with the four hashes in its message; then the
 registry check and the literal README install and upgrade on the
 same hosts. A failure after the publish is answered by a patch
 release.
+
+Amendment 2026-10-12: W-132 joins the items that must close before
+the release-prep branch, by the same standard as W-130.
+
+### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
+On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
+(run 38213993300, attempt 4, job 114712113037) on PR #304, which
+changes three test files the row does not use; the row had passed
+twice at the same head. The fixture step `dsh plugin --profile dashi
+add @deepseek-ai/dsh-llm-replay@0.2.1-alpha.2` printed pnpm's "Done
+in 1.2s using pnpm v11.18.0" and did not return within the unchanged
+180 seconds; the same command form had succeeded for the candidate
+archive seconds earlier. Not re-run. This is the mechanism the README
+tells users to run. Deliver as for W-130: one bounded reproduction on
+a throwaway branch, the command 200 times against fresh profiles on
+the same global pnpm layout, stopping at the first timeout with the
+process tree, DSH's plugin-manager operation log and a Node
+diagnostic report of the hung process (its active handles); if it
+reproduces, a DSH report. The acceptance harness's failure capture
+(W-130) also covers a command that times out. Closes for the 0.2.0
+release when reproduced and reported, or not reproduced in 200 with
+the capture merged and the occurrence recorded as unexplained.
+
+Result 2026-10-12: not reproduced. Run 38228012722 (throwaway branch,
+never merged): 200 fresh profiles on macOS with global pnpm 11.18.0,
+each with the native install, the published dashi-app 0.2.0-alpha.2
+and then the exact replay add under the unchanged 180 seconds; all
+200 returned, median 1.6 s, longest 3.4 s. Stated differences: the
+published app instead of the candidate archive, no sibling overrides,
+no PTY work. The occurrence stays unexplained and the item closes
+with the harness change that captures the process tree and DSH's
+plugin-manager log before a timed-out command is killed.
 
 ## Backlog
 
