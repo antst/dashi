@@ -5197,6 +5197,56 @@ lane and web profiles with the owner's rows byte-identical, and an
 option-bearing lane leaving the profile patch unchanged), then the
 tag v0.1.0 and the registry check.
 
+Released 2026-10-11 as @sessionbus/dsh 0.1.0, W-125 and W-126
+together: tag v0.1.0 at 826a294, release run 38178927543, npm `latest`
+(moved from 0.1.0-pre.2 by the publish), the first plain version per
+D-051. Registry integrity sha512-56M+2KGl...gMTQ== and the published
+archive byte-identical to the proven one (1fb8e005...4be55, plugin.cjs
+f6e7d925...).
+Host proof of the packed candidate before the tag (D-049): packet
+dsh-host-sessionbus-010/20261011T204039Z (manifest 0a4b4cf8...83d6,
+167 files); an opus agent read it against the brief and re-measured
+the live host: verified with stated limits, no candidate defect.
+Measured by the verifier on the dsh host (real home, project install,
+permanent daemon): the published pre.20 lane and web profiles were
+upgraded by the two README commands alone, three DSH plugin operations
+per profile; the lane patch differs from its snapshot in one
+installer-marked line, the web patch kept its bytes, inode and mtime,
+and the owner's provider and default-model rows are byte-identical in
+both; a second installer run wrote nothing; home, the five other
+profiles and the daemon configuration identical; the owner's web
+process untouched. The lane patch was not written after the install at
+all, while native logs show lanes that ran with a requested effort and
+a later lane with no options on the unchanged default. The builder's
+daemon-side steps were declared, not captured, so the architect
+repeated them through the permanent daemon with every call recorded:
+describe 0.1.0, a lane with effort only and a lane with model and
+effort, exact replies, the patch's hash, inode and mtime identical at
+six points, roster clean; the verifier confirmed this from the raw
+call records and the two native logs.
+Stated limits. A refused option-bearing open leaves one empty session
+directory and its worker exits 0 (no log, selection, request or turn;
+same as pre.20; DSH's session list skips a directory without a log and
+never removes one); carried to W-128. The lane runtime oracle ran in a
+builder-booted process against a fixture daemon; the upload-refusal
+control would pass with any provider. The own web instance's native
+wake and reply are measured; its exit status is the driver's own and
+its roster row is builder-recorded, as is the refusal code. On the mac
+the real global DSH install ran the README install, runtime oracle,
+round trips, the ten option cases and uninstall in 27 seconds with a
+private home, private pnpm configuration and protocol fixture daemons,
+relayed as text, the pnpm version not recorded: an in-place upgrade on
+a global install and product launch by a released daemon there are not
+proven. Three harness stops, none a plugin defect. After the publish
+the dsh host's two profiles were re-added from the registry by a
+script that saved every command and bus call as it ran (packet
+20261011T222041Z-registry, manifest 756acc88...7a3c; a first attempt
+stopped before any change on a capture limit). Verified on the live
+host: both manifests name exactly 0.1.0 with the published integrity,
+nothing references the tarball, the installers wrote nothing, both
+patches keep hash, inode and mtime, and a lane opened with no options,
+sent one message while idle, answered on the default.
+
 ### W-127 dashi: a fresh profile reaches a working model from inside dashi — status: open (owner dsh-exec, after W-124)
 DSH 0.2 keeps provider and default-model settings in each profile's
 patch, and its one-time import of the old global settings file lands
@@ -5294,6 +5344,29 @@ analysis first: what the kit's record allows and what DSH's turn end
 exposes. Failing-first: a replayed backend error on the first request.
 Ships as 0.1.1.
 
+Amendment 2026-10-11 (from the verification of the 0.1.0 host proof).
+The same change also carries: (a) fully specified open options are
+validated before the session is created, so a refused open leaves
+nothing; where DSH offers no way, what remains is stated in the
+shipped README (today a refused open leaves one empty session
+directory and its worker exits 0; DSH's session list skips it). The
+builder argues whether that worker should exit non-zero, and
+considers DSH's Workspace registry, which can archive a session.
+(b) README: `dsh plugin add` prints pnpm "missing peer" warnings for
+the DSH packages and exits 0; say that this is expected and what a
+real refusal looks like. (c) A hosted upload-refusal assertion that
+fails when the provider is not the plugin's own; the current control
+passes with any provider. (d) release.yml loses its prerelease branch
+(D-051); a tag that is not a plain version fails. (e) The mac
+global-install procedure used for the proof lives only on the side
+branch proof/host-global-010: it lands in the repository, recording
+the pnpm version and store setting and including an in-place upgrade
+from the last release, or it is dropped and the branch deleted.
+Proof rule for this and every later item: a bus call an item depends
+on is made by a script in the packet, or its raw request and raw
+result are saved at the moment of the call; a flag the harness wrote
+for itself and read back is not an observation.
+
 ### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
 On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
 17m10 (ca4fa81, a strings-only change): the run-to-run spread is
@@ -5304,6 +5377,20 @@ change that restores a margin of at least five minutes, most likely
 the same suite split by file across two macOS jobs, each with the
 full setup and both required. No test dropped, skipped, retried or
 moved to Linux only. Consequence analysis first.
+
+### W-130 dashi: the macOS P-pnpm10 install row failed once with EINVAL — status: open (owner dsh-exec, cause first)
+On 2026-10-11 the row install-layouts-macos / P-pnpm10 failed on the
+ledger-only PR #301 (run 38181415835, job 114597523641), on code
+identical to the head where it had passed an hour earlier. In the
+alpha.1 baseline leg, `pnpm add --save-exact
+@deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.1`
+exited 234 with `EINVAL: invalid argument, open` on the launcher's
+package.json inside the project's node_modules. The row was not
+re-run. Deliver the cause: pnpm 10 on the macOS runner (a known
+defect, with its issue), our harness (two writers into one project or
+store), or the runner image; then the fix or the upstream report. A
+retry is not a fix. If a user can hit it with the README commands,
+the README says what to do.
 
 ## Backlog
 
