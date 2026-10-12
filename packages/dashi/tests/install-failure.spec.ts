@@ -1,8 +1,8 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
-import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+import { isExpectedInstallOutcome, readInstallDescriptors, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
 
 it('accepts only the requested exit outcome using the literal truth table', () => {
   const expectations = [true, false, 0, 1, 7] as const
@@ -40,7 +40,7 @@ it('preserves successful and nonzero command outcomes without timeout diagnostic
   expect(onTimeout).not.toHaveBeenCalled()
 })
 
-it('captures the live command group and operation log before termination; a late exit remains a timeout', async () => {
+it('captures the live command group, descriptor names and operation log before termination; a late exit remains a timeout', async () => {
   const evidence = mkdtempSync(join(tmpdir(), 'dashi-install-timeout-'))
   let leader: number | undefined, child: number | undefined
   try {
@@ -49,8 +49,14 @@ it('captures the live command group and operation log before termination; a late
     mkdirSync(logs, { recursive: true })
     const file = join(logs, 'pnpm.log')
     const childPid = join(evidence, 'child.pid')
+    const ready = join(evidence, 'descriptor-ready')
+    writeFileSync(join(evidence, 'open-descriptor-control'), 'descriptor contents must not be captured')
+    const openFile = realpathSync(join(evidence, 'open-descriptor-control'))
+    const childScript = `const fs = require('node:fs'); const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
+      fs.writeFileSync(${JSON.stringify(ready)}, String(fd)); setInterval(() => {}, 1000)`
     const script = `const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(file)}, 'pnpm finished; command alive\\n');
-      const child = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+      const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
+      const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childScript)}], { stdio: 'ignore' });
       fs.writeFileSync(${JSON.stringify(childPid)}, String(child.pid));
       child.once('close', () => { process.exit(0) });
       process.on('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n') });
@@ -61,6 +67,7 @@ it('captures the live command group and operation log before termination; a late
       onTimeout: pid => {
         leader = pid
         child = Number(readFileSync(childPid, 'utf8'))
+        expect(Number(readFileSync(ready, 'utf8'))).toBeGreaterThanOrEqual(0)
         expect(Number.isInteger(child) && child > 0).toBe(true)
         expect(() => { process.kill(child!, 0) }).not.toThrow()
         expect(() => { process.kill(pid, 0) }).not.toThrow()
@@ -82,6 +89,13 @@ it('captures the live command group and operation log before termination; a late
     expect(leaderRow?.slice(0, 3).map(Number)).toEqual([record.pid, process.pid, record.pid])
     expect(child).not.toBe(record.pid)
     expect(childRow?.slice(0, 3).map(Number)).toEqual([child, record.pid, record.pid])
+    expect(record.descriptors.map((entry: { pid: number }) => entry.pid).sort((a: number, b: number) => a - b))
+      .toEqual([record.pid, child].sort((a, b) => a! - b!))
+    for (const entry of record.descriptors) {
+      expect(entry.observation.error).toBeUndefined()
+      expect(JSON.stringify(entry.observation.value)).toContain(openFile)
+      expect(JSON.stringify(entry.observation.value)).not.toContain('descriptor contents must not be captured')
+    }
     expect(record.logs.value.copied).toBe(true)
     expect(readFileSync(join(capture!, 'plugin-manager-logs', 'operation-control', 'pnpm.log'), 'utf8'))
       .toBe('pnpm finished; command alive\n')
@@ -97,6 +111,19 @@ it('captures the live command group and operation log before termination; a late
     }
     rmSync(evidence, { recursive: true, force: true })
   }
+})
+
+it('reports a vanished owned process as a descriptor read error, not an empty successful snapshot', async () => {
+  const result = await runInstallCommand({ command: process.execPath,
+    args: ['-e', 'console.log(process.pid)'], cwd: tmpdir(), env: process.env,
+    timeoutMs: 5_000, onTimeout: () => { throw new Error('unexpected timeout') } })
+  expect(result.status).toBe(0)
+  const pid = Number(result.stdout.trim())
+  expect(Number.isInteger(pid) && pid > 0 && pid !== process.pid).toBe(true)
+  const record = readInstallDescriptors(pid, pid)
+  expect(record).not.toHaveProperty('value')
+  if (process.platform === 'darwin') expect(record).toMatchObject({ error: expect.stringMatching(/^lsof exited 1:/u) })
+  else expect(record).toMatchObject({ code: 'ENOENT' })
 })
 
 it('KILL escalation removes an owned group member that ignores TERM', async () => {

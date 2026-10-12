@@ -21,6 +21,25 @@ function redact(text: string): string {
   return text.replace(/(["']?(?:_authToken|_auth|authorization|password|NPM_TOKEN|NODE_AUTH_TOKEN)["']?\s*[:=]\s*)[^\r\n]+/giu, '$1[redacted]')
 }
 
+/** Names only: descriptors do not identify every timer, worker or MessagePort keeping a process alive. */
+export function readInstallDescriptors(pid: number, group: number) {
+  return observed(() => {
+    if (process.platform === 'darwin') {
+      const result = spawnSync('lsof', ['-nP', '-a', '-p', String(pid), '-g', String(group), '-F', 'pftn'],
+        { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024 })
+      if (result.error) throw result.error
+      if (result.status !== 0) throw new Error('lsof exited ' + result.status + ': ' + result.stderr)
+      return redact(result.stdout)
+    }
+    const directory = '/proc/' + pid + '/fd'
+    const descriptors = readdirSync(directory).map(fd => ({ fd, name: observed(() => readlinkSync(join(directory, fd))) }))
+    if (Buffer.byteLength(JSON.stringify(descriptors)) > 1024 * 1024) {
+      throw Object.assign(new Error('Descriptor names exceeded 1 MiB'), { code: 'ENOBUFS' })
+    }
+    return descriptors
+  })
+}
+
 /** Captured at the deadline, while the owned command group is still alive. */
 export function recordInstallTimeout(input: {
   pid: number; command: string; args: string[]; env: NodeJS.ProcessEnv; evidence: string;
@@ -32,6 +51,10 @@ export function recordInstallTimeout(input: {
     if (result.status !== 0) throw new Error('ps exited ' + result.status + ': ' + result.stderr)
     return result.stdout.split('\n').filter(row => Number(row.trim().split(/\s+/u)[2]) === input.pid).join('\n')
   })
+  const descriptors = 'value' in tree ? tree.value.split('\n').filter(Boolean).map(row => {
+    const pid = Number(row.trim().split(/\s+/u)[0])
+    return { pid, observation: readInstallDescriptors(pid, input.pid) }
+  }) : undefined
   const profile = /\bplugin\s+--profile\s+([^\s'"]+)/u.exec(input.args.join(' '))?.[1]
   const source = profile && input.env.DSH_HOME ? join(input.env.DSH_HOME, 'profiles', profile, '.plugin-manager', 'logs') : undefined
   const logs = observed(() => {
@@ -50,7 +73,7 @@ export function recordInstallTimeout(input: {
     return { source, copied: true }
   })
   writeFileSync(join(directory, 'timeout.json'), JSON.stringify({ capturedAt: new Date().toISOString(),
-    command: input.command, args: input.args, pid: input.pid, processGroup: tree, logs,
+    command: input.command, args: input.args, pid: input.pid, processGroup: tree, descriptors, logs,
   }, null, 2))
   return directory
 }
