@@ -125,6 +125,8 @@ pnpm approve-builds '!@deepseek-ai/dsh-subprocess-local' '!@google/genai' '!koff
 lets you choose interactively. Handle any additional package pnpm lists the
 same way; `!name` declines its build.
 
+pnpm 10.x and pnpm 11 before 11.28.3 can rarely fail an install or upgrade on macOS with `EINVAL: invalid argument, open '.../package.json'` ([report](https://github.com/pnpm/pnpm/issues/16876)); the manifest read/removal race described there is absent from pnpm 11.28.3 onward ([change](https://github.com/pnpm/pnpm/pull/16415)).
+
 ### Global and project installations together
 
 `dashi` starts the `dsh` on PATH: run it the way you run DSH, through your
