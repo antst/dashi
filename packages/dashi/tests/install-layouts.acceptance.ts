@@ -10,7 +10,7 @@ import { TestPtyShell } from './pty-shell.js'
 import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
 import { startTestDaemon } from './sessionbus-harness.js'
-import { recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
 
 // README commands are literal except for three declared prepublication deviations:
 // published baseline version substitution; packed-candidate spec substitution;
@@ -87,8 +87,7 @@ async function run(command: string, args: string[], cwd = project, extra: NodeJS
   output += '\n$ ' + commandLine + '\n' + text + '\nexit=' + result.status + '; durationMs=' + durationMs.toFixed(2) + '\n'
   writeFileSync(join(workspace, 'commands.log'), output)
   console.log('install cell: ' + commandLine + ' -> ' + result.status + '; durationMs=' + durationMs.toFixed(2))
-  const expected = !result.error && result.status !== null &&
-    (success === true ? result.status === 0 : success === false ? result.status !== 0 : result.status === success)
+  const expected = isExpectedInstallOutcome(result, success)
   if (!expected && /(?:^|[\s/])(?:npm|pnpm|npx)(?:\s|$)|\bplugin\s+--profile\s+\S+\s+(?:add|remove|install)\b/u.test(commandLine)) {
     try {
       const capture = recordInstallFailure({ command, args, cwd, env: { ...env, ...extra },
