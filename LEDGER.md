@@ -5738,6 +5738,40 @@ open descriptors of each live process; the install guide gains one
 factual sentence; DSH's unbounded wait is drafted as an upstream
 note. The item closes when that capture and sentence are merged.
 
+Amendment 2026-10-12 (count corrected while the DSH comment was being
+checked). There were three hangs on pnpm 11.18.0, not two: the third
+is run 38279443230, job 114916347723, on the ledger PR #307, same
+command, "Done in 1.9s", with the same two live processes in its
+snapshot. Three in 32 macOS runs of that row on that version, none in
+39 Ubuntu runs. DSH's README states the unbounded CLI wait as
+intended ("stays unbounded for its operator to interrupt",
+packages/boot/plugin-manager/README.md:102), and DSH's desktop build
+moved its own pnpm from 11.7.0 to 11.28.5 between 0.2.1-alpha.1 and
+alpha.2; two other users report the same hang on Windows in DSH
+discussions 9261 and 8922 with pnpm versions that predate the fix.
+So the upstream note is a follow-up comment on 9261 with two narrower
+questions, not a request for a bound.
+
+Accepted and closed 2026-10-12 (antst/dashi PR #310 squash e1c106ee94ef718def24910ff6a639ff771f1c16;
+three files). When a package-manager command passes its deadline, the
+capture now also lists, for each live process of the command's group,
+the names of its open descriptors (lsof on macOS, /proc on Linux;
+names and types only, bounded, taken before the group is terminated,
+errors recorded, nothing on success). The install guide says in one
+sentence that pnpm 11 before 11.23.0 can leave a finished add running
+so that `dsh plugin add` appears to hang, citing pnpm's report and
+fix, with no advice to interrupt and repeat. Review by an opus agent
+at ffcb159: accept; the capture cannot change an outcome; 47
+mutations, the new cases catching eight of the ten that touch them;
+the sentence matches pnpm's record and does not say our hangs were
+that defect. Hosted run 38288769312: 23 of 23, 365 tests on both
+gates, the real lsof control on macOS. Stated: descriptors cannot
+name a timer or a worker; the two-second bound on lsof is a TERM, not
+a kill, and the process tree is written after the descriptor read, so
+a stalled read would lose both (to be hardened with the next change);
+on pnpm 11.28.5 the row has passed every run since the pins moved,
+which is too few to conclude anything.
+
 ### W-133 dashi: the install rows test current pnpm releases — status: open (owner dsh-exec, after W-130, before W-131)
 Found in W-130: the rows pin pnpm 11.18.0 (July) and 10.28.1
 (January) while users install current releases, and the race of
@@ -5908,3 +5942,5 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-12 DSH Discussion (Ideas): provider readiness is derived inside the web client and no provider route names its sign-in flow; a host-side read for other hosts (W-127). https://github.com/deepseek-ai/deepseek-harness/discussions/9486
 - 2026-10-12 Corrected on the owner's word: the bodies of #7172, #7177, #7179, #7180 and #7182 to #7187 (posted 2026-09-19) were this ledger's queue lines pasted verbatim, with the queue marker and internal identifiers, and #9399 named a work item; each body was replaced by the same technical statement without them and read back. Rule: what goes upstream is report text written for upstream and read back after posting; a queue line is never pasted.
 - 2026-10-12 pnpm issue: v10: removeDirectDependency reads the old manifest while removing the dependency entry; a read/remove race visible in source, gone from 11.28.3 through pnpm PR 16415, still in 10.x; our two macOS EINVAL failures with the stack, the link between them stated as not demonstrated, not reproduced in 200 lighter iterations; request to carry the ordering to 10.x (W-130). Posted on the owner's word after two independent checks. https://github.com/pnpm/pnpm/issues/16876
+- 2026-10-12 pnpm issue 16876 closed as completed the same day: the maintainer merged pnpm PR 16878, "fix(modules-cleaner): remove a dependency's bins before its directory (v10 backport)", into release/10, three hours after the report; not yet in a published 10.x release (W-130).
+- 2026-10-12 DSH Discussion #9261 (another user's report that `dsh plugin add` hangs on Windows after pnpm prints Done), follow-up comment: the same hang three times on macOS with pnpm 11.18.0 and the process list showing pnpm still alive; pnpm's worker-pool fix in 11.23.0, which the reported versions predate, stated as fitting and not proven; DSH's CLI wait is unbounded by its own README; two questions (is interrupt-and-rerun the supported recovery; an opt-in limit for unattended callers) (W-132). Posted on the owner's word after an independent check. https://github.com/deepseek-ai/deepseek-harness/discussions/9261#discussioncomment-18886224
