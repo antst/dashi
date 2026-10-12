@@ -1,0 +1,35 @@
+name: W-130 bounded macOS reproduction
+
+on:
+  push:
+    branches: [w-130-pnpm10-macos-probe]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: 200 fresh launcher transitions with one warm private store
+        run: node scripts/w130-pnpm10-probe.mjs
+      - name: Preserve the first failure or 200 successes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: w130-pnpm10-macos-probe
+          path: |
+            ${{ runner.temp }}/w130-pnpm10-*/commands.log
+            ${{ runner.temp }}/w130-pnpm10-*/provenance.json
+            ${{ runner.temp }}/w130-pnpm10-*/iterations.jsonl
+            ${{ runner.temp }}/w130-pnpm10-*/project-*/paths.json
+            ${{ runner.temp }}/w130-pnpm10-*/project-*/step-*.ndjson
+            ${{ runner.temp }}/w130-pnpm10-*/project-*/failure.json
+            ${{ runner.temp }}/w130-pnpm10-*/project-*/processes.txt
+            ${{ runner.temp }}/w130-pnpm10-*/project-*/captured-*.log
+          if-no-files-found: error
