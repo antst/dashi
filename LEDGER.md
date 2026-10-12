@@ -5459,6 +5459,40 @@ npm's documentation and a dry run; the first real attestation is the
 archive check has passed. The hosted global rows were fresh installs
 only and gain an upgrade in place from published 0.1.0.
 
+Accepted for merge 2026-10-12 (sessionbus/sessionbus-dsh PR #68 squash
+64d445fc68c24f9ca4223c85852820f9542c5637; version 0.1.1). A failed lane turn's record carries DSH's own
+code and message on both association paths, one line, every control
+character and line separator replaced by a space, code at most 128
+and message at most 1024 bytes with a visible mark, partial assistant
+text kept; nothing else is copied and nothing is claimed to be
+sanitized. Session-independent checks, the non-public seam's presence
+included, run before a session is created; a fresh open with a model
+or with an effort alone is validated before creation, so a mistyped
+option leaves nothing; lanes opened without options behave as in
+0.1.0. The upload-refusal check observes the provider's identity
+first and the stock provider fails it. The hosted global rows upgrade
+in place from published 0.1.0. release.yml per D-052: one validator
+script, plain versions, an annotated tag with exactly one lowercase
+hash line, npm 11.12.1 pinned for the pack, the checked archive
+published with provenance before the GitHub release, an existing
+version's integrity compared, only a documented not-found read as
+absence. Reviews by an opus agent at 76e4a0f (accept with fixes: the
+seam check ran after creation; a cancellation check changed
+no-option lanes; a bound test that could not fail), d835d02 (eleven
+items verified, 23 mutations, none surviving) and b330f4f (seven
+unshipped items; the archive unchanged). Hosted run 38238897002 at
+b330f4f: 17 of 17. Packed candidate aec194b2...a101 (npm 11.12.1),
+plugin.cjs cff35198...; against 0.1.0 only README.md, package.json
+and plugin.cjs differ. Stated: DSH's message can itself carry
+sensitive or path text; a result over the kit's 1 MiB frame becomes
+an unavailable record; a default or capability change, a
+cancellation or a storage error between validation and commit can
+still leave a session behind; the workflow pins the Node 22 line,
+not an exact release, so a changed compressor would stop a release at
+the checksum step. Not released: host proof of the packed archive on
+the dsh host's lane profile, then the tag with the archive's hash
+line.
+
 ### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
 On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
 17m10 (ca4fa81, a strings-only change): the run-to-run spread is
@@ -5669,6 +5703,41 @@ reproduced in 200, and the capture of PR #306 (b62ad83344fd97d69ec345b14f0d7beec
 a recurrence leaves the process tree and DSH's plugin-manager log.
 The one occurrence stays unexplained.
 
+Amendment 2026-10-12 (reopened: it happened again, and the capture
+caught it). Develop's own run 38279578807 at b61ac84, with the merged
+harness and the old pin 11.18.0, failed in macOS G-pnpm11 (job
+114918200245): the same `dsh plugin add` printed pnpm's "Done in
+2.3s" and passed the 180-second deadline. The record taken before
+termination lists two live processes in the command's group, both
+sleeping: the dsh process and its child, pnpm itself. pnpm 11.18.0
+had not exited three minutes after reporting completion, and DSH
+waits for it without bound. Why pnpm stayed alive is not in the
+evidence; DSH's operation logs were empty. Not re-run. Next: whether
+pnpm fixed a non-exiting install between 11.18.0 and 11.28.5; the
+open descriptors of each live process added to the timeout capture;
+where DSH waits without bound, as an upstream note. The 0.2.0 release
+does not tag before it is known whether a current pnpm still shows
+it.
+
+Amendment 2026-10-12 (cause, from the capture and pnpm's own record).
+A matching pnpm defect exists and was fixed: a fetch arriving late
+recreates the worker pool after it was drained, and the idle worker
+keeps the process alive after "Done" (pnpm issue 12297, fix PR 13226,
+merged 2026-08-16, first shipped in 11.23.0; the shipped bundles of
+11.18.0 and 11.22.0 clear the pool, those of 11.23.0 and 11.28.5 do
+not). Both hangs were on 11.18.0, the rows' pin until W-133, and fit
+it; the process tree cannot prove the leaked worker, so it stays the
+fitting explanation. DSH's side, from its published code: the CLI
+runs the package manager with inherited streams and no installation
+timeout (dsh-plugin-manager lib/types/operations.js:325-334,
+:383-394), so it waits for as long as the child lives, and the
+operation logs stay empty for the same reason. Rulings: no further
+probe (200 clean runs of the affected version proved nothing, so 200
+of a fixed one would not either); the timeout capture also lists the
+open descriptors of each live process; the install guide gains one
+factual sentence; DSH's unbounded wait is drafted as an upstream
+note. The item closes when that capture and sentence are merged.
+
 ### W-133 dashi: the install rows test current pnpm releases — status: open (owner dsh-exec, after W-130, before W-131)
 Found in W-130: the rows pin pnpm 11.18.0 (July) and 10.28.1
 (January) while users install current releases, and the race of
@@ -5690,6 +5759,38 @@ user on the dist-tag values gets that the pins do not test. Keeping
 current: the builder checks the three majors at release preparation
 and a changed pin is one small reviewed PR with all rows green; no
 scheduled writer and no automatic repair.
+
+Amendment 2026-10-12 (the rule corrected in review). "Newest plain
+version of each major" is wrong for the major that carries the
+`latest` tag: `npm install -g pnpm` and `pnpm@12` both install the
+latest-tagged 12.11.2, since npm prefers that version when it
+satisfies the range, and a row pinned to 12.12.1 no longer runs what
+users get. Rule: each measured major is pinned to the version `npm
+install -g pnpm@<major>` installs on the day, the latest-tagged
+version where `latest` lies in that major, otherwise the highest
+plain version of the major (10.34.7, 11.28.5 and 12.11.2 on
+2026-10-12).
+
+Accepted 2026-10-12 (antst/dashi PR #308 squash 5cc17b74921117043a83e5a51bb6006d856292ea; the workflow's
+pins, one README sentence and a test delta in its own commit). The
+rows install pnpm 10.34.7, 11.28.5 and 12.11.2, which a dry-run
+`npm install -g pnpm@<major>` resolves to today with npm 11.12.1 and
+10.9.8. Nothing the README documents changed with them: pnpm 11 still
+fails a global install with the native-binding error and passes after
+the documented setting; pnpm 11 and 12 still refuse the build scripts
+in each new project with the same five names and accept the
+documented denials; pnpm 10 installs plainly; no oracle, text, bound
+or command was edited. The install guide names the pnpm read/remove
+race of W-130 in one factual sentence. The expected-outcome
+expression moved unchanged into the helper and is pinned by a
+40-cell truth table; the capture's leader row is asserted. Reviews by
+an opus agent at a1eb2e9 (accept; it showed that the pnpm 12 pin
+12.12.1 was not what users install, which corrected the rule above)
+and at a11510f (accept). Hosted run 38284396769 at a11510f: 23 of 23,
+364 tests on both gates, all 19 rows. Stated: users on the
+latest-10 and latest-11 tags get 10.34.6 and 11.28.2, which the rows
+do not run and which still contain the race; two finer KILL
+lifecycle behaviours of the capture helper are not pinned.
 
 ## Backlog
 
