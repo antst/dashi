@@ -5266,6 +5266,27 @@ nothing references the tarball, the installers wrote nothing, both
 patches keep hash, inode and mtime, and a lane opened with no options,
 sent one message while idle, answered on the default.
 
+Host note 2026-10-12. On the dsh host the `sessionbus-dsh` command
+the daemon launches comes from the owner's home project, which still
+held the plugin at 0.1.0-pre.11 (launcher byte-identical to 0.1.0's).
+On the owner's word it was updated to 0.1.0 by one exact-pin add with
+pnpm 10.28.1, the version that built that project. Verified on the
+live host by the opus verifier, with stated limits: the manifest
+differs only in the plugin's version; the lock only in the plugin,
+its kit and the old upload helper; the home copy is the proven
+archive and is the one the daemon's PATH selects; the Gemini CLI in
+that project is not relinked; profiles, patches, daemon and the
+owner's process untouched; one lane through the daemon completed.
+Found by the verifier and absent from the builder's account: 44
+other bin wrappers were rewritten with identical bytes, and pnpm's
+install record lost its note that dsh-subprocess-local's install
+script had been skipped, a consequence of --ignore-scripts. Two
+lessons: a lockfile-only rehearsal on a bare copy did not predict the
+real add, which reuses the installed context, so the builder's
+byte-equality guard stopped a correct result; and `gemini --version`
+loads the owner's settings and runs cleanup before it parses its
+flags, so it was run only under a private HOME.
+
 ### W-127 dashi: a fresh profile reaches a working model from inside dashi — status: open (owner dsh-exec, after W-124)
 DSH 0.2 keeps provider and default-model settings in each profile's
 patch, and its one-time import of the old global settings file lands
@@ -5538,6 +5559,59 @@ add that also links the DSH closure, which the lighter probe did not
 have. Cause inside pnpm not established; a pnpm report is drafted for
 the owner's decision.
 
+Amendment 2026-10-12 (cause, found while the pnpm report was being
+checked). In pnpm 10.28.1 and 11.18.0, the versions the rows pin,
+removeDirectDependency starts the read of the old dependency's
+manifest and the removal of that same directory entry together
+(pkg-manager/modules-cleaner/src/removeDirectDependency.ts:21-25 at
+v10.28.1; pnpm11/installing/linking/modules-cleaner/src/
+removeDirectDependency.ts:22-26 at v11.18.0); the removal is a rimraf
+and the read tolerates only ENOENT. The two Promise.all frames of the
+captured stack are these calls. pnpm PR 16415, a lint port merged
+2026-09-30, happened to make the read finish first; that is in
+11.28.3 and later, while 11.28.2 (the latest-11 tag today) and every
+10.x through 10.34.7 still start both together. That this race
+produced the EINVAL on APFS fits every observation and is not itself
+demonstrated. It runs whenever a direct dependency is replaced or
+removed, so also in the upgrade legs that remain and in a user's
+upgrade by the README: phase-owned projects remove one such
+replacement per row, not the exposure. Rulings: the pnpm report
+becomes a report of that race with a request to carry the reordering
+to 10.x; the install guide gains one factual sentence (pnpm 10.x and
+11 before 11.28.3, macOS, absent from 11.28.3 on) with no recovery
+claim; a row failing with exactly this signature (exit 234, EINVAL on
+open of a direct dependency's package.json, and where printed the
+removeBinsOfDependency frame) may be re-run once with run and job ids
+recorded, the only exception to the no-rerun rule; and the rows'
+pins, pnpm 11.18.0 from July and 10.28.1 from January, become their
+own item.
+
+Accepted 2026-10-12 (antst/dashi PR #306 squash b62ad83344fd97d69ec345b14f0d7beec97b1c36; four test
+files, no product, README, lock or bound change). Each phase of a
+project row starts in its own empty project; the command runner is an
+awaited spawn in its own process group with the unchanged 180-second
+deadline; a package-manager command whose outcome is not the expected
+one leaves path metadata, the resolved store and the manager's debug
+log, and a timed-out one the group's process tree and DSH's
+plugin-manager log, taken before it is terminated; an expected
+refusal does no diagnostic work; a timeout, a spawn error or a signal
+is fatal whatever was expected. The first head failed four rows: with
+pnpm 11 and 12 the build approvals are a per-project setting that the
+shared project had let the baseline phases inherit, so the README's
+approval step now runs in every project of those rows. Reviews by an
+opus agent at 0bf4bba (accept with fixes; no path by which the change
+hides a failure; three behaviours the unit spec did not pin) and at
+852a143 (accept; 27 mutations, the three earlier survivors caught).
+Hosted run 38240771587 at 852a143: 23 of 23, 363 tests on both gates,
+all 19 rows; 15 rows issue the same commands with the same exit
+statuses as before, P-pnpm11 and P-pnpm12 the same plus six control
+commands. Stated: project rows no longer replace a file-installed
+launcher by an older published one, nor carry manager metadata across
+baselines; the npm project row costs two more full installs (24 s
+each on Linux, 40 to 47 s on macOS). The item closes with the cause
+recorded above, the capture merged and the pnpm report posted (see
+Upstream reports).
+
 ### W-131 dashi 0.2.0: the first plain release — status: open (owner dsh-exec, after W-129 and W-130)
 Per D-051 and D-052. Four packages at 0.2.0, exact siblings, the
 plugin pinned at exactly 0.1.0 with its registry integrity asserted;
@@ -5589,6 +5663,33 @@ published app instead of the candidate archive, no sibling overrides,
 no PTY work. The occurrence stays unexplained and the item closes
 with the harness change that captures the process tree and DSH's
 plugin-manager log before a timed-out command is killed.
+
+Closed for the release 2026-10-12 by the stated standard: not
+reproduced in 200, and the capture of PR #306 (b62ad83344fd97d69ec345b14f0d7beec97b1c36) is merged, so
+a recurrence leaves the process tree and DSH's plugin-manager log.
+The one occurrence stays unexplained.
+
+### W-133 dashi: the install rows test current pnpm releases — status: open (owner dsh-exec, after W-130, before W-131)
+Found in W-130: the rows pin pnpm 11.18.0 (July) and 10.28.1
+(January) while users install current releases, and the race of
+W-130 is gone from 11.28.3. Ruling: install-layouts.yml pins the
+newest published plain version of each measured major, exactly
+(10.34.7, 11.28.5 and 12.12.1 on 2026-10-12), not the dist-tags,
+which lag, and never a floating value; workspace tooling is
+untouched. All 19 cells are re-measured on Linux and macOS: G-pnpm11
+must still show the native-binding failure and then the documented
+remedy, P-pnpm11 and P-pnpm12 the ignored-builds refusal and then the
+documented denials in each project, P-pnpm10 plain. If a current
+release behaves differently, the builder stops with the observation:
+then the README is wrong for today's users and that is a ruling, not
+a test edit. The install guide gains one factual sentence: pnpm 10.x
+and 11 before 11.28.3 can, rarely, fail an install or upgrade on
+macOS with EINVAL on a package.json through a race inside pnpm that
+is absent from 11.28.3 on; no recovery claim. The handoff says what a
+user on the dist-tag values gets that the pins do not test. Keeping
+current: the builder checks the three majors at release preparation
+and a changed pin is one small reviewed PR with all rows green; no
+scheduled writer and no automatic repair.
 
 ## Backlog
 
@@ -5705,3 +5806,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-12 DSH Discussion #7179, follow-up comment: session-only model and effort re-checked on 0.2.1-alpha.2, current code locations, what the plugin does instead, three questions (W-126). https://github.com/deepseek-ai/deepseek-harness/discussions/7179#discussioncomment-18875041
 - 2026-10-12 DSH Discussion (Ideas): provider readiness is derived inside the web client and no provider route names its sign-in flow; a host-side read for other hosts (W-127). https://github.com/deepseek-ai/deepseek-harness/discussions/9486
 - 2026-10-12 Corrected on the owner's word: the bodies of #7172, #7177, #7179, #7180 and #7182 to #7187 (posted 2026-09-19) were this ledger's queue lines pasted verbatim, with the queue marker and internal identifiers, and #9399 named a work item; each body was replaced by the same technical statement without them and read back. Rule: what goes upstream is report text written for upstream and read back after posting; a queue line is never pasted.
+- 2026-10-12 pnpm issue: v10: removeDirectDependency reads the old manifest while removing the dependency entry; a read/remove race visible in source, gone from 11.28.3 through pnpm PR 16415, still in 10.x; our two macOS EINVAL failures with the stack, the link between them stated as not demonstrated, not reproduced in 200 lighter iterations; request to carry the ordering to 10.x (W-130). Posted on the owner's word after two independent checks. https://github.com/pnpm/pnpm/issues/16876
