@@ -94,13 +94,17 @@ const checks = [
   ['typecheck', ['run', 'typecheck']],
   ['build', ['run', 'build']],
   ['lint', ['run', 'lint']],
-  ['tests', ['run', 'test']],
+  ['renderer tests', ['exec', 'vitest', 'run', 'packages/dashi/tests/renderer.spec.ts']],
+  ['tests', ['exec', 'vitest', 'run', '--exclude', 'packages/dashi/tests/renderer.spec.ts']],
 ]
 for (const [label, args] of checks) {
   const result = spawnSync('pnpm', args, {
     cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
   })
-  if (result.status !== 0) process.exit(result.status ?? 1)
+  if (result.status !== 0) {
+    if (label === 'renderer tests') console.error('gate: renderer tests failed — remaining suite NOT RUN')
+    process.exit(result.status ?? 1)
+  }
   console.log(`gate: ${label} passed`)
 }
 const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', import.meta.url))))
