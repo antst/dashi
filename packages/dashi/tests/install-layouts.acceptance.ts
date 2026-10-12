@@ -10,6 +10,7 @@ import { TestPtyShell } from './pty-shell.js'
 import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
 import { startTestDaemon } from './sessionbus-harness.js'
+import { recordInstallFailure } from './install-failure.js'
 
 // README commands are literal except for three declared prepublication deviations:
 // published baseline version substitution; packed-candidate spec substitution;
@@ -46,7 +47,7 @@ const current = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'
 const nativeBindingError = 'No usable native binding found for node-addon-require-builtin-' + process.platform + '-' + process.arch
 const workspace = mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), 'dashi-' + layout + '-'))
 const home = join(workspace, 'user')
-const project = join(workspace, 'project')
+let project = join(workspace, 'project')
 const tools = join(workspace, 'tools')
 const globalPrefix = join(workspace, 'npm-global')
 const pnpmHome = join(workspace, 'pnpm-global')
@@ -72,12 +73,23 @@ writeFileSync(env.npm_config_userconfig as string, '')
 writeFileSync(join(project, 'package.json'), '{"private":true}\n')
 let output = ''
 function run(command: string, args: string[], cwd = project, extra: NodeJS.ProcessEnv = {}, success: boolean | number = true): string {
+  const started = performance.now()
   const result = spawnSync(command, args, { cwd, env: { ...env, ...extra }, encoding: 'utf8', timeout: 180_000 })
+  const durationMs = performance.now() - started
   const commandLine = command + ' ' + args.join(' ')
   const text = (result.stdout ?? '') + (result.stderr ?? '')
-  output += '\n$ ' + commandLine + '\n' + text + '\nexit=' + result.status + '\n'
+  output += '\n$ ' + commandLine + '\n' + text + '\nexit=' + result.status + '; durationMs=' + durationMs.toFixed(2) + '\n'
   writeFileSync(join(workspace, 'commands.log'), output)
-  console.log('install cell: ' + commandLine + ' -> ' + result.status)
+  console.log('install cell: ' + commandLine + ' -> ' + result.status + '; durationMs=' + durationMs.toFixed(2))
+  if (result.status !== 0 && /(?:^|[\s/])(?:npm|pnpm|npx)(?:\s|$)|\bplugin\s+--profile\s+\S+\s+(?:add|remove|install)\b/u.test(commandLine)) {
+    try {
+      const capture = recordInstallFailure({ command, args, cwd, env: { ...env, ...extra },
+        evidence: workspace, pnpm: join(tools, 'bin', 'pnpm'), output: text, status: result.status })
+      console.log('install failure evidence: ' + capture)
+    } catch (error) {
+      console.error('install failure capture failed: ' + String(error))
+    }
+  }
   if (success === true && result.status !== 0) throw new Error(commandLine + ': ' + (result.error ?? result.status) + '\n' + text)
   if (success === false) expect(result.status, commandLine).not.toBe(0)
   if (typeof success === 'number') expect(result.status, commandLine).toBe(success)
@@ -304,6 +316,10 @@ it(layout + ': literal README installs converge from fresh and both published ba
       return launch
     }
     for (const baseline of ['fresh', '0.2.0-alpha.1', '0.2.0-alpha.2']) {
+      // Only published-to-candidate upgrades reuse a project; baselines start empty.
+      project = join(workspace, 'project-' + baseline)
+      mkdirSync(project)
+      writeFileSync(join(project, 'package.json'), '{"private":true}\n')
       env.DSH_HOME = join(workspace, 'native-' + baseline)
       const target = baseline === 'fresh' ? current : baseline
       if (layout?.startsWith('G-pnpm')) {

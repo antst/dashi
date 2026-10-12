@@ -61,4 +61,5 @@ jobs:
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/hashes-*.json
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/build-control.json
             ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/result.json
+            ${{ runner.temp }}/dashi-${{ matrix.cell.layout }}-*/install-failure-*/*
           if-no-files-found: error
