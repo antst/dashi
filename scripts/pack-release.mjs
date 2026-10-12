@@ -26,6 +26,11 @@ export function readReleaseArchives(directory, root = releaseRoot) {
         if (names.has(name) && range !== version) throw new Error(filename + ': sibling ' + name + ' must be exact ' + version)
       }
     }
+    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+      if (JSON.stringify(Object.keys(manifest[field] ?? {})) !== JSON.stringify(Object.keys(pkg.manifest[field] ?? {}))) {
+        throw new Error(filename + ': ' + field + ' key order differs from source')
+      }
+    }
     const entries = new Set(run('tar', ['-tzf', archive]).trim().split('\n'))
     for (const entry of [manifest.main, manifest.types, ...Object.values(manifest.bin ?? {}), manifest.dsh?.bundle?.patch].filter(Boolean)) {
       if (!entries.has('package/' + entry.replace(/^\.\//u, ''))) throw new Error(filename + ': missing packed entry ' + entry)

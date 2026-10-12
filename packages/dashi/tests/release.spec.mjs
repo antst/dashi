@@ -40,12 +40,13 @@ function fixture() {
     const directory = join(root, 'packages', unit.directory.split('/').at(-1))
     const packageDirectory = join(root, 'container', unit.manifest.name.replaceAll('/', '-'), 'package')
     mkdirSync(directory, { recursive: true }); mkdirSync(packageDirectory, { recursive: true })
-    const manifest = { name: unit.manifest.name, version: '0.2.0', main: 'index.js', dependencies: {} }
-    if (manifest.name === '@antst/dashi-app') manifest.dependencies = {
-      '@antst/dashi': '0.2.0', '@antst/dsh-file-uploads-none': '0.2.0',
-      '@sessionbus/dsh': '0.1.1', '@antst/roller': '0.1.4', '@deepseek-ai/dsh-agent': '>=0.2.1-alpha.2',
+    const manifest = { name: unit.manifest.name, version: '0.2.0', main: 'index.js' }
+    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
+      if (!unit.manifest[field]) continue
+      manifest[field] = Object.fromEntries(Object.entries(unit.manifest[field]).map(([name, range]) => [name,
+        name === '@sessionbus/dsh' ? '0.1.1' : name === '@earendil-works/pi-tui' ? '0.84.4'
+          : range.startsWith('workspace:') ? '0.2.0' : range]))
     }
-    if (manifest.name === '@antst/dashi') manifest.dependencies = { '@earendil-works/pi-tui': '0.84.4' }
     writeFileSync(join(directory, 'package.json'), JSON.stringify(manifest))
     writeFileSync(join(packageDirectory, 'package.json'), JSON.stringify(manifest))
     writeFileSync(join(packageDirectory, 'index.js'), 'export {}\n')
@@ -100,6 +101,17 @@ it('rejects a changed packed identity, inexact sibling or missing entry', () => 
     expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
     expect(() => readReleaseArchives(archives, root)).toThrow()
   }
+})
+
+it('rejects changed dependency key order even when every dependency value is unchanged', () => {
+  const archives = fixture()
+  const payload = payloads[2]
+  const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
+  const reordered = { ...payload.manifest,
+    dependencies: Object.fromEntries(Object.entries(payload.manifest.dependencies).reverse()) }
+  writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify(reordered))
+  expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
+  expect(() => readReleaseArchives(archives, root)).toThrow('dependencies key order differs from source')
 })
 
 it('requires four canonical, unique, expected filenames in the annotation', () => {

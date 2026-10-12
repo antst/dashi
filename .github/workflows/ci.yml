@@ -60,7 +60,20 @@ jobs:
         with:
           node-version: 22.23.3
       - name: Print release archive hashes
-        run: node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
+        run: |
+          node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
+          node --input-type=module <<'NODE'
+          import { join } from 'node:path'
+          import { packRelease, readReleaseArchives } from './scripts/pack-release.mjs'
+          const first = readReleaseArchives(join(process.env.RUNNER_TEMP, 'dashi-release-archives'))
+          for (let index = 1; index < 3; index++) {
+            const repeated = packRelease(join(process.env.RUNNER_TEMP, 'dashi-release-repeat-' + index))
+            if (repeated.some((payload, position) => payload.sha256 !== first[position].sha256)) {
+              throw new Error('Release archives changed between consecutive packs')
+            }
+          }
+          console.log('release pack: PASS — three consecutive complete pack sets byte-identical')
+          NODE
 
   preview:
     needs: [gate, install-layouts-linux]
