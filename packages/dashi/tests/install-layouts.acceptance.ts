@@ -346,7 +346,7 @@ it(layout + ': literal README installs converge from fresh and both published ba
         for (const command of commands('install:G-npm', current, true).slice(0, 2)) await sh(command)
       }
       const lines = commands(installMarker, target, baseline === 'fresh')
-      if (baseline === 'fresh' && layout?.startsWith('P-pnpm') && layout !== 'P-pnpm10') {
+      if (layout?.startsWith('P-pnpm') && layout !== 'P-pnpm10') {
         const broken = await sh(lines[0]!, 1)
         expect(broken).toContain('ERR_PNPM_IGNORED_BUILDS')
         const ignored = /Ignored build scripts:([\s\S]*?)(?=\n\s*(?:help:|Run )|$)/u.exec(broken)?.[1]
@@ -360,7 +360,7 @@ it(layout + ': literal README installs converge from fresh and both published ba
         await sh(decline)
         const policy = JSON.parse(await run(pm, ['config', 'get', 'allowBuilds', '--json'])) as Record<string, boolean>
         expect(policy, 'none of the dependency builds is approved').toEqual(Object.fromEntries(names.map(name => [name, false])))
-        writeFileSync(join(workspace, 'build-control.json'), JSON.stringify({ install: lines[0], exit: 1,
+        writeFileSync(join(workspace, 'build-control-' + baseline + '.json'), JSON.stringify({ install: lines[0], exit: 1,
           error: 'ERR_PNPM_IGNORED_BUILDS', names, decline, policy }))
       }
       const launch = await execute(lines, baseline === 'fresh')
