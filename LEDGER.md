@@ -5493,6 +5493,70 @@ the checksum step. Not released: host proof of the packed archive on
 the dsh host's lane profile, then the tag with the archive's hash
 line.
 
+Released 2026-10-12 as @sessionbus/dsh 0.1.1: tag v0.1.1 at 64d445f,
+release run 38308827528, npm `latest`. The first release under D-052:
+the annotated tag's message carries the proven archive's hash line and
+the workflow published that archive (aec194b2...a101, plugin.cjs
+cff35198..., integrity sha512-5cPs1dJ6...Z5cUQ==), with a signed
+provenance statement (SLSA v1) on the registry. Ops checked the tag
+locally with the workflow's own validator and pack check before the
+single push; the runner reproduced the archive under Node 22.23.3.
+Host proof before the tag (D-049), on the dsh host's lane profile,
+real home and permanent daemon; five packets under
+dsh-host-sessionbus-011, the last 20261012T185642Z-continuation
+(manifest 636dce6c...0416). An opus agent re-measured the host and
+replayed every script against its captures: verified with stated
+limits, no candidate defect. The profile was upgraded in place from
+the registry 0.1.0 by the two README commands; the patch has not been
+written since 2026-10-11 and the owner's rows are identical; web
+profile, home project, other profiles and daemon untouched. Through
+the daemon: a lane with no options and a lane with effort only
+completed on the default; an invalid effort, an unknown provider and
+a nonexistent model were each refused with DSH's reason and left no
+session directory, the residue 0.1.0 left. The failed turn with its
+reason was observed once and by accident: during the proof the
+owner's model server was unreachable for 80 minutes, and the lane's
+turn came back as a done record, outcome failed, with DSH's code
+TRANSPORT and message on one line; the native log shows the relay
+message bound inside the turn, so it took the new branch, where 0.1.0
+returned an empty result. Stated limits: no global-install or mac
+part (installer, launcher and bin are byte-identical to 0.1.0; the
+hosted global rows upgrade in place); a provider's long or multi-line
+message, the partial-text form and the ack of a failed record were
+not seen on a real host; the lane's manifest and lock were not saved
+right after the add, bounded by their birth times and DSH's three
+operation records; the daemon's key and environment files compared
+by metadata only. Five stops: three in the proof's own script (a
+parser resolved from the wrong place; a count of user messages that
+ignored DSH's two context messages; a roster predicate that took a
+self-closed lane's resume row for a live lane), one preflight hold,
+one for the model server; none a plugin defect. Found on the way, for
+the next plugin item: a refusal's stderr tail can carry a first line
+from the kit ("sessionbus connection closed") before DSH's reason.
+
+Rollout on the dsh host 2026-10-12, after the publish, on the owner's
+word for the web profile and his home project: the lane profile, the
+web profile and the home project's copy were each re-added at 0.1.1
+from the registry (nine packets under dsh-host-sessionbus-011, from
+20261012T220326Z-registry-lane to 20261012223604Z-registry-final-
+closure). The opus verifier re-measured the host: lane verified; web
+and home verified with stated limits; no defect in the package. All
+three hold the published bytes; five writing commands in all (an add
+and an installer exec per profile, one pnpm 10.28.1 add in the home
+project, no install script run); both patches, the daemon and the
+owner's web process untouched; in the home lock only the plugin's
+record, snapshot and importer edge changed, and the Gemini CLI there
+is not relinked. Lanes through the daemon completed after the lane
+and the home step; in the latter the launcher the daemon started was
+read from the worker's command line and is the home 0.1.1 copy.
+Limits: the web profile is installed, not exercised (the changed
+code cannot run in peer mode, and the owner's server loads 0.1.1 at
+its next restart); no script run of the home part ended in a pass,
+its seven stops all being the proof script's own, so the result
+rests on three packets read together and the verifier's
+measurements; pnpm's install-state file changed in its timestamp
+only, shown by the verifier.
+
 ### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
 On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
 17m10 (ca4fa81, a strings-only change): the run-to-run spread is
@@ -5825,6 +5889,79 @@ and at a11510f (accept). Hosted run 38284396769 at a11510f: 23 of 23,
 latest-10 and latest-11 tags get 10.34.6 and 11.28.2, which the rows
 do not run and which still contain the race; two finer KILL
 lifecycle behaviours of the capture helper are not pinned.
+
+### W-134 plugin: a refused open's reason is not always the first line — status: open (owner codex-roller, analysis first)
+Found in the verification of the 0.1.1 host proof on 2026-10-12. When
+a lane open is refused, the caller's spawn_failed carries a stderr
+tail. For an invalid effort it is DSH's reason alone; for an unknown
+provider and for a nonexistent model it has two lines, the first
+"sessionbus: sessionbus connection closed", then DSH's reason. The
+first line comes from the kit through a part of the plugin unchanged
+since 0.1.0 (plugin.cjs:640), so it is not new, but a caller that
+reads the first line gets the wrong text. Deliver, analysis first:
+where the line originates and in which cases; what 0.1.0 printed in
+the same cases; whether the plugin, the kit or neither should order
+or drop it; what a caller can rely on. No change before that.
+Also carried here from the same verification, as known gaps of the
+0.1.1 proof and not defects: a provider's long or multi-line error
+through the bounds, the partial-text form and the ack of a failed
+record were seen only in the repository's tests.
+
+Amendment 2026-10-12 (design, after the builder's analysis). The line
+is the kit's error text, printed by our plugin: its warning on a
+worker that closes without having opened (plugin.cjs:424 through
+:637-640), and the released daemon prepends captured stderr to the
+worker's structured refusal (launch.go:101-114 at v0.5.12). Ruling:
+after an Open the plugin itself refused, the close that follows is
+expected and is not warned about; every other unopened close warns
+as today. One transient fact, set where the Open callback rejects; no
+filter, no reordering, no exit-status change. The daemon's merge
+order is passed to its architect as a finding and is not ours to
+change. The same item carries the maintained host-proof script: one
+unshipped script in the repository, for lane and peer profiles only,
+with explicit operations (archive upgrade, registry re-pin,
+verify-only), one capture helper that writes every observation to
+disk and returns a digest, the predicates that cost the 0.1.0 and
+0.1.1 proofs their stops written once, and a replay test that runs
+the same code against a recorded packet. About a dozen stops in two
+releases were all in scripts rewritten per proof, none in the plugin.
+The owner's home project is not a target of that script. Ships as
+0.1.2.
+
+### W-135 dashi: the renderer timing check runs alone — status: open (owner dsh-exec, before W-131)
+On 2026-10-12 the local gate of the release branch failed one
+unchanged case: the 200k-cell redraw p95 measured 36.5 ms against its
+25 ms ceiling, every other metric of that run normal. Not re-run. The
+builder's history over the retained gate logs shows the check within
+a few milliseconds of its ceiling for days (23.2 ms locally, 25.5 and
+44.4 on hosted runners under the scaled ceiling), and a measurement
+shows our own gate as one cause: beside the two PTY suites' fixture
+start-up the p95 rises by about a third (median 13.4 ms alone, 17.6
+in setup, up to 20.8). The 36.5 ms itself was not reproduced and is
+not attributed. Ruling: the gate runs the renderer timing-ceiling
+spec in its own vitest invocation first and then the rest as today;
+no bound, statistic or assertion changes; the same tests, each once.
+The release branch then runs its gate at the new head, with the
+failed log kept beside it. If the check fails again under isolation,
+the statistic itself, one run's p95 on a shared machine, is the next
+thing to question.
+
+Accepted 2026-10-12 (antst/dashi PR #312 squash 52b2c544d1481b9574811d55a9136321d6ebfbf8; scripts/
+gate.mjs only, six lines added and two removed). The gate runs
+renderer.spec.ts in its own vitest invocation and then the suite
+with that file excluded; the first invocation's failure fails the
+gate and the rest is not run. The same 365 tests, each once (56 and
+309, disjoint, equal to the base as a multiset); no bound, statistic
+or assertion changed; `pnpm test` stays one invocation. Review by an
+opus agent: accept; a missing first selection, a failing first spec,
+a killed runner and a failing second spec each end without PASS, and
+an empty selection fails, so a rename cannot make the check vanish.
+Hosted run 38318036642: 23 of 23; the 200k p95 from the first
+invocation 15.45 ms on Linux and 18.27 ms on macOS, 12.60 ms in the
+local gate. Stated: this removes our own start-up contention from
+the check and nothing else; the 36.5 ms outlier stays unexplained;
+the heap ceiling of the same spec has run at 44 to 48 of its 64 MiB
+in some local runs and is untouched.
 
 ## Backlog
 
