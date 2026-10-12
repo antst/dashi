@@ -1084,6 +1084,25 @@ exactly in our documents, as now. (5) The stale `pre` and `alpha`
 tags are left for the owner to remove or keep; nothing of ours reads
 them.
 
+### D-052 (2026-10-12) A release tag carries the hashes of the proven archives
+D-049 and D-051 require that the bytes published are the bytes proven
+on real hosts. For the plugin this was checked after the publish (the
+workflow re-packs; the registry archive equalled the proven one for
+pre.20 and 0.1.0). dashi publishes four packages and the check moves
+before the publish. Ruling: the annotated release tag's own message
+carries one line per package, `<sha256> <archive file name>`, written
+by ops from the accepted host-proof packets. The release workflow
+packs, runs `sha256sum -c` against the tag message before any GitHub
+or npm step, and publishes exactly those archive files. A tag without
+the lines, or with a mismatch, fails before anything is published. No
+artifact carried between runs, no approval manifest, no extra workflow
+input, no credential or scope change. A version already on the
+registry is not skipped blindly: its integrity must equal the expected
+archive, else the run stops; a network or auth error is never read as
+absence. The plain-version rule of D-051 is one small script the
+workflow calls first, tested directly. Applies to dashi from 0.2.0 and
+to the plugin from 0.1.1.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -5367,6 +5386,37 @@ on is made by a script in the packet, or its raw request and raw
 result are saved at the moment of the call; a flag the harness wrote
 for itself and read back is not an observation.
 
+Amendment 2026-10-12 (design, after the builder's consequence
+analysis). Privacy: the words "with no secret and no host path" above
+are withdrawn. DSH's error message is not a sanitized contract and a
+pattern filter would promise what it cannot deliver, so there is no
+redactor. The plugin copies exactly two native fields, code and
+message (no stack, cause chain, details, headers or request ids), on
+one line, bounded at 1024 bytes with a visible truncation mark; it
+adds nothing of its own and says in the README that the text is DSH's
+own error for that turn. The lane's owner drives that session and
+already receives the worker's raw stderr tail on a refused open
+through the kit: the same boundary, stated. A safe public error
+surface is an upstream request. Partial assistant text is kept and the
+diagnostic separated; a terminal is immutable against duplicate
+events; nothing is retried. Validation moves ahead of creation for
+every session-independent check, the permission preset name included,
+and for a fresh open with an explicit model through one public
+resolver call; an effort-only fresh open is validated against the
+profile default before creation if DSH offers a public read of it,
+otherwise the residue stays and is documented. No archive through the
+Workspace registry: it writes a durable tombstone and deletes nothing.
+A worker whose Open was refused exits 1, decided only after the
+refusal has been sent, never for a describe-only worker or a lane
+whose turn later failed; first the builder states what the released
+daemon does with that exit status. The upload-refusal assertion
+observes the provider's identity before the refusal, with the stock
+provider as the failing control. The plain-version check is one script
+the release workflow calls first, tested directly, and the workflow
+gains the payload check of D-052. The mac side procedure is dropped;
+instead the hosted global-install rows gain an in-place upgrade from
+the last published release if they have none.
+
 ### W-129 dashi: the macOS gate runs at 17 of its 20 minutes — status: open (owner dsh-exec, before the next item that adds PTY cases)
 On 2026-10-11 macos-gate took 16m05 (5e6c3b0), 16m42 (f84a5a6) and
 17m10 (ca4fa81, a strings-only change): the run-to-run spread is
@@ -5377,6 +5427,23 @@ change that restores a margin of at least five minutes, most likely
 the same suite split by file across two macOS jobs, each with the
 full setup and both required. No test dropped, skipped, retried or
 moved to Linux only. Consequence analysis first.
+
+Amendment 2026-10-12 (design, after the builder's measurement). Per
+spec file on the hosted macOS runner the whole budget is one file:
+profile-pty.spec.ts, 120 sequential cases, 908, 936 and 971 seconds
+in the three runs; first-run-model-pty.spec.ts takes 64 and every
+other file at most 4. Two jobs are therefore not the smallest change.
+Ruling: that file is split into two physical specs at an existing
+boundary (59 and 61 cases), same names, assertions, waits, timeouts
+and order within each, the common fixture in one test-only module,
+each spec with its own fixture and private homes. Nothing else
+changes: no Vitest projects, no second job, no workflow or check-name
+change. Proof: the multiset of 356 test names identical before and
+after; three hosted runs at the same head with per-file timings,
+macos-gate at or under 15 minutes in each, Linux no slower, no new
+failure. If the runner's cores do not carry two such files at once,
+the builder stops and returns with the numbers and the two-job shape;
+no bound is raised and no retry added.
 
 ### W-130 dashi: the macOS P-pnpm10 install row failed once with EINVAL — status: open (owner dsh-exec, cause first)
 On 2026-10-11 the row install-layouts-macos / P-pnpm10 failed on the
@@ -5391,6 +5458,26 @@ defect, with its issue), our harness (two writers into one project or
 store), or the runner image; then the fix or the upstream report. A
 retry is not a fix. If a user can hit it with the README commands,
 the README says what to do.
+
+### W-131 dashi 0.2.0: the first plain release — status: open (owner dsh-exec, after W-129 and W-130)
+Per D-051 and D-052. Four packages at 0.2.0, exact siblings, the
+plugin pinned at exactly 0.1.0 with its registry integrity asserted;
+every lock change listed and explained, none by hand. README install
+and upgrade fences at 0.2.0, historical baselines untouched; the
+provider paragraph in a user's words ("Choose a model and provider
+shown by /model. If you use your own provider, configure it with
+/config or DSH's Models page before starting dashi with it."). The
+changelog gathers W-124, W-127 and the pin. release.yml: plain
+versions only, `latest` for all four, no prerelease branch, the
+payload check of D-052. Order: release-prep PR reviewed and merged;
+four archives packed from the merged head with hashes and file
+inventories; D-049 proof of those archives on the dsh host's project
+install and on the mac's global install under the architect's
+briefs, every command and bus call captured by a script in the
+packet; then the tag with the four hashes in its message; then the
+registry check and the literal README install and upgrade on the
+same hosts. A failure after the publish is answered by a patch
+release.
 
 ## Backlog
 
@@ -5504,3 +5591,6 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-11 DSH Discussion (Ideas): dsh exits 0 when a profile names a bundle that is not installed; boot and --dump-config exit 0, --dump-config-schema exits 1 (W-125). https://github.com/deepseek-ai/deepseek-harness/discussions/9451
 - 2026-10-11 DSH Discussion (Q&A): a project install of DSH 0.2.1-alpha.2 exits 1 with pnpm 11 and 12, ERR_PNPM_IGNORED_BUILDS for five build scripts, one of them DSH's own postinstall (W-124). https://github.com/deepseek-ai/deepseek-harness/discussions/9452
 - 2026-10-11 pnpm issue: `pnpm setup` leaves a broken launcher when pnpm 12 was installed with npm on macOS, executable path not canonicalized (W-124). https://github.com/pnpm/pnpm/issues/16855
+- 2026-10-12 DSH Discussion #7179, follow-up comment: session-only model and effort re-checked on 0.2.1-alpha.2, current code locations, what the plugin does instead, three questions (W-126). https://github.com/deepseek-ai/deepseek-harness/discussions/7179#discussioncomment-18875041
+- 2026-10-12 DSH Discussion (Ideas): provider readiness is derived inside the web client and no provider route names its sign-in flow; a host-side read for other hosts (W-127). https://github.com/deepseek-ai/deepseek-harness/discussions/9486
+- 2026-10-12 Corrected on the owner's word: the bodies of #7172, #7177, #7179, #7180 and #7182 to #7187 (posted 2026-09-19) were this ledger's queue lines pasted verbatim, with the queue marker and internal identifiers, and #9399 named a work item; each body was replaced by the same technical statement without them and read back. Rule: what goes upstream is report text written for upstream and read back after posting; a queue line is never pasted.
