@@ -11,6 +11,7 @@ import { historyInputs } from '../src/rewind.js'
 import { jobViews } from '../src/presentation.js'
 import { initialViewState, type JobView, type TerminalCell } from '../src/state.js'
 import { foldCells } from '../src/transcript.js'
+import { turnWorking } from '../src/turn-working.js'
 import { inputHistoryEvents } from './fixtures/input-history.js'
 import { recordedEvents } from './fixtures/session-format.js'
 import { testCeiling } from './test-budget.js'
@@ -1181,7 +1182,10 @@ describe('terminal renderer', () => {
         const hud = lines.indexOf('MODEL_STATUS')
         expect(lines[hud - 1]).toBe('')
         expect(lines[hud - 2]).not.toBe('')
-        if (attachments) expect(lines[hud - 2]).toContain('[image 1]')
+        if (attachments) {
+          expect(lines[hud - 3]).toBe('')
+          expect(lines[hud - 2]).toContain('[image 1]')
+        }
         else expect(hud).toBe(3) // two header rows, one blank; no transcript/header spacer duplication.
       } finally { renderer.stop(false) }
     }
@@ -1279,27 +1283,35 @@ describe('terminal renderer', () => {
         expect(seventyJobs).toHaveLength(70)
         const foreground: TerminalCell = { key: 'foreground-proof', kind: 'tool', pending: true, text: '',
           tool: { card: 'terminal', title: 'FOREGROUND_ONLY', status: 'pending' } }
+        const opening = activityEvents.findIndex(event => event.type === 'turn/start')
+        const working = turnWorking(activityEvents.slice(0, opening + 1))!
+        expect(working.phase).toBe('Working')
         const terminal = new ScreenTerminal(columns, rows, true) // A PTY's ONLCR, as in the reported inline reproduction.
         const shell = createTerminalShell({
           createView: bindings => createRenderer({ ...bindings, inline, statusLine: () => 'MODEL_STATUS', terminal }),
           cwd: '/fixture', exit: () => {}, inline, initialCells: [...activityCells, foreground],
-          initialRoot: { cwd: '/fixture', id: 'session', jobs: sixtyJobs, model: 'recorded', status: 'running' },
+          initialRoot: { cwd: '/fixture', id: 'session', jobs: sixtyJobs, model: 'recorded', status: 'idle' },
         })
         shell.start()
         try {
           await shell.whenIdle(); await terminal.flush()
-          const initialScroll = terminal.screen.buffer.active.baseY
-          const assertMain = (running: number): void => {
-            const lines = terminal.liveLines()
+          const assertMain = (running: number, open: boolean, closed = false): void => {
+            const raw = terminal.liveLines()
+            if (inline && closed) expect(raw.at(-1)).toBe('')
+            const lines = inline && closed ? raw.slice(0, -1) : raw
             const hud = lines.indexOf('MODEL_STATUS')
-            expect(hud).toBe(rows - 5)
-            expect(lines[hud - 1]).toBe('')
-            // Exactly six physical control rows: blank, model status, three editor rows, footer.
+            expect(hud).toBe(lines.length - 5)
+            const blank = hud - (open ? 2 : 1)
+            expect(lines[blank]).toBe('')
+            if (open) expect(lines[hud - 1]).toMatch(/^[·•●] Working · turn /u)
+            // Seven physical control rows when open, six when closed; the added row never replaces the blank.
             expect(lines.slice(hud)).toHaveLength(5)
-            expect(lines[hud - 2]).toContain('FOREGROUND_ONLY')
-            expect(lines[hud - 2]).toContain('pending')
-            expect(lines.slice(hud - 3).join('\n')).not.toMatch(/(?:Job|Subagent) ·/u)
-            expect(lines.at(-1)).toMatch(new RegExp(`^running · Ctrl\\+B ${running} jobs ·`, 'u'))
+            expect(lines.slice(blank)).toHaveLength(open ? 7 : 6)
+            expect(lines[blank - 1]).toContain('FOREGROUND_ONLY')
+            expect(lines[blank - 1]).toContain('pending')
+            expect(lines.slice(blank - 1).join('\n')).not.toMatch(/(?:Job|Subagent) ·/u)
+            expect(lines.at(-1)).toMatch(new RegExp(`^${shell.readState().root!.status} · Ctrl\\+B ${running} jobs ·`, 'u'))
+            if (!open) expect(lines.join('\n')).not.toMatch(/^[·•●] Working · turn /mu)
             expect(terminal.allLines().join('\n')).toContain('W139_RECORDED_70')
             expect(terminal.allLines().filter(value => value.includes('FOREGROUND_ONLY'))).toHaveLength(1)
             // These jobs were spliced but not claimed by the recorded model: neither a mirror nor an early notice.
@@ -1309,17 +1321,25 @@ describe('terminal renderer', () => {
             expect(terminal.allLines().join('\n')).not.toContain('HEREDOC_55')
             expect(terminal.allLines().join('\n')).not.toContain('CONTROL_LABEL')
           }
-          assertMain(20)
-          const transcriptBefore = terminal.allLines().slice(0, -6)
+          assertMain(20, false) // The original idle six-row oracle is retained.
+          shell.dispatch({ type: 'root-status', rootId: 'session', status: 'running' })
+          shell.dispatch({ type: 'root-presentation', rootId: 'session', working })
+          await shell.whenIdle(); await terminal.flush()
+          const initialScroll = terminal.screen.buffer.active.baseY
+          assertMain(20, true)
+          const transcriptBefore = terminal.allLines().slice(0, -7)
           for (let render = 0; render < 50; render++) {
             const jobs = render % 2 === 0 ? seventyJobs : sixtyJobs
             shell.dispatch({ type: 'root-presentation', rootId: 'session', jobs })
             await shell.whenIdle(); await terminal.flush()
-            assertMain(render % 2 === 0 ? 10 : 20)
+            assertMain(render % 2 === 0 ? 10 : 20, true)
             expect(terminal.screen.buffer.active.baseY).toBe(initialScroll)
-            expect(terminal.allLines().slice(0, -6)).toEqual(transcriptBefore)
+            expect(terminal.allLines().slice(0, -7)).toEqual(transcriptBefore)
           }
           shell.dispatch({ type: 'root-presentation', rootId: 'session', jobs: sixtyJobs })
+          shell.dispatch({ type: 'root-presentation', rootId: 'session', working: null })
+          await shell.whenIdle(); await terminal.flush()
+          assertMain(20, false, true) // Agent still running: only the native turn fact removes the extra row.
           if (!inline) return // One complete list walk per width; all four modes/sizes still exercise fifty redraws.
           terminal.send('\u0002'); await shell.whenIdle(); await terminal.flush()
           expect(shell.readState().overlay).toMatchObject({ cursor: 0, kind: 'details' })

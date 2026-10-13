@@ -1,4 +1,5 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync } from 'node:fs'
+import { setTimeout as delay } from 'node:timers/promises'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
@@ -6,6 +7,18 @@ export const name = 'dashi-question-fixture'
 export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
 
 export function apply(ctx) {
+  const workingGate = process.env.DSH_WORKING_PROOF
+  if (workingGate !== undefined) ctx.tools.register(defineTool({
+    name: 'dashi_working_hold',
+    description: 'Hold one private working-row proof call until its observed-state gate.',
+    parameters: {},
+    output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
+    execute: async (_args, exec) => {
+      while (!existsSync(workingGate)) await delay(20, undefined, { signal: exec.signal })
+      return 'W143_NATIVE_TOOL_RESULT'
+    },
+    presentCall: () => ({ card: 'generic', title: 'Private working-row hold' }),
+  }))
   ctx.commands.register({
     name: 'dashi-schedule-proof',
     description: 'Read native schedule history or create a one-shot deletion barrier.',

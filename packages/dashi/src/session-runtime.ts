@@ -25,7 +25,7 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {
   ScheduleCreateValue, ScheduleDeleteValue, ScheduleListValue, ScheduleView,
 } from '@deepseek-ai/dsh-schedule'
-import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
@@ -80,6 +80,7 @@ import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
 import { addModelProvider, credentialOptions, missingCredentialNotice, setModelCredential } from './model-setup.js'
+import { turnWorking, type WorkingStream } from './turn-working.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
@@ -135,6 +136,7 @@ interface Binding {
   readonly jobIterator: AsyncIterator<JobListFrame>
   readonly presenter: ToolPresenter
   streamCells: readonly TerminalCell[]
+  workingStream: WorkingStream | undefined
   repo: string
   commandScope?: Fiber
   readonly cursor: number
@@ -306,6 +308,11 @@ export async function createSessionRuntime(
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
 
+  const workingFor = (agent: Agent, stream?: WorkingStream) => {
+    const from = ctx.sessionProjections.stateOf(agent.session, 'turnBoundary')?.openTurnStartSeq
+    return from == null ? undefined : turnWorking(agent.session.snapshotEvents(SessionLogOffset(from)), stream)
+  }
+
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
     const abort = new AbortController()
     try {
@@ -349,6 +356,10 @@ export async function createSessionRuntime(
       const initialContextPercent = contextPercent(controlOpening.value.projections[sessionId]?.values.contextPressure)
       const parentTurn = agent.session.header.parentSession === undefined ? undefined
         : inheritedTurn(agent.session.snapshotEvents(), agent.session.inheritedEventCount)
+      const active = opening.assistantStream?.activeAttempt
+      const workingStream = active === undefined ? undefined : { attemptId: String(active.attemptId), turn: active.turn, step: active.step, startedAfterSeq: active.startedAfterSeq,
+        lastChunk: expandAssistantStream(active.stream as never).at(-1) }
+      const working = workingFor(agent, workingStream)
       return {
         abort,
         agent,
@@ -363,7 +374,9 @@ export async function createSessionRuntime(
         presenter: createToolPresenter(tool => ctx.tools.get(tool, agent)),
         presentationTimer: undefined,
         streamCells: openingStream(opening.assistantStream),
+        workingStream,
         root: {
+          ...(working === undefined ? {} : { working }),
           ...(initialContextPercent === undefined ? {} : { contextPercent: initialContextPercent }),
           cwd: opening.header.cwd ?? options.cwd,
           id: String(sessionId),
@@ -475,6 +488,10 @@ export async function createSessionRuntime(
 
   const publish = (bound: Binding): void => {
     bound.timer = undefined
+    const working = workingFor(bound.agent, bound.workingStream)
+    const { working: _working, ...root } = bound.root
+    bound.root = { ...root, ...(working === undefined ? {} : { working }) }
+    dispatch({ type: 'root-presentation', rootId: bound.root.id, working: working ?? null })
     dispatch({
       type: 'transcript-changed', cells: transcriptCells(bound),
       hasMore: bound.hasMore, rootId: bound.root.id,
@@ -506,6 +523,13 @@ export async function createSessionRuntime(
   }
   const consume = (bound: Binding, frame: Exclude<SessionFollowFrame, { type: 'snapshot' }>): void => {
     if (frame.type === 'assistant-stream') {
+      if (frame.frame.type === 'start') bound.workingStream = {
+        attemptId: String(frame.frame.attemptId), turn: frame.frame.turn, step: frame.frame.step, startedAfterSeq: frame.frame.startedAfterSeq, observedAt: Date.now(),
+      }
+      else if (frame.frame.type === 'end') bound.workingStream = undefined
+      else if (bound.workingStream?.attemptId === frame.frame.attemptId) bound.workingStream = {
+        ...bound.workingStream, lastChunk: { time: frame.frame.time, chunk: frame.frame.chunk as StreamChunk },
+      }
       if (frame.frame.type !== 'chunk') {
         bound.streamCells = []
         schedule(bound)
@@ -524,6 +548,8 @@ export async function createSessionRuntime(
     bound.events.push(event)
     if (event.type === 'assistant/message' || event.type === 'assistant/attempt') bound.streamCells = []
     if (event.type === 'turn/end') {
+      bound.workingStream = undefined
+      dispatch({ type: 'root-presentation', rootId: bound.root.id, working: null })
       void refreshRepo(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
       if (startedAt !== undefined) {

@@ -1,0 +1,26 @@
+[
+  { "kind": "throw", "chunks": [], "code": "TIMEOUT", "message": "private working-row transient failure" },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "reasoning" },
+      { "type": "reasoning-delta", "index": 0, "text": "W143 private reasoning" },
+      { "type": "block-end", "index": 0, "block": { "type": "reasoning", "text": "W143 private reasoning" } },
+      { "type": "block-start", "index": 1, "blockType": "text" },
+      { "type": "text-delta", "index": 1, "text": "W143 streamed text" },
+      { "type": "block-end", "index": 1, "block": { "type": "text", "text": "W143 streamed text" } },
+      { "type": "tool-call-delta", "index": 2, "id": "w143-native-call", "name": "dashi_working_hold", "argumentsDelta": "{}" },
+      { "type": "block-end", "index": 2, "block": { "type": "tool-call", "id": "w143-native-call", "name": "dashi_working_hold", "arguments": "{}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "text-delta", "index": 0, "text": "W143_NATIVE_COMPLETE" },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "W143_NATIVE_COMPLETE" } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]

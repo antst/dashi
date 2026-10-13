@@ -367,6 +367,13 @@ animation. Respect `NO_COLOR`; retain ASCII status markers in monochrome and
 accessible modes. Sanitize model, path, title, tool, and plugin text before it
 reaches pi-tui.
 
+An open root turn has one disposable working row after the blank, before the
+model status or active panel. Its shape pulse (`· • ● •`, 250 ms) is additional
+feedback, not the information: words and elapsed time remain beside it;
+accessible mode uses a fixed `*` and one-second updates. The existing single
+renderer timer owns both this pulse and pending-command animation, stops on
+turn end or terminal release, and cannot alone keep the process alive.
+
 There are no always-on job or subagent rows between the conversation and the
 composer: labels, elapsed time and progress are no longer always visible.
 In plain idle/running footers, new output comes first when present, then the
@@ -378,8 +385,10 @@ complete activity list is `Ctrl+B` or `/tasks`, including settled entries and
 their output. A foreground command remains in its tool cell, not a second
 activity block. Other footers are unchanged, including the old activity hint
 during a decision or search, where its key does nothing. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
-cards. One blank row always separates the conversation from the model status
-(or from the composer when that status is not shown).
+cards. One blank row separates the conversation from the working row while
+a native turn is open, and that row sits directly above the model status.
+Without an open turn the blank separates the conversation from the model
+status (or from the composer when that status is not shown).
 
 Under 72 columns, identity moves to a second line. Under 48, show title or full
 ID with `/status` retaining all details. Full-screen mode refuses dimensions
@@ -416,6 +425,14 @@ structured outcome/stop reason: this is a DSH gap, not presentation state.
 A background settlement enters the conversation only when the model takes
 the native notice, not at its inbox splice. Until then the running count
 changes and `Ctrl+B` shows the settled status; there is no early inbox mirror.
+
+The working row reads native turn/step, stream categories, paired pending tool
+calls and DSH's recorded retry number. Request age starts at the observed live
+start frame, not at submit or a reused header; a turn found already running
+has no request age because DSH supplies no start timestamp. Tool pending is
+not proof of a running OS process. Quiet streams retain their last category.
+Stock providers expose usage only at the end: live token counts are a DSH
+gap, not character/chunk estimates. No working row enters durable history.
 
 `/history` opens a cell browser. Arrows select, Enter expands, `/` searches,
 `y` copies trusted plain text, and Escape returns to the composer. `Ctrl+O`

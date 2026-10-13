@@ -31,6 +31,8 @@ const OVERSCAN_CELLS = 8
 const THEME_GENERATION = 1
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
 const SPINNER_INTERVAL_MS = 80
+const WORKING_FRAMES = ['·', '•', '●', '•'] as const
+const WORKING_INTERVAL_MS = 250
 const MASK_TOKEN = new RegExp(String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|[_P^X][^\u0007]*(?:\u0007|\u001B\\))|[^\s]`, 'gu')
 
 const markdownTheme: MarkdownTheme = {
@@ -229,8 +231,9 @@ export function createRenderer(options: RendererOptions): Renderer {
   const accessible = options.accessible === true || terminalType?.toLocaleLowerCase() === 'dumb'
   const osc52 = supportsOsc52(terminalType)
   const tui: TUI = options.inline
-    ? new TuiMainScreen(terminal, true)
+    ? new class extends TuiMainScreen { protected override stopped = true }(terminal, true)
     : new class extends TuiAltScreen {
+      protected override stopped = true
       protected override isOverlayFocused(): boolean { return options.readState().overlay !== undefined || super.isOverlayFocused() }
     }(terminal, true, undefined, { mouse: true })
   let editor = new Editor(tui, theme(), { paddingX: 1 })
@@ -424,17 +427,26 @@ export function createRenderer(options: RendererOptions): Renderer {
       const state = options.readState()
       const now = Date.now()
       const pendingCommand = latestPendingCommand(state.cells)
-      if (pendingCommand !== undefined && animationTimer === undefined) {
+      const working = state.root?.working
+      if ((pendingCommand !== undefined || working !== undefined) && animationTimer === undefined) {
         animationTimer = setTimeout(() => {
           animationTimer = undefined
           tui.requestRender()
-        }, accessible ? 1_000 : SPINNER_INTERVAL_MS)
-      } else if (pendingCommand === undefined && animationTimer !== undefined) {
+        }, accessible ? 1_000 : pendingCommand === undefined ? WORKING_INTERVAL_MS : SPINNER_INTERVAL_MS)
+        animationTimer.unref()
+      } else if (pendingCommand === undefined && working === undefined && animationTimer !== undefined) {
         clearTimeout(animationTimer)
         animationTimer = undefined
       }
       const rows = Math.max(1, terminal.rows)
       if (width < 32 || rows < 8) return [line('dashi — enlarge terminal to continue', width)]
+      const workingRow = working === undefined ? [] : [line(plain([
+        `${accessible ? '*' : WORKING_FRAMES[Math.floor(now / WORKING_INTERVAL_MS) % WORKING_FRAMES.length]} ${working.phase}`,
+        ...(working.phaseStartedAt === undefined ? [] : [duration(now - working.phaseStartedAt)]),
+        `turn ${duration(now - working.startedAt)}`,
+        ...(working.tail === undefined ? [] : [working.tail]),
+      ].join(' · ')), width)]
+      const panelRows = rows - workingRow.length
 
       const root = state.root
       const cwd = plain(root?.cwd ?? state.cwd)
@@ -481,15 +493,17 @@ export function createRenderer(options: RendererOptions): Renderer {
       const persistentStatus = accessible || state.exitArmed ? undefined : options.statusLine?.()
       const composer = (): string[] => [
         '',
+        ...(state.overlay === undefined ? workingRow : []),
         ...(persistentStatus === undefined ? [] : [line(`${DIM}${plain(persistentStatus)}${RESET}`, width)]),
         ...editor.render(width),
       ]
       const control = decision !== undefined
-        ? decisionPanel(decision, width, rows)
+        ? [...(working === undefined ? [] : ['', ...workingRow]), ...decisionPanel(decision, width, panelRows)]
         : state.search !== undefined
           ? [
+            ...(working === undefined ? [] : ['', ...workingRow]),
             ...(state.search.scope === 'history' && state.overlay?.kind === 'history'
-              ? historyPanel(state.overlay, state, width, rows).slice(0, Math.max(2, rows - 8)) : []),
+              ? historyPanel(state.overlay, state, width, panelRows).slice(0, Math.max(2, panelRows - 8)) : []),
             `${BOLD_CYAN}${announcement(
               `Search ${state.search.scope}`, state.search.matches.length,
               state.search.matches.length === 0 ? undefined : `match ${String(state.search.cursor + 1)}`,
@@ -501,7 +515,8 @@ export function createRenderer(options: RendererOptions): Renderer {
         : state.overlay === undefined
           ? [...attachmentRows, ...composer()]
           : [
-            ...overlayPanel(state.overlay, state, width, rows),
+            ...(working === undefined ? [] : ['', ...workingRow]),
+            ...overlayPanel(state.overlay, state, width, panelRows),
             ...(state.overlay.kind === 'list' && state.overlay.purpose === 'completion'
               ? [...attachmentRows, ...composer()]
               : []),

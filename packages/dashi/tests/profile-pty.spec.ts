@@ -9,6 +9,8 @@ import { testCeiling } from './test-budget.js'
 import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { countAudibleBells } from './terminal-output.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
+import { turnWorking } from '../src/turn-working.js'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import {
   root,
   dsh,
@@ -75,6 +77,70 @@ import {
 setupProfileFixtures()
 
 describe.sequential('shipped profile terminal lifecycle', () => {
+  it('shows native request, chunks, pending tool and retry facts, pulses, then clears at turn end', async () => {
+    // Published keyless replay adapter, scripted override; real DSH loop/tools/retry records, not a model recording.
+    const started = performance.now()
+    const gate = join(testDir, 'w143-tool-release')
+    const patch = join(testDir, 'w143-replay.patch.yml')
+    writeFileSync(patch, readFileSync(replayPatch, 'utf8').replace('            name: Replay',
+      '            name: Replay\n            retryPolicy:\n              mode: normal\n              maxRetries: 1\n              retryableCodes: [TIMEOUT]\n              backoff: {initialDelayMs: 1000, maxDelayMs: 1000, jitterRatio: 0}'))
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_WORKING_PROOF: gate, DSH_REPLAY_PACE_MS: '750',
+      DSH_SNAPSHOT_OVERRIDE: join(root, 'packages/dashi/tests/fixtures/working-row.override.json'),
+    })
+    let id = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(patch)} --fullscreen`)
+      id = sessionId(shell.output, start)
+      await vi.waitFor(async () => { expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle ·') }, { timeout: testCeiling(20_000) })
+      shell.write('W143 exercise working facts\r')
+      const row = (text: string) => text.split('\n').find(line => /^[·•●] /u.test(line))
+      await vi.waitFor(async () => {
+        expect(row((await parsedFrame(shell.output.slice(start))).text)).toMatch(/Retry wait · \d+s · turn \d+s · retry 1/u)
+      }, { timeout: testCeiling(20_000) })
+      const shapes = new Set<string>()
+      await vi.waitFor(async () => {
+        const line = row((await parsedFrame(shell.output.slice(start))).text)
+        expect(line).toMatch(/Waiting for model · \d+s · turn \d+s · retry 1/u)
+        shapes.add(line![0]!)
+        expect(shapes.size).toBeGreaterThanOrEqual(2)
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      for (const phase of ['Reasoning', 'Receiving text', 'Tool request']) await vi.waitFor(async () => {
+        expect(row((await parsedFrame(shell.output.slice(start))).text)).toContain(phase)
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      await vi.waitFor(async () => {
+        expect(row((await parsedFrame(shell.output.slice(start))).text)).toMatch(/Tool pending · \d+s · turn \d+s · dashi_working_hold/u)
+      }, { timeout: testCeiling(20_000) })
+      writeFileSync(gate, 'release after observed native pending call\n')
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(shell.output.slice(start))
+        expect(frame.text).toContain('W143_NATIVE_COMPLETE')
+        expect(frame.status).toContain('idle ·')
+        expect(row(frame.text)).toBeUndefined()
+      }, { timeout: testCeiling(20_000) })
+      const exitAt = shell.output.length
+      shell.write('\u0004\u0004')
+      await shell.waitFor('\u001B[?1049l', exitAt)
+    } finally {
+      await shell.close()
+      if (process.env.DSH_WORKING_CAPTURE !== undefined) writeFileSync(process.env.DSH_WORKING_CAPTURE, shell.output)
+    }
+    const events = sessionLog(id).events as unknown as SessionEvent[]
+    if (process.env.DSH_WORKING_CAPTURE !== undefined) writeFileSync(`${process.env.DSH_WORKING_CAPTURE}.events.json`, JSON.stringify(events, null, 2))
+    const retries = events.filter(event => String(event.type) === 'llm/retry' || String(event.type) === 'llm/retry-started')
+    expect(retries.map(event => (event.data as unknown as { retry: number }).retry)).toEqual([1, 1])
+    for (const [index, event] of retries.entries()) {
+      const view = turnWorking(events.slice(0, events.indexOf(event) + 1))
+      expect(view?.phase).toBe(index === 0 ? 'Retry wait' : 'Retrying')
+      expect(view?.tail).toBe('retry 1')
+    }
+    expect(events.some(event => event.type === 'tool/call' && event.data.name === 'dashi_working_hold')).toBe(true)
+    expect(events.some(event => event.type === 'tool/result' && JSON.stringify(event.data).includes('W143_NATIVE_TOOL_RESULT'))).toBe(true)
+    expect(events.some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed')).toBe(true)
+    expect(turnWorking(events)).toBeUndefined()
+    reportPerformance('native-working-row', performance.now() - started, 'ms')
+  }, 30_000)
+
   it('lists unowned jobs and keeps human output reads separate from the native model cursor', async () => {
     const shell = new PtyShell()
     try {
