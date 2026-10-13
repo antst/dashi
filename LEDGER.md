@@ -6370,6 +6370,51 @@ cases that have failed, serial, stopping at the first failure; a
 clean result is reported as not reproduced. No ceiling is raised and
 no red gate is re-run to close this.
 
+Part 1, 2026-10-13, measured by the builder: valid on the third
+attempt, and a product defect. With an admitted native maintenance
+operation holding the agent busy before the signal, the published
+DSH 0.2.1-alpha.2 forced the exit 5000.56 ms after SIGTERM (exit 0,
+from the timer in profile-boot, not from ordinary disposal) and
+dashi 0.2.0 left the terminal on the alternate buffer; the unarmed
+control left normally in 109 ms. The first two attempts are kept as
+invalid: one never sent the signal, one exited by natural disposal
+in 95 ms because the fixture had not admitted a hold. Linux only;
+nothing here explains the two macOS timeouts. The fix is W-138;
+parts 2 to 4 wait for it.
+
+### W-138 dashi: a forced exit leaves the terminal on the alternate screen — status: open (owner dsh-exec, then a plain 0.2.1)
+From W-137 part 1. When DSH ends the process itself, dashi's
+terminal guard never runs: teardown is still waiting for the agent
+to become idle (index.ts:264-268, session-runtime.ts:1543) when
+DSH's five-second timer after SIGTERM calls process.exit. The
+user's shell then prints into dashi's last screen, and the main
+screen and its scrollback do not come back; the shell restores its
+own cooked mode, so no raw-mode leak is shown. Present in 0.2.0
+and in 0.2.0-alpha.2 before it, whose teardown path is
+byte-identical (W-131).
+Mechanism, accepted before coding: the guard owns one process
+`exit` listener for as long as the terminal is acquired, and that
+listener is the ownership token. Ordinary release, after the input
+drain and at the cooked handoff, removes it and then makes the one
+stop call; the exit path consumes it and makes the same synchronous
+stop with no drain; reacquisition registers a fresh one. No new
+phase, signal handler, timer or copied escape sequence, and no
+change of teardown order; terminal-guard.ts is the only shipped
+file. Stated limits: no input drain at a forced exit, so late keys
+can reach the shell; nothing for SIGKILL, abort or a frozen loop;
+Windows not established.
+Acceptance: the forced-exit case of W-137 and its unarmed control
+pass on both gates with the native timer receipt; unit controls
+for ownership (nothing registered before start or after release,
+one stop when the exit arrives during an unresolved drain, the
+cooked interval and reacquisition, disposal during the cooked
+interval); the two mutations (listener absent; listener removed
+before the drain) fail, as shown in the handoff; the handoff names
+the ordinary situations in which 0.2.0 reaches the forced exit,
+each as observed or as read from source. Then a plain 0.2.1 of the
+four packages, prepared as its own step under D-049 and D-052, and
+the fleet after it.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
