@@ -58,7 +58,7 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
     restoreOnExit = function restore() {
       if (restoreOnExit !== restore) return
       phase = 'released'
-      stopOwned()
+      try { stopOwned() } catch { /* Exit listeners must not throw. */ }
     }
     process.once('exit', restoreOnExit)
     session.start()

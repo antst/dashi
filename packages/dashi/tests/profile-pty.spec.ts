@@ -1,4 +1,4 @@
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
@@ -1823,6 +1823,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       SESSIONBUS_GROUPS: undefined,
       SESSIONBUS_SOCKET: join(evidence, 'absent.sock'),
     })
+    let passed = false
     try {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(patch)} --fullscreen`)
       await shell.waitFor('idle ·', start)
@@ -1880,12 +1881,13 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         alternateScreenLeave: shell.output.slice(signalledAt).includes('\u001B[?1049l'),
         signalToExitMs: receipt.exitedAt - receipt.signalledAt,
       }, null, 2) + '\n')
-      console.log(`W137 forced-exit evidence: ${evidence}`)
       expect(buffer).toBe('normal')
       expect(shell.output.slice(signalledAt)).toContain('\u001B[?1049l')
       expect(relevantTerminalMode(restored)).toBe(relevantTerminalMode(baseline))
+      passed = true
     } finally {
       await shell.close()
+      if (passed) rmSync(evidence, { recursive: true, force: true })
     }
   }, testCeiling(30_000))
 
