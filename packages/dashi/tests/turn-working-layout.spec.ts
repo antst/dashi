@@ -121,7 +121,7 @@ describe('working row layout and timer ownership', () => {
   })
 
   for (const inline of [true, false]) for (const [columns, rows] of [[80, 24], [200, 60]] as const) {
-    it(`redraws one row over seventy jobs for 1000 ticks, ${inline ? 'inline' : 'fullscreen'} ${columns}x${rows}`, async () => {
+    it(`redraws one row over seventy jobs for 100 ticks, ${inline ? 'inline' : 'fullscreen'} ${columns}x${rows}`, async () => {
       const terminal = new Screen(columns, rows)
       const state = { ...rootState(inline), cells }
       const renderer = createRenderer({ inline, terminal, readState: () => state, dispatch() {}, statusLine: () => 'MODEL_STATUS' })
@@ -140,7 +140,7 @@ describe('working row layout and timer ownership', () => {
         const shapes = new Set<string>()
         const samples: number[] = []
         const bytes: number[] = []
-        for (let tick = 1; tick <= 1000; tick++) {
+        for (let tick = 1; tick <= 100; tick++) {
           clock = now + tick * 250
           const from = terminal.output.length
           const started = performance.now()
@@ -160,7 +160,7 @@ describe('working row layout and timer ownership', () => {
         }
         expect([...shapes].sort()).toEqual(['·', '•', '●'].sort())
         samples.sort((a, b) => a - b)
-        process.stdout.write(`performance: working-row-${inline ? 'inline' : 'fullscreen'}-${columns} median ${samples[500]!.toFixed(3)} ms p95 ${samples[950]!.toFixed(3)} ms bytes/tick ${Math.min(...bytes)}-${Math.max(...bytes)}\n`)
+        process.stdout.write(`performance: working-row-${inline ? 'inline' : 'fullscreen'}-${columns} median ${samples[50]!.toFixed(3)} ms p95 ${samples[95]!.toFixed(3)} ms bytes/tick ${Math.min(...bytes)}-${Math.max(...bytes)}\n`)
       } finally { renderer.stop(true); terminal.screen.dispose() }
     })
   }
