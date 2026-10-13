@@ -216,16 +216,18 @@ pre.20, which consumes the provider as a peer.
 
 `dsh-codex@0.3.2` pins `@deepseek-ai/dsh-session-format-catalog` to
 `0.2.0-rc.1`. On DSH `0.2.1-alpha.2`, it needs this override in the profile's
-`package.json`. Merge this block into the manifest, preserving
-other fields and any existing overrides (the block is a JSON fragment):
+`pnpm-workspace.yaml`, which DSH creates when it initialises the profile.
+Merge the entry into its top-level `overrides`, preserving all other settings
+and existing overrides:
 
-```json
-  "pnpm": {
-    "overrides": {
-      "@deepseek-ai/dsh-session-format-catalog": "0.2.1-alpha.2"
-    }
-  },
+```yaml
+overrides:
+  '@deepseek-ai/dsh-session-format-catalog': 0.2.1-alpha.2
 ```
+
+If you followed the earlier `package.json` instruction, move all entries from
+its `pnpm.overrides` into the workspace file and remove that old block:
+pnpm 10 reads only that block when it exists, while pnpm 11 and 12 ignore it.
 
 `dsh-plugin-subscriptions` 0.9.9 and earlier declare DSH peers ending at
 `0.2.0-rc.2`; no dsh-plugin-subscriptions release declares a DSH 0.2.1 peer.

@@ -11,7 +11,8 @@ with another Node version or package manager. From the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
-node scripts/pack-release.mjs release-archives > release-hashes.txt
+release_directory=$(mktemp -d "${TMPDIR:-/tmp}/dashi-release.XXXXXXXX")
+node scripts/pack-release.mjs "$release_directory/archives" > "$release_directory/hashes.txt"
 ```
 
 The shared script checks the toolchain, deletes only the two generated `lib`
@@ -24,7 +25,7 @@ that run and with the archives accepted in both host proof packets.
 ## Create and push the tag once
 
 For 0.2.0, the annotation contains these archive names, each preceded by its
-actual SHA256 from `release-hashes.txt`:
+actual SHA256 from `$release_directory/hashes.txt`:
 
 ```text
 <sha256>  antst-dsh-file-uploads-none-0.2.0.tgz
@@ -44,12 +45,15 @@ the same plain `MAJOR.MINOR.PATCH`, without prerelease or build metadata.
 At the proven `main` commit, for this release:
 
 ```sh
-git tag -a v0.2.0 -F release-hashes.txt
-node scripts/check-release-payloads.mjs v0.2.0 release-archives
+git tag -a v0.2.0 -F "$release_directory/hashes.txt"
+node scripts/check-release-payloads.mjs v0.2.0 "$release_directory/archives"
 git push origin v0.2.0
 ```
 
-Do not push until the local check and the proof/hash comparison pass.
+The local payload check reads the public npm registry and needs network access.
+Keep the external directory for the host proofs and tag; it adds no untracked
+outputs to the working tree. Do not push until the local check and the
+proof/hash comparison pass.
 Never move a pushed release tag or overwrite a published version.
 
 ## What the workflow does

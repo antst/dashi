@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { checkReleaseVersion, releasePackages } from '../../../scripts/check-release-version.mjs'
@@ -21,7 +21,8 @@ vi.mock('node:child_process', async importOriginal => {
       process.platform === 'darwin' ? ['-a', '256', '-c'] : args, options)
     if (command === 'pnpm' && uploads.pack) {
       uploads.pack.calls.push(args)
-      if (args[0] === '--version') return { status: 0, stdout: '11.28.5' }
+      if (args[0] === '--version') return uploads.pack.nativeManager
+        ? actual.spawnSync(command, args, options) : { status: 0, stdout: '11.28.5' }
       if (args[0] === 'build') return uploads.pack.build()
       if (args[0] === '--dir' && args[2] === 'pack') return { status: 0, stdout: 'fixture pack' }
     }
@@ -152,7 +153,7 @@ fi
   }
 })
 
-async function packFixture(build) {
+async function packFixture(build, nativeManager = false) {
   const directory = fixture()
   mkdirSync(join(root, 'scripts'))
   for (const script of ['pack-release.mjs', 'check-release-version.mjs']) {
@@ -165,7 +166,7 @@ async function packFixture(build) {
     writeFileSync(join(root, 'packages', name, 'lib', 'index.js'), 'corrupt output')
   }
   const { packRelease } = await import(pathToFileURL(join(root, 'scripts', 'pack-release.mjs')).href)
-  uploads.pack = { calls: [], build }
+  uploads.pack = { calls: [], build, nativeManager }
   const nativeProcess = process
   // Toolchain admission is not under test here; native packing is measured separately.
   vi.stubGlobal('process', { ...nativeProcess, platform: 'linux', arch: 'x64', versions: { ...nativeProcess.versions, node: '22.23.3' } })
@@ -175,6 +176,9 @@ async function packFixture(build) {
 it('cleans exactly the two generated outputs and builds before any pack', async () => {
   const sourceMarker = join(root, 'keep-source.txt')
   writeFileSync(sourceMarker, 'keep')
+  const decoy = join(root, 'packages/dashi/lib-decoy')
+  mkdirSync(decoy, { recursive: true })
+  writeFileSync(join(decoy, 'obsolete.js'), 'generated-looking output that must survive')
   const packed = await packFixture(() => {
     for (const name of ['file-uploads-none', 'dashi']) {
       expect(existsSync(join(root, 'packages', name, 'lib'))).toBe(false)
@@ -183,13 +187,31 @@ it('cleans exactly the two generated outputs and builds before any pack', async 
   })
   expect(packed).toHaveLength(4)
   expect(readFileSync(sourceMarker, 'utf8')).toBe('keep')
+  expect(readFileSync(join(decoy, 'obsolete.js'), 'utf8')).toBe('generated-looking output that must survive')
   expect(uploads.pack.calls.slice(0, 2)).toEqual([['--version'], ['build']])
   expect(uploads.pack.calls.slice(2).map(args => args[2])).toEqual(Array(4).fill('pack'))
 })
 
 it('stops before any pack when the workspace build fails', async () => {
-  await expect(packFixture(() => ({ status: 17, stderr: 'build failure control' }))).rejects.toThrow('build failure control')
+  await expect(packFixture(() => ({ status: 17, stdout: 'compiler TS1234: stdout-only diagnostic', stderr: 'build failure control' })))
+    .rejects.toThrow('compiler TS1234: stdout-only diagnostic\nbuild failure control')
   expect(uploads.pack.calls).toEqual([['--version'], ['build']])
+})
+
+it('refuses a different PATH-selected pnpm before deleting generated output or building', async () => {
+  const bin = join(root, 'bin')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'pnpm'), `#!${process.execPath}\nconsole.log('11.28.4')\n`, { mode: 0o755 })
+  vi.stubEnv('PATH', bin + delimiter + process.env.PATH)
+  vi.stubEnv('pnpm_config_manage_package_manager_versions', 'false')
+  try {
+    await expect(packFixture(() => { throw new Error('build must not run') }, true))
+      .rejects.toThrow('Release pack requires workspace pnpm@11.28.5, got pnpm@11.28.4')
+    expect(uploads.pack.calls).toEqual([['--version']])
+    for (const name of ['file-uploads-none', 'dashi']) {
+      expect(readFileSync(join(root, 'packages', name, 'lib/obsolete.js'), 'utf8')).toBe('obsolete output')
+    }
+  } finally { vi.unstubAllEnvs() }
 })
 
 it('reads all four real archive manifests in publication order and hashes their exact bytes', () => {
@@ -203,16 +225,27 @@ it('reads all four real archive manifests in publication order and hashes their 
   }
 })
 
-it('rejects a changed packed identity, inexact sibling or missing entry', () => {
+it('rejects a changed packed identity or missing entry', () => {
   const archives = fixture()
   const payload = payloads[2]
   const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
-  for (const change of [{ version: '0.2.1' }, { dependencies: { '@antst/dashi': '^0.2.0' } },
+  for (const change of [{ version: '0.2.1' },
     { main: 'absent.js' }, { types: 'absent.d.ts' }, { bin: { dashi: 'absent.js' } }, { dsh: { bundle: { patch: 'absent.yml' } } }]) {
     writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify({ ...payload.manifest, ...change }))
     expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
     expect(() => readReleaseArchives(archives, root)).toThrow()
   }
+})
+
+it('rejects an inexact sibling without changing dependency keys or their order', () => {
+  const archives = fixture()
+  const payload = payloads[2]
+  const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
+  const changed = { ...payload.manifest, dependencies: { ...payload.manifest.dependencies, '@antst/dashi': '^0.2.0' } }
+  expect(Object.keys(changed.dependencies)).toEqual(Object.keys(payload.manifest.dependencies))
+  writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify(changed))
+  expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
+  expect(() => readReleaseArchives(archives, root)).toThrow('sibling @antst/dashi must be exact 0.2.0')
 })
 
 it('rejects changed dependency key order even when every dependency value is unchanged', () => {
