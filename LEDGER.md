@@ -1103,6 +1103,24 @@ absence. The plain-version rule of D-051 is one small script the
 workflow calls first, tested directly. Applies to dashi from 0.2.0 and
 to the plugin from 0.1.1.
 
+### D-053 (2026-10-13) The owner's installations carry nothing unpublished
+Under D-051 nothing is published before its proof, and dashi's four
+packages pin each other exactly, so an unpublished candidate can be
+installed only with temporary wiring between its archives. Asked
+where the 0.2.0 candidate should be proven before the tag, the owner
+chose proof profiles over his own profile. Rulings: (1) that wiring
+never goes into the owner's own profiles or into the launcher of his
+home project; (2) before the tag the candidate is proven on the real
+DSH installation, the pnpm on PATH and the permanent daemon, in
+places that are not his: a new user's first run in a private DSH
+home, and a profile under another name in the real DSH home, built
+as his was and upgraded in place; (3) after the publish that proof
+profile is re-added from the registry first, then the owner's own
+installation is upgraded by the README's commands, and a failure
+there is answered by a patch release (D-051). The launcher names
+the `dashi` profile itself, so before the tag it runs only against
+the private home: a stated limit of every such proof.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -5733,6 +5751,77 @@ release.
 Amendment 2026-10-12: W-132 joins the items that must close before
 the release-prep branch, by the same standard as W-130.
 
+Release preparation accepted 2026-10-13 (antst/dashi PR #314, squash
+311d4c5f65cf422ca3e901ca96741e789988ac72, five commits reviewed at
+bb24432). The four packages are at 0.2.0 with exact siblings. The
+plugin pin is 0.1.1 (W-128), not the 0.1.0 named above, with the
+published integrity in the lock; the lock changed in thirteen lines,
+all on the plugin. The release workflow has no prerelease branch, no
+input and no carried artefact: a preflight job checks the plain
+version, packs, checks the tag's four lines and gates the verify job
+and both install callers; the publish job packs and checks again
+before any npm or gh action, reads all four packuments and every
+exact external dependency named by the packed manifests before the
+first upload, publishes provider, core, app, launcher to `latest`
+and creates the GitHub release last. One script packs for the
+workflow, the Linux gate and the operator: it removes the two
+generated lib directories, builds, packs, and refuses any toolchain
+but Linux x64, Node 22.23.3 and the workspace pnpm. RELEASING.md at
+the repository root is the operator procedure.
+What the review found (an opus agent at 4327b3a, 9a42898 and
+bb24432; accept at bb24432). (1) The app archive was not
+reproducible. pnpm 11.7.0 writes a package's `workspace:`
+dependencies in the order in which its reads of the sibling
+manifests finish (pnpm issue 10167, fixed by pnpm PR 13751), so one
+commit packed to two archives that differ in the order of two keys.
+The builder's one-time comparison of host and hosted hashes caught
+it: ten packs split eight to two, the reviewer's 180 split 95 to 85.
+The workspace pnpm moved to 11.28.5, where 120 packs give one hash;
+the pack refuses a packed manifest whose dependency keys are not in
+source order, and the gate packs three complete sets and compares
+them. The lock did not change. Archive bytes depend on the pnpm
+version (the LICENSE entry moved in two archives), which the
+toolchain refusal covers. (2) The release step called `rg`, which
+the hosted image does not have: a release would have published all
+four packages and then failed, on every re-run too. It is grep now,
+and the spec runs the step's own text with a fake gh on a restricted
+PATH. (3) All four scripts exited 0 without doing anything when
+started through a linked path; the spec did not pin the
+plain-version rule; a 65-character hex line beside four valid lines
+was ignored; a pack over a stale build would have shipped it. All
+corrected, each with a control that fails without the correction.
+(4) pnpm replays an upload after a 5xx answer. The upload command
+alone now runs with `pnpm_config_fetch_retries=0`; the reviewer
+measured it with the real pnpm 11.28.5 through the publish script
+against a local registry: one PUT, exit 1, and the re-run reads the
+registry before it uploads.
+Evidence: hosted run 38328906328 at bb24432, 23 of 23, both gates
+with 56 and 331 tests, all 19 rows. The four lines are equal from
+the builder's host, the reviewer's clones and rebuilds, and the
+hosted gate step:
+5d22fff1d595ea7b73634b56fda0b4b739124101cebc6185c21df384d6c57d0e  antst-dsh-file-uploads-none-0.2.0.tgz
+fd987bcbd8ca09faa05b7dc06216910e68a5d7be2600310202120b355cc8d98a  antst-dashi-0.2.0.tgz
+67c230bb6db26a9bf24503f3eae2a1b86541792d12a61fac4a08de06474c8dae  antst-dashi-app-0.2.0.tgz
+4d7154ff3ad5f99c2e468021c0682d2275fad115b608afe2a296ef86272f10ce  antst-dashi-launcher-0.2.0.tgz
+Stated limits. The trusted-publisher upload with pnpm 11.28.5 is
+first exercised by the tag run; earlier releases uploaded with
+11.7.0. A tag on a commit that is not on main is publishable and tag
+signatures are not checked, both as before. The spec does not run
+the real pack, real git or the Node and platform refusals. An
+earlier local gate at 072b468 failed the renderer bound once (36.5
+ms against 25) and was not reproduced. Four review points that touch
+no archive are W-136.
+During the review the reviewer's harness twice started the machine's
+real pnpm on a publish command aimed at the public registry. Both
+ran under a private home with no configuration and no credential and
+stopped at the provenance check before any request; the registry
+shows no 0.2.0. Since then every case that can reach an upload runs
+in a loopback-only network namespace with a private home, an empty
+user configuration and the registry address confirmed by the client;
+that is now a condition of every brief that touches a publish path.
+The item stays open for the host proofs (D-053), the tag and the
+registry check.
+
 ### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
 On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
 (run 38213993300, attempt 4, job 114712113037) on PR #304, which
@@ -5962,6 +6051,27 @@ local gate. Stated: this removes our own start-up contention from
 the check and nothing else; the 36.5 ms outlier stays unexplained;
 the heap ceiling of the same spec has run at 44 to 48 of its 64 MiB
 in some local runs and is untouched.
+
+### W-136 dashi: four review points on the release scripts — status: open (owner dsh-exec, before the 0.2.0 tag)
+From the W-131 review at bb24432. None touches an archive: this
+item's Linux gate must print the four lines of W-131 unchanged,
+because the tag binds the proven bytes and not the commit (D-052).
+(1) The spec's inexact-sibling control cannot fail since the
+key-order check exists (release.spec.mjs:210-214): it replaces the
+whole dependencies object, so the order check refuses it first. It
+changes only the sibling's range and must fail when the sibling
+check is removed. (2) A failing build in the pack script reports the
+command line and drops the compiler's diagnostics
+(scripts/pack-release.mjs:10); they go to the operator's stderr.
+(3) RELEASING.md does not say that the local check before the push
+reads the public registry, and its commands leave the archives and
+the hash file untracked in the repository root; it names the
+registry need and uses a directory outside the working tree. (4) The
+spec pins "exactly the two directories" against one marker file and
+stubs the pack's preconditions: a decoy directory must survive, and
+a pnpm of another version with switching off must be refused; the
+Node and platform refusals stay hand-checked and are stated so. No
+source, lock or workflow change.
 
 ## Backlog
 
