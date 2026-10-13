@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRenderer } from '../src/renderer.js'
+import { createTerminalShell } from '../src/application.js'
 import { initialViewState, reduce, type JobView, type ViewState } from '../src/state.js'
 import { createTerminalGuard } from '../src/terminal-guard.js'
 import { foldCells } from '../src/transcript.js'
@@ -95,6 +96,30 @@ describe('working row layout and timer ownership', () => {
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 
+  it('publishes transcript and working facts atomically with one synchronized frame', async () => {
+    const terminal = new Screen()
+    const shell = createTerminalShell({ cwd: '/fixture', inline: false, exit() {}, initialRoot: rootState().root,
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal, statusLine: () => 'MODEL_STATUS' }) })
+    shell.start()
+    try {
+      await shell.whenIdle(); await terminal.flush()
+      const from = terminal.output.length
+      const next = { ...working, phase: 'Receiving text' }
+      shell.dispatch({ type: 'transcript-changed', rootId: 'root', working: next, cells: [{ key: 'text', kind: 'assistant', text: 'NATIVE_TEXT' }] })
+      await shell.whenIdle(); await terminal.flush()
+      expect(terminal.output.slice(from).split('\u001B[?2026h').length - 1).toBe(1)
+      expect(shell.readState().root?.working).toEqual(next)
+      expect(terminal.lines().join('\n')).toContain('NATIVE_TEXT')
+      expect(terminal.lines().join('\n')).toContain('Receiving text')
+      shell.dispatch({ type: 'transcript-changed', rootId: 'other-root', working: null, cells: [] })
+      expect(shell.readState().root?.working).toEqual(next)
+      shell.dispatch({ type: 'transcript-changed', rootId: 'root', cells: [] })
+      expect(shell.readState().root?.working).toEqual(next)
+      shell.dispatch({ type: 'transcript-changed', rootId: 'root', working: null, cells: [] })
+      expect(shell.readState().root?.working).toBeUndefined()
+    } finally { await shell.dispose(); terminal.screen.dispose() }
+  })
+
   for (const inline of [true, false]) for (const [columns, rows] of [[80, 24], [200, 60]] as const) {
     it(`redraws one row over seventy jobs for 1000 ticks, ${inline ? 'inline' : 'fullscreen'} ${columns}x${rows}`, async () => {
       const terminal = new Screen(columns, rows)
@@ -127,7 +152,7 @@ describe('working row layout and timer ownership', () => {
           expect(lines.slice(row + 1)).toEqual(initial.slice(row + 1))
           expect(terminal.screen.buffer.active.baseY).toBe(scroll)
           expect([terminal.screen.buffer.active.cursorX, terminal.screen.buffer.active.cursorY]).toEqual(cursor)
-          expect(terminal.output.slice(from).match(/\u001B\[2K/gu)).toHaveLength(1)
+          expect(terminal.output.slice(from).match(new RegExp(String.raw`\u001B\[2K`, 'gu'))).toHaveLength(1)
           expect(terminal.output.slice(from)).not.toContain('MODEL_STATUS')
           bytes.push(Buffer.byteLength(terminal.output.slice(from)))
           expect(lines[row]).toMatch(/^[·•●] Waiting for model · /u)

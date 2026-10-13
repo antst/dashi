@@ -18,7 +18,7 @@ describe('working row', () => {
     }
     const state = initialViewState('/fixture', true, {
       cwd: '/fixture', id: 'root', model: 'recorded', status: 'running',
-      ...{ working: { startedAt: Date.now() - 30_000, phase: 'Waiting for model', phaseStartedAt: Date.now() - 20_000 } },
+      working: { startedAt: Date.now() - 30_000, phase: 'Waiting for model', phaseStartedAt: Date.now() - 20_000 },
     })
     const renderer = createRenderer({ inline: true, terminal, readState: () => state, dispatch() {}, statusLine: () => 'MODEL_STATUS' })
     try {

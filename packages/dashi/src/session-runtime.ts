@@ -491,10 +491,9 @@ export async function createSessionRuntime(
     const working = workingFor(bound.agent, bound.workingStream)
     const { working: _working, ...root } = bound.root
     bound.root = { ...root, ...(working === undefined ? {} : { working }) }
-    dispatch({ type: 'root-presentation', rootId: bound.root.id, working: working ?? null })
     dispatch({
       type: 'transcript-changed', cells: transcriptCells(bound),
-      hasMore: bound.hasMore, rootId: bound.root.id,
+      hasMore: bound.hasMore, rootId: bound.root.id, working: working ?? null,
     })
   }
   const schedule = (bound: Binding): void => {
