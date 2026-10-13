@@ -13,6 +13,7 @@ import {
 } from '@earendil-works/pi-tui'
 import { caretOffset, installInput, type InputBindings } from './input.js'
 import { hasCompletionTrigger } from './completion-trigger.js'
+import { activityCounts } from './presentation.js'
 import type {
   ComposerCursor, JobView, Overlay, PendingDecision, SubagentView, TerminalCell, ToolMode, ViewState,
 } from './state.js'
@@ -118,7 +119,7 @@ function cellText(cell: TerminalCell, toolMode: ToolMode, accessible: boolean, n
     }
     case 'context': {
       if (cell.collapsed !== true || cell.detail === undefined) return `${DIM}Context · ${safe}${RESET}`
-      const head = `${DIM}Context · ${plain(cell.detail, true)}${RESET}`
+      const head = `${DIM}${plain(cell.detail, toolMode === 'expanded')}${RESET}`
       return toolMode === 'expanded' ? `${head}\n${safe}` : head
     }
     case 'shell': return `${DIM}Shell${RESET}\n${safe}`
@@ -170,11 +171,11 @@ function latestPendingCommand(cells: readonly TerminalCell[]): TerminalCell | un
 function activityText(activity: Activity, now: number): string {
   if (activity.kind === 'job') {
     const job = activity.value
-    return `Job · ${job.label} · ${job.status} · ${duration(jobElapsed(job, now))}${job.progress === undefined ? '' : ` · ${job.progress}`}${job.detail === undefined ? '' : ` · ${job.detail}`}`
+    return plain(`Job · ${job.id} · ${duration(jobElapsed(job, now))} · ${job.status}${job.detail === undefined ? '' : `, ${job.detail}`}${job.progress === undefined ? '' : ` · ${job.progress}`} · ${job.label}`)
   }
   const subagent = activity.value
   const elapsed = subagentElapsed(subagent, now)
-  return `Subagent · ${subagent.label} · ${subagent.state}${elapsed === undefined ? '' : ` · ${duration(elapsed)}`}${subagent.summary === undefined ? '' : ` · ${subagent.summary}`}`
+  return plain(`Subagent · ${subagent.state}${elapsed === undefined ? '' : ` · ${duration(elapsed)}`} · ${subagent.label}${subagent.summary === undefined ? '' : ` · ${subagent.summary}`}`)
 }
 
 function plain(text: string, preserveNewlines = false): string {
@@ -256,7 +257,9 @@ export function createRenderer(options: RendererOptions): Renderer {
     const cached = cell.pending === true ? undefined : lineCache.get(key)
     if (cached !== undefined) return cached
     const cellWidth = Math.max(1, width - 2)
-    const lines = !accessible && cell.kind === 'assistant' && cell.pending !== true
+    const head = toolMode === 'collapsed' && cell.kind === 'context' && cell.collapsed === true
+    const lines = head ? [line(cellText(cell, toolMode, accessible, now), cellWidth)]
+      : !accessible && cell.kind === 'assistant' && cell.pending !== true
       ? [`${BOLD_CYAN}Assistant${RESET}`, ...new Markdown(plain(cell.text, true), 0, 0, markdownTheme).render(cellWidth).map(value => value.trimEnd())]
       : wrapTextWithAnsi(cellText(cell, toolMode, accessible, now), cellWidth)
     const rendered = lines.map(value => `  ${value}`)
@@ -361,7 +364,7 @@ export function createRenderer(options: RendererOptions): Renderer {
       result.push('', ...detail.flatMap(value => wrapTextWithAnsi(`${DIM}${plain(value)}${RESET}`, width)))
     }
     result.push(`${DIM}↑↓ select · Enter details · Esc close${RESET}`)
-    return result.slice(0, Math.max(2, rows - 3))
+    return result.slice(0, Math.max(2, rows - 3)).map(value => line(value, width))
   }
 
   const infoRows = (overlay: Extract<Overlay, { kind: 'info' }>, state: ViewState, width: number): string[] =>
@@ -442,6 +445,13 @@ export function createRenderer(options: RendererOptions): Renderer {
       const header = width >= 100
         ? [line(`${title}  ${DIM}${identity}${RESET}`, width)]
         : [line(title, width), line(`${DIM}${identity}${RESET}`, width)]
+      const { agents, jobs, entries } = activityCounts(root)
+      const counts = [
+        ...(jobs === 0 ? [] : [`${String(jobs)} job${jobs === 1 ? '' : 's'}`]),
+        ...(agents === 0 ? [] : [`${String(agents)} agent${agents === 1 ? '' : 's'}`]),
+      ].join(', ')
+      const context = root?.contextPercent === undefined ? '' : ` · ${String(root.contextPercent)}% context`
+      const activity = entries === 0 ? '' : ` · Ctrl+B ${counts || 'activity'}`
       const baseStatusText = state.exitArmed
         ? `${DIM}Ctrl+C or Ctrl+D again to exit${RESET}`
         : state.decisions.length > 0
@@ -456,10 +466,11 @@ export function createRenderer(options: RendererOptions): Renderer {
         : root === undefined
           ? `${DIM}no session · cards ${state.toolMode} · Ctrl+J newline · Ctrl+L redraw${RESET}`
           : root.status === 'running'
-            ? `${DIM}running${accessible ? ` · ${plain(root.model)}` : ''} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T toggle · cards ${state.toolMode} · Esc interrupt${RESET}`
-            : `${DIM}idle${accessible ? ` · ${plain(root.model)}` : ''} · Enter send · cards ${state.toolMode}${RESET}`
-      const activityCount = activities(state).length
-      const baseStatus = `${baseStatusText}${root?.contextPercent === undefined ? '' : ` · ${String(root.contextPercent)}% context`}${activityCount === 0 ? '' : ' · Ctrl+B activity'}`
+            ? `${DIM}running${activity}${context}${accessible ? ` · ${plain(root.model)}` : ''} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T steer/queue · Ctrl+O cards ${state.toolMode} · Esc interrupt${RESET}`
+            : `${DIM}idle${activity}${context}${accessible ? ` · ${plain(root.model)}` : ''} · Enter send · Ctrl+O cards ${state.toolMode}${RESET}`
+      const plainStatus = !state.exitArmed && state.decisions.length === 0 && state.search === undefined
+        && state.overlay === undefined && pendingCommand === undefined
+      const baseStatus = baseStatusText + (plainStatus ? '' : `${context}${entries === 0 ? '' : ' · Ctrl+B activity'}`)
       const status = state.newOutput === 0 ? baseStatus
         : `${YELLOW}${accessible ? '[new]' : '↓'} ${String(state.newOutput)} new output${state.newOutput === 1 ? '' : 's'} · Ctrl+End${RESET} · ${baseStatus}`
       const decision = state.decisions[0]
@@ -467,10 +478,9 @@ export function createRenderer(options: RendererOptions): Renderer {
         `${YELLOW}[image ${String(index + 1)}]${RESET} ${plain(attachment.name)} · ${attachment.mediaType} · ${String(attachment.bytes)} B · ${plain(attachment.path)}`,
         width,
       ))
-      const activityRows = decision !== undefined || state.search !== undefined || state.overlay !== undefined
-        ? [] : activities(state).map(item => line(`${DIM}${activityText(item, now)}${RESET}`, width))
       const persistentStatus = accessible || state.exitArmed ? undefined : options.statusLine?.()
       const composer = (): string[] => [
+        '',
         ...(persistentStatus === undefined ? [] : [line(`${DIM}${plain(persistentStatus)}${RESET}`, width)]),
         ...editor.render(width),
       ]
@@ -489,7 +499,7 @@ export function createRenderer(options: RendererOptions): Renderer {
             `${DIM}${state.search.matches.length === 0 ? 'no matches' : `${String(state.search.cursor + 1)}/${String(state.search.matches.length)}`} · Enter next · Shift+Enter previous${RESET}`,
           ]
         : state.overlay === undefined
-          ? [...activityRows, ...attachmentRows, ...composer()]
+          ? [...attachmentRows, ...composer()]
           : [
             ...overlayPanel(state.overlay, state, width, rows),
             ...(state.overlay.kind === 'list' && state.overlay.purpose === 'completion'
@@ -505,9 +515,11 @@ export function createRenderer(options: RendererOptions): Renderer {
       const materialized = options.inline ? filtered : filtered.slice(start, end)
       materializedCount = materialized.length
       const transcript = materialized.flatMap(cell => [...cellLines(cell, width, state.toolMode, now), ''])
+      if (transcript.length > 0 && control[0] === '') transcript.pop()
       const visible = options.inline ? transcript : transcript.slice(-available)
       const spacerRows = options.inline ? 0 : Math.max(0, available - visible.length)
-      return [...header, '', ...Array.from({ length: spacerRows }, () => ''), ...visible, ...control, line(status, width)]
+      const emptyComposer = options.inline && visible.length === 0 && control[0] === ''
+      return [...header, ...(emptyComposer ? [] : ['']), ...Array.from({ length: spacerRows }, () => ''), ...visible, ...control, line(status, width)]
     },
   }
 

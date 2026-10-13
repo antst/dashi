@@ -1872,16 +1872,19 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const subagentAt = shell.output.length
       shell.write('delegate research\r')
-      await shell.waitFor('Subagent · research cause · running', subagentAt)
+      await shell.waitFor('Ctrl+B 1 agent', subagentAt)
       const subagentDone = await shell.waitFor('Subagent completion acknowledged.', subagentAt, 30_000)
-      await shell.waitFor('Subagent · research cause · inactive', subagentAt)
-      await shell.waitFor('Find the bounded cause summary.', subagentAt)
       await shell.waitFor('idle ·', subagentDone)
       const detailsAt = shell.output.length
       shell.write('/tasks\r')
       await shell.waitFor('Activity', detailsAt)
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay)
+          .toMatch(/Subagent · inactive · \d+s · research cause/u)
+      }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('mode: continuable', detailsAt)
+      await shell.waitFor('Find the bounded cause summary.', detailsAt)
       child = /Background subagent ([0-9a-f-]{36})/u.exec(shell.output.slice(subagentAt))?.[1] ?? ''
       expect(child).not.toBe('')
       const detailsClosedAt = shell.output.length
@@ -1890,10 +1893,22 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const jobAt = shell.output.length
       shell.write('run a background job\r')
-      await shell.waitFor('Job · sleep 0.5; printf DASHI_JOB_DONE · running', jobAt)
+      await shell.waitFor('Ctrl+B 1 job', jobAt)
       const jobDone = await shell.waitFor('Job completion acknowledged.', jobAt, 30_000)
-      await shell.waitFor('Job · sleep 0.5; printf DASHI_JOB_DONE · completed', jobAt)
       await shell.waitFor('idle ·', jobDone)
+      const jobListAt = shell.output.length
+      shell.write('/tasks\r')
+      await shell.waitFor('Activity', jobListAt)
+      shell.write('\u001B[B')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay)
+          .toMatch(/› Job · bash-1 · \d+s · completed, exit code: 0 · sleep 0\.5; printf DASHI_JOB_DONE/u)
+      }, { timeout: testCeiling(20_000) })
+      shell.write('\r')
+      await shell.waitFor('DASHI_JOB_DONE', jobListAt)
+      const jobClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', jobClosedAt)
 
       const compactAt = shell.output.length
       shell.write('/compact\r')
@@ -1947,12 +1962,16 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       parent = sessionId(shell.output, start)
       shell.write('launch managed job\r')
       const launched = await shell.waitFor('Managed job launched.', start)
-      await shell.waitFor('Job · printf DASHI_JOB_OUTPUT; sleep 30 · running', start)
+      await shell.waitFor('Ctrl+B 1 job', start)
       await shell.waitFor('idle ·', launched)
 
       const readAt = shell.output.length
       shell.write('/bashes\r')
       await shell.waitFor('Activity', readAt)
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay)
+          .toMatch(/Job · bash-1 · \d+s · running · printf DASHI_JOB_OUTPUT; sleep 30/u)
+      }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_OUTPUT', readAt)
       shell.write('\u001B')
@@ -1961,7 +1980,21 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const killAt = shell.output.length
       shell.write('/tasks kill bash-1\r')
       await shell.waitFor('stopping bash-1', killAt)
-      await shell.waitFor('Job · printf DASHI_JOB_OUTPUT; sleep 30 · killed', killAt)
+      shell.write('/tasks\r')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay)
+          .toMatch(/› Job · bash-1 · \d+s · killed, signal: SIGTERM; cancelled by the user · printf/u)
+      }, { timeout: testCeiling(20_000) })
+      shell.write('\r')
+      await vi.waitFor(async () => {
+        const frame = (await parsedFrame(shell.output.slice(start))).overlay
+        expect(frame).toContain('Job bash-1 · killed')
+        expect(frame).toContain('signal: SIGTERM; cancelled by the user')
+        expect(frame).toContain('DASHI_JOB_OUTPUT')
+      }, { timeout: testCeiling(20_000) })
+      const killClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', killClosedAt)
 
       const subtaskAt = shell.output.length
       shell.write('/subtask inspect W046 continuation\r')
@@ -1969,11 +2002,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor(' started', subtaskAt)
       child = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
       expect(child).not.toBe('')
-      await shell.waitFor('Subagent · inspect W046 continuation ·', subtaskAt)
+      shell.write('/tasks\r')
+      await vi.waitFor(async () => {
+        expect((await parsedFrame(shell.output.slice(start))).overlay)
+          .toMatch(/Subagent · (?:running|inactive|unknown) · (?:\d+s · )?inspect W046 continuation/u)
+      }, { timeout: testCeiling(20_000) })
       await vi.waitFor(() => {
         expect(sessionEvents(child).some(event => event.type === 'user/message'
           && JSON.stringify(event.data).includes('inspect W046 continuation'))).toBe(true)
       }, { timeout: testCeiling(20_000), interval: 20 })
+      const childClosedAt = shell.output.length
+      shell.write('\u001B')
+      await shell.waitFor('idle ·', childClosedAt)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

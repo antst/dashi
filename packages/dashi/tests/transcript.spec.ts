@@ -17,6 +17,77 @@ function openTurnEvents(): SessionEvent[] {
 }
 
 describe('foldCells', () => {
+  it('restores real background bash exit, user-kill and sandbox notices with their whole native bracket', () => {
+    const events = restoreRecordedEvents(new URL('./fixtures/live-activity-bash-notices.jsonl', import.meta.url))
+    const messages = events.filter(event => event.type === 'user/message' && String(event.data.source.kind) === 'tool-jobs')
+    expect(messages).toHaveLength(4)
+    const cells = foldCells(messages)
+    expect(cells[0]?.detail).toBe('Job · bash-1 · completed, exit code: 0 · printf W139_NATIVE_EXIT_ZERO')
+    expect(cells[1]?.detail).toBe('Job · bash-2 · completed, exit code: 3 · exit 3')
+    expect(cells[2]?.detail).toContain('Job · bash-4 · completed, exit code: 1; [sandbox: file access denied under workspace-write mode] [sandbox: escalation available')
+    expect(cells[3]?.detail).toBe('Job · bash-3 · killed, signal: SIGTERM; cancelled by the user · sleep 300')
+    expect(events.find(event => event.type === 'command/run')?.data).toMatchObject({ name: 'tasks', args: ' kill bash-3' })
+    for (const [index, message] of messages.entries()) {
+      expect(cells[index]?.text).toBe(message.type === 'user/message' ? message.data.content.map(part => part.type === 'text' ? part.text : '').join('\n') : '')
+    }
+  })
+  it('keeps the whole native status bracket including exit detail and nested sandbox markers', () => {
+    const label = "echo 'completed'\nthen printf next"
+    const state = 'completed, exit code: 3; [sandbox: file access denied] [sandbox: escalation]'
+    const text = `background job bash-7 (bash: ${label}) finished [status: ${state}]. Read its output with job_output.`
+    const message = createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'tool-jobs', form: 'notice', summary: 'summary lost the state' } as never })
+    const event = { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message } as unknown as SessionEvent
+    expect(foldCells([event])[0]).toMatchObject({
+      collapsed: true, kind: 'context', text, detail: `Job · bash-7 · ${state} · ${label}`,
+    })
+    const copied = { ...message, source: { kind: 'plugin:fixture', form: 'notice', summary: 'copied notice' } }
+    expect(foldCells([{ ...event, data: copied } as SessionEvent])[0]?.detail)
+      .toBe('Context · notice · copied notice · 2 lines')
+    // A durable splice alone remains model-pending, not a human transcript cell (W-140).
+    expect(foldCells([{ type: 'agent/inbox/spliced', seq: 0, time: 0,
+      data: { target: 'inbox', start: 0, inserted: [message] } } as unknown as SessionEvent])).toEqual([])
+  })
+
+  it.each([
+    'background job bash-7\n[notice truncated]\nDone; job_output.',
+    'background job bash-7 (bash: echo failed) finished [status: stopping]. Read its output with job_output.',
+    'background job bash-7 (bash: echo failed) finished [status: completed]. Read its output with job_output. extra',
+    'BACKGROUND job bash-7 (bash: echo) finished [status: failed]. Read its output with job_output.',
+    'background job bash-7 (bash: echo) finished [status: failed, x) finished [status: completed]. Read its output with job_output.',
+    'background job bash-7 (bash: echo ) finished [status: completed, fake) finished [status: unknown]. Read its output with job_output.',
+  ])('fails closed on an undocumented job-notice body: %s', text => {
+    const message = createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'tool-jobs', form: 'notice', summary: 'native\nsummary\u001B[2J' } as never })
+    const event = { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message } as unknown as SessionEvent
+    expect(foldCells([event])[0]).toMatchObject({
+      collapsed: true, kind: 'context', text, detail: 'Job notice · native\nsummary\u001B[2J',
+    })
+  })
+
+  it('does not infer a subagent stop reason or parse another source/form as a job', () => {
+    const text = 'background job bash-1 (bash: echo) finished [status: failed]. Read its output with job_output.'
+    const events = ['subagent-settled', 'plugin:fixture'].map((kind, seq) => ({
+      type: 'user/message', seq, time: 1, surfaceOp: 'append', data: createUserMessage({
+        content: [{ type: 'text', text }], source: { kind, form: 'notice', summary: 'native child summary' } as never,
+      }),
+    })) as unknown as SessionEvent[]
+    expect(foldCells(events).map(cell => cell.detail)).toEqual([
+      'Subagent notice · native child summary', 'Context · notice · native child summary · 1 lines',
+    ])
+    const relay = { ...events[1]!, data: { ...(events[1]!.data as object), source: { kind: 'tool-jobs', form: 'relay' } } } as unknown as SessionEvent
+    expect(foldCells([relay])[0]).not.toHaveProperty('collapsed')
+    expect(foldCells([relay])[0]?.text).toBe(text)
+    const snapshot = { ...relay, data: createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'tool-jobs', form: 'snapshot' } as never }) } as SessionEvent
+    expect(foldCells([snapshot])[0]?.detail).toBe(`Context · snapshot · ${text} · 1 lines`)
+    const multipart = { ...events[0]!, data: createUserMessage({
+      content: [{ type: 'text', text }, { type: 'text', text: '' }],
+      source: { kind: 'tool-jobs', form: 'notice', summary: 'native multipart summary' } as never,
+    }) } as SessionEvent
+    expect(foldCells([multipart])[0]?.detail).toBe('Job notice · native multipart summary')
+  })
+
   it('adds credential guidance only for the native missing-credential outcome and request provider', () => {
     const events = [
       { type: 'turn/start', seq: 0, time: 1, data: { turn: 1 } },
@@ -61,7 +132,7 @@ describe('foldCells', () => {
     const cells = foldCells(contextEvents())
     expect(cells[0]).toMatchObject({
       collapsed: true,
-      detail: 'instructions · Workspace instructions · 18 lines',
+      detail: 'Context · instructions · Workspace instructions · 18 lines',
       kind: 'context',
       text: expect.stringContaining('CONTEXT_BODY_18'),
     })
@@ -81,7 +152,7 @@ describe('foldCells', () => {
     })
     const events = [{ type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message }] as unknown as SessionEvent[]
     expect(foldCells(events)[0]).toMatchObject({
-      collapsed: true, detail: `${form} · ${summary} · 2 lines`, kind: 'context',
+      collapsed: true, detail: `Context · ${form} · ${summary} · 2 lines`, kind: 'context',
     })
   })
 

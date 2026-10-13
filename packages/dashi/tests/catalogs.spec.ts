@@ -208,12 +208,14 @@ describe('terminal catalogs', () => {
       expect(sessionStatusLine(ctx, agent(), {
         cwd: '/work', id: 'session', model: 'fallback', status: 'idle',
         ...(effort === undefined ? {} : {
-          jobs: [{ id: 'job', kind: 'bash', label: 'build', startedAt: 0, status: 'running' as const }],
+          jobs: ['running', 'stopping', 'completed', 'failed', 'killed'].map((status, index) => ({
+            id: `job-${index}`, kind: 'bash', label: 'build', startedAt: 0, status,
+          })) as never,
           subagents: [{ id: 'child', label: 'research', mode: 'one-shot' as const, state: 'running' as const }],
           title: 'dashi',
         }),
       }, 'dtui/develop')).toBe(
-        `gpt-5.6-terra${effort === undefined ? '' : ` · ${effort}`} · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok${effort === undefined ? '' : ' · 1 agents · 1 jobs · dashi'} · dtui/develop`,
+        `gpt-5.6-terra${effort === undefined ? '' : ` · ${effort}`} · workspace-write · ctx 42k/200k 21% · cache 71% · 48k tok${effort === undefined ? '' : ' · 1 agents · 2 jobs · dashi'} · dtui/develop`,
       )
     }
   })

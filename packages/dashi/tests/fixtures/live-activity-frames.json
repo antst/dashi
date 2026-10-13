@@ -1,0 +1,1775 @@
+{
+  "provenance": {
+    "dsh": "0.2.1-alpha.2",
+    "maxConcurrentJobsPerOwner": 20,
+    "completionDelivery": "quiet",
+    "producer": "live-activity-producer.mjs",
+    "sessionId": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506"
+  },
+  "frames": [
+    [
+      {
+        "id": "bash-1",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_0\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104018,
+        "finishedAt": 1791898104019,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-2",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_1",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104026,
+        "finishedAt": 1791898104026,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-3",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_2",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104028,
+        "finishedAt": 1791898104028,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-4",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_3",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104029,
+        "finishedAt": 1791898104029,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-5",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_4",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104030,
+        "finishedAt": 1791898104030,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-6",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_5",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104031,
+        "finishedAt": 1791898104031,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-7",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_6",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104032,
+        "finishedAt": 1791898104032,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-8",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_7",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104033,
+        "finishedAt": 1791898104033,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-9",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_8",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104033,
+        "finishedAt": 1791898104033,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-10",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_9",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104034,
+        "finishedAt": 1791898104034,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-11",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_10",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104035,
+        "finishedAt": 1791898104035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-12",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_11\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104036,
+        "finishedAt": 1791898104036,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-13",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_12",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104037,
+        "finishedAt": 1791898104037,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-14",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_13",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104037,
+        "finishedAt": 1791898104037,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-15",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_14",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104038,
+        "finishedAt": 1791898104038,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-16",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_15",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104039,
+        "finishedAt": 1791898104039,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-17",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_16",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104039,
+        "finishedAt": 1791898104039,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-18",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_17",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104040,
+        "finishedAt": 1791898104040,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-19",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_18",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104041,
+        "finishedAt": 1791898104041,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-20",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_19",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104042,
+        "finishedAt": 1791898104042,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-21",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_20",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104043,
+        "finishedAt": 1791898104043,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-22",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_21",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104043,
+        "finishedAt": 1791898104043,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-23",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_22\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104044,
+        "finishedAt": 1791898104044,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-24",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_23",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104045,
+        "finishedAt": 1791898104045,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-25",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_24",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104046,
+        "finishedAt": 1791898104046,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-26",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_25",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104046,
+        "finishedAt": 1791898104046,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-27",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_26",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104047,
+        "finishedAt": 1791898104047,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-28",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_27",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104048,
+        "finishedAt": 1791898104048,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-29",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_28",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104048,
+        "finishedAt": 1791898104048,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-30",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_29",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104049,
+        "finishedAt": 1791898104049,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-31",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_30",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104050,
+        "finishedAt": 1791898104050,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-32",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_31",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104051,
+        "finishedAt": 1791898104051,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-33",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_32",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104051,
+        "finishedAt": 1791898104051,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-34",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_33\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104052,
+        "finishedAt": 1791898104052,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-35",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_34",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104053,
+        "finishedAt": 1791898104053,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-36",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_35",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104054,
+        "finishedAt": 1791898104054,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-37",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_36",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104057,
+        "finishedAt": 1791898104057,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-38",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_37",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104057,
+        "finishedAt": 1791898104057,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-39",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_38",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104058,
+        "finishedAt": 1791898104058,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-40",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_39",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104059,
+        "finishedAt": 1791898104059,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-41",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_40",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-42",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_41",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-43",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_42",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-44",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_43",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-45",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_44\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-46",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_45",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-47",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_46",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-48",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_47",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-49",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_48",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-50",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_49",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-51",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_50",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-52",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_51",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-53",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_52",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104060,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-54",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_53",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-55",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_54",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-56",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_55\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-57",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_56",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-58",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_57",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-59",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_58",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-60",
+        "kind": "bash",
+        "label": "\u001b[2J2Jprintf CONTROL_LABEL",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898104061,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      }
+    ],
+    [
+      {
+        "id": "bash-1",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_0\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104018,
+        "finishedAt": 1791898104019,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-2",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_1",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104026,
+        "finishedAt": 1791898104026,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-3",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_2",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104028,
+        "finishedAt": 1791898104028,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-4",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_3",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104029,
+        "finishedAt": 1791898104029,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-5",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_4",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104030,
+        "finishedAt": 1791898104030,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-6",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_5",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104031,
+        "finishedAt": 1791898104031,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-7",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_6",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104032,
+        "finishedAt": 1791898104032,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-8",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_7",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104033,
+        "finishedAt": 1791898104033,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-9",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_8",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104033,
+        "finishedAt": 1791898104033,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-10",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_9",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104034,
+        "finishedAt": 1791898104034,
+        "output": {
+          "total": 13,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-11",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_10",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104035,
+        "finishedAt": 1791898104035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-12",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_11\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104036,
+        "finishedAt": 1791898104036,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-13",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_12",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104037,
+        "finishedAt": 1791898104037,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-14",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_13",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104037,
+        "finishedAt": 1791898104037,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-15",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_14",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104038,
+        "finishedAt": 1791898104038,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-16",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_15",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104039,
+        "finishedAt": 1791898104039,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-17",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_16",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104039,
+        "finishedAt": 1791898104039,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-18",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_17",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104040,
+        "finishedAt": 1791898104040,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-19",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_18",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104041,
+        "finishedAt": 1791898104041,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-20",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_19",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104042,
+        "finishedAt": 1791898104042,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-21",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_20",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104043,
+        "finishedAt": 1791898104043,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-22",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_21",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104043,
+        "finishedAt": 1791898104043,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-23",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_22\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104044,
+        "finishedAt": 1791898104044,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-24",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_23",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104045,
+        "finishedAt": 1791898104045,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-25",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_24",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104046,
+        "finishedAt": 1791898104046,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-26",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_25",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104046,
+        "finishedAt": 1791898104046,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-27",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_26",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104047,
+        "finishedAt": 1791898104047,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-28",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_27",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104048,
+        "finishedAt": 1791898104048,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-29",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_28",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104048,
+        "finishedAt": 1791898104048,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-30",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_29",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104049,
+        "finishedAt": 1791898104049,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-31",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_30",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104050,
+        "finishedAt": 1791898104050,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-32",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_31",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104051,
+        "finishedAt": 1791898104051,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-33",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_32",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104051,
+        "finishedAt": 1791898104051,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-34",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_33\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104052,
+        "finishedAt": 1791898104052,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-35",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_34",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104053,
+        "finishedAt": 1791898104053,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-36",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_35",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "failed",
+        "detail": "exit code: 1",
+        "startedAt": 1791898104054,
+        "finishedAt": 1791898104054,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-37",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_36",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104057,
+        "finishedAt": 1791898104057,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-38",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_37",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104057,
+        "finishedAt": 1791898104057,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-39",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_38",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104058,
+        "finishedAt": 1791898104058,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-40",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_39",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104059,
+        "finishedAt": 1791898104059,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-41",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_40",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105018,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-42",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_41",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105019,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-43",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_42",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105020,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-44",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_43",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105020,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-45",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_44\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105021,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-46",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_45",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105021,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-47",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_46",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105022,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-48",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_47",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105022,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-49",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_48",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105023,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-50",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_49",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105024,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-51",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_50",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105024,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-52",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_51",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105025,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-53",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_52",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104060,
+        "finishedAt": 1791898105025,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-54",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_53",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105026,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-55",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_54",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105026,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-56",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_55\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105027,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-57",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_56",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105027,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-58",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_57",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105031,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-59",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_58",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105031,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-60",
+        "kind": "bash",
+        "label": "\u001b[2J2Jprintf CONTROL_LABEL",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "completed",
+        "detail": "exit code: 0",
+        "startedAt": 1791898104061,
+        "finishedAt": 1791898105032,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-61",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_60",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-62",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_61",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-63",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_62",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-64",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_63",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-65",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_64",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-66",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_65",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-67",
+        "kind": "bash",
+        "label": "cat <<'W139'\nHEREDOC_66\nsecond line\nW139",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-68",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_67",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-69",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_68",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      },
+      {
+        "id": "bash-70",
+        "kind": "bash",
+        "label": "printf JOB_OUTPUT_69",
+        "owner": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506",
+        "status": "running",
+        "startedAt": 1791898105035,
+        "output": {
+          "total": 14,
+          "earliest": 0
+        }
+      }
+    ]
+  ]
+}

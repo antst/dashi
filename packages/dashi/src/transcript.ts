@@ -57,9 +57,19 @@ function collapsedContextCell(message: UserMessage, key: string): TerminalCell |
   const text = messageText(message.content)
   const lines = text.split(/\r?\n/u)
   const first = form === 'notice' && typeof source.summary === 'string' ? source.summary : lines[0] ?? ''
+  let head = `Context · ${String(form)} · ${first.trim()} · ${String(lines.length)} lines`
+  if (form === 'notice' && source.kind === 'tool-jobs') {
+    // @deepseek-ai/dsh-tool-jobs 0.2.1-alpha.2 README.md:40 documents this exact form.
+    // The one boundary and exact terminal suffix admit nested bracket detail.
+    const match = message.content.length === 1 && message.content[0]?.type === 'text'
+      && text.split(') finished [status: ').length === 2
+      ? /^background job (\S+) \(([^():\r\n]+): ([\s\S]*)\) finished \[status: ((?:completed|killed|failed)(?:, [\s\S]*)?)\]\. Read its output with job_output\.$/u.exec(text)
+      : null
+    head = match === null ? `Job notice · ${first}` : `Job · ${match[1]} · ${match[4]} · ${match[3]}`
+  } else if (form === 'notice' && source.kind === 'subagent-settled') head = `Subagent notice · ${first}`
   return {
     collapsed: true,
-    detail: `${String(form)} · ${first.trim()} · ${String(lines.length)} lines`,
+    detail: head,
     key,
     kind: 'context',
     text,

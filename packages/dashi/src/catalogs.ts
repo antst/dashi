@@ -19,6 +19,7 @@ import { detectAtTrigger } from './at-trigger.js'
 import { pluginCompletionQuery, slashCompletionQuery } from './completion-trigger.js'
 import { isImagePath } from './image-input.js'
 import { sessionTitle } from './session-list.js'
+import { activityCounts } from './presentation.js'
 
 function matchRank(name: string, query: string): number {
   const candidate = name.toLocaleLowerCase()
@@ -223,8 +224,7 @@ export function sessionStatusLine(ctx: Context, agent: Agent, root: RootView, re
   const context = used === undefined ? undefined
     : contextPressure?.contextWindow === undefined ? `ctx ${compactTokens(used)}`
       : `ctx ${compactTokens(used)}/${compactTokens(contextPressure.contextWindow)} ${String(Math.min(100, Math.round(used / contextPressure.contextWindow * 100)))}%`
-  const agents = root.subagents?.filter(item => item.state === 'running').length ?? 0
-  const jobs = root.jobs?.filter(item => item.status === 'running' || item.status === 'stopping').length ?? 0
+  const { agents, jobs } = activityCounts(root)
   return [
     model?.model ?? root.model,
     ...(model?.reasoningEffort === undefined ? [] : [model.reasoningEffort]),
