@@ -45,12 +45,30 @@ export function createProcessTerminal(onWheel?: (lines: number) => void): Termin
 export function createTerminalGuard(session: TerminalSession): TerminalGuard {
   let phase: 'fresh' | 'active' | 'cooked' | 'released' = 'fresh'
   let disposal: Promise<void> | undefined
+  let restoreOnExit: (() => void) | undefined
+
+  const stopOwned = (): void => {
+    if (restoreOnExit === undefined) return
+    process.off('exit', restoreOnExit)
+    restoreOnExit = undefined
+    session.stop(true)
+  }
+
+  const startOwned = (): void => {
+    restoreOnExit = function restore() {
+      if (restoreOnExit !== restore) return
+      phase = 'released'
+      stopOwned()
+    }
+    process.once('exit', restoreOnExit)
+    session.start()
+  }
 
   const stopActive = async (): Promise<void> => {
     try {
       await session.drainInput()
     } finally {
-      session.stop(true)
+      stopOwned()
     }
   }
 
@@ -58,7 +76,7 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
     start() {
       if (phase !== 'fresh') return
       phase = 'active'
-      session.start()
+      startOwned()
     },
 
     dispose() {
@@ -78,7 +96,7 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
       } finally {
         if (phase === 'cooked') {
           phase = 'active'
-          session.start()
+          startOwned()
           session.render(true)
         }
       }
