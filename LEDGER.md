@@ -6415,6 +6415,78 @@ each as observed or as read from source. Then a plain 0.2.1 of the
 four packages, prepared as its own step under D-049 and D-052, and
 the fleet after it.
 
+Review 2026-10-13 (PR #320 at 911aa0b, hosted run 38392237038, 23 of
+23 on the first attempt; independent reviewer in its own worktrees):
+accept with notes, no mechanism to remove. The base guard fails the
+native forced-exit case on the same assertion as the W-137 stop
+report and the head passes it; an ordinary SIGTERM writes the same
+escape sequences as before; only the core archive changes
+(6520007e...b6a8). The reviewer also measured on the real profile,
+base against head: a second SIGTERM, SIGINT and an uncaught
+exception while teardown is wedged, and the timer exit in inline
+mode; none restored the terminal before and each does at the head.
+Ruled as one follow-up push before the merge: a stop that throws is
+contained inside the exit callback only, because a throw in an exit
+listener stops later listeners and, through DSH's fatal path (an
+exit inside an async function), can keep the process from exiting
+at all; controls for the two accepted properties that no committed
+test covered (the listener is registered before the start; the
+token is consumed before the stop); the two native cases remove
+their per-run directories on a pass; the limits name every signal
+DSH does not catch (it catches SIGTERM and SIGINT only).
+Pre-existing and untouched: an external editor open at SIGTERM is
+orphaned after five seconds. Carried: three existing PTY cases
+depend on the length of TMPDIR.
+
+### W-139 dashi: the live activity rows flood the screen — status: open (owner dsh-exec, analysis first; ships in 0.2.1 with W-138)
+From the owner, 2026-10-13, on long-running sessions with dozens of
+background jobs (0.2.0-alpha.2, about 200 by 60): two screens of
+`Job ·` rows between the conversation and the composer, tool rows
+wedged between them, no separator above the model status line; "it
+is currently beyond messy and unuseable", "what is what and where -
+impossible to figure out", "you need to think a bit more about UI".
+Unchanged in 0.2.0.
+Cause, read from source and reproduced with xterm-headless
+(renderer.ts 154-173 and 461-477 at develop): the control region
+draws one row for every job and subagent of the root whatever its
+status (W-009), and DSH's job registry never drops a settled job,
+so the region grows with the session; on the DSH 0.2 line every
+bash call registers a job, and background starts and foreground
+calls promoted after the timeout stay. A job's label reaches the
+row without sanitising, against DESIGN 13; one with newlines
+becomes several physical rows that the inline screen does not
+count, so later writes land displaced: stale rows in scrollback and
+tool rows between two copies of the block. A running foreground
+command shows twice, as its pending tool cell and as a job row.
+Decision, put to the owner the same hour: remove the always-on
+activity rows of W-009, for jobs and subagents, running or settled.
+A region with no rows is bounded by construction. What remains is
+already there: the count of running jobs in the status line,
+extended to running subagents; the Ctrl+B overlay and /tasks as the
+one list; the pending tool cell; the durable notice row when a
+background job settles. With it: every collapsed head and overlay
+row is one terminal row and is sanitised; state before command
+where DSH gives the state as a fact, never read out of free text;
+one blank row above the model status line; the footer hint names
+the steer toggle and the card key separately. Basis for the
+removal: DESIGN 6.1 has no such block and section 16 rejects a
+permanent dashboard; DSH's own web list folds settled jobs behind a
+count; Codex shows one line with the count of running background
+terminals and lists them on demand; Claude Code documents only the
+on-demand list.
+Acceptance: a recorded session with at least sixty jobs (settled
+and running, several multi-line labels, one with control bytes) at
+80 by 24 and 200 by 60, inline and full screen: no activity row in
+the control region, the last transcript rows visible, nothing stale
+in scrollback after fifty renders with changing job states, every
+head and overlay row one row, the blank row present, Ctrl+B lists
+all sixty with status. DESIGN 6.1 and 6.2 in the same pull request.
+The analysis says what the user loses by the removal and whether a
+background failure is visible before the next turn. How a message
+relayed from another session reads (today the plugin's envelope,
+kept on purpose by D-045 ruling 4, W-027 and W-101) is analysed
+with it and ruled separately.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -6499,6 +6571,21 @@ queued with an observation). The plugin had the same history and
 answered it with W-134. For dashi: one maintained driver for the
 two proof places of D-053, with a replay test, written once the
 mac bundle of this release shows what a second host needs.
+
+### B-009 dashi: per-frame cost in a long inline session — status: backlog (to be measured)
+Read from source at v0.2.0-alpha.2 while tracing W-139, not
+measured. The live event list of a root is never trimmed, and every
+publish, up to one per 34 ms, refolds the whole list
+(session-runtime.ts:436-450, 490); inline mode materialises every
+loaded cell on each frame (renderer.ts:503), which W-003 took as
+bounded by the 50-message follow snapshot; the line cache is
+first-in first-out at 512 entries with no refresh on a hit
+(renderer.ts:255-266), so beyond 512 settled cells every cell would
+miss on every frame; a relayed or unformed context cell has no
+length bound (transcript.ts:211-215); each subagent refresh lists
+all host sessions (presentation.ts:47-50). Measure on a recorded
+session of the size the owner runs (context near half a million
+tokens) before deciding anything.
 
 ## Upstream reports
 
