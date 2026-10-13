@@ -5822,6 +5822,68 @@ that is now a condition of every brief that touches a publish path.
 The item stays open for the host proofs (D-053), the tag and the
 registry check.
 
+Host proof on the dsh host, 2026-10-13 (D-049, D-053): verified with
+stated limits by an opus agent that read the packet against the brief
+and re-measured the live host; no defect in the candidate. Packet
+dsh-host-dashi-020/20261013T013843Z (279 files, manifest
+80757c82...d317). The four archives packed from 311d4c5 have the four
+hashes above. Measured by the verifier: in both proof places the
+installed files of the app, the core and the provider are byte-equal
+to the archives, one copy each, the launcher likewise; @sessionbus/dsh
+one copy at 0.1.1 with the published integrity; all 37 protected
+paths of the owner's side unchanged in inode, time and hash, none of
+his seven profiles booted, the daemon and his web process untouched.
+Part F, a new user's first run: a private DSH home, the candidate
+launcher installed alone in a proof project, the profile created by
+the native install and add; the first prompt answered by DSH's
+missing-credential result and the guidance toward /model, the masked
+key question reached and cancelled with nothing typed, no replay;
+the launcher's -g groups shown by the native command; exit 0 with a
+resume instruction that names no install layout. Part U, the owner's
+situation: a profile dashi-proof-up in the real DSH home, built by
+the ordinary commands as his was (published alpha.2 app, dsh-codex
+0.3.2 with the catalog override, a byte copy of his patch file) and
+upgraded in place by the one native add: four package records
+replaced and nothing else, the pre.20 plugin gone without a cleanup
+step. Confirmed from the native logs: a real turn with the shell
+tool on the owner's model server, the permission dialog allowed
+once, one loop fire, a subtask round trip, a sender-labelled relay
+waking the idle root, the typed /sessionbus turn; no lane.
+Stated limits. Not shown: the candidate launcher against a profile
+with a model; a real turn in the fresh profile; the owner's own
+profile and lock (the fresh baseline resolved zod 4.6.7 and
+resolve.exports 2.0.4 where his has 4.6.5 and 2.0.3); the registry
+path without selectors; opening a migration-required session (its
+row was read, at 120 columns ending in "migration..." and in full at
+200); the group proof-b on the daemon's side. The wiring: two
+parent-scoped selectors in the fresh profile's workspace file; in
+dashi-proof-up all three overrides in package.json, because pnpm
+10.28.1 ignores the workspace file's overrides when package.json has
+its own (measured; see W-136).
+Eight stops, none a candidate defect, nothing replayed: five were the
+driver's guesses about labels, frames and a list field, one a frame
+wait on /config, and two were the architect's brief, which assumed
+that the daemon's roster and a direct send by session id ignore
+groups. They do not: a root with no group in its environment or
+profile joins only its own session group, so no peer can list or
+message it until -g or /sessionbus-groups names one; the alpha.2
+proof had a group in its environment. The verifier found the
+brief's guards blind in three places and measured them itself: the
+package contents of a hoisted profile, ~/.dsh/storages, and sessions
+by id. Two shared files were written there: one group record for
+the proof's root, and the schedule store, rewritten by /loop. From
+the installed schedule service (one table per DSH home, loaded once,
+rewritten whole on every change, nothing pruned) and the file as it
+stands, the store held no other task and nothing was removed; a
+task created on the owner's web page during those seven minutes is
+the one case this cannot exclude (B-006). The packet holds the
+owner's session list and his provider's identifiers in its frames
+and is private to his account. Left on the host: dashi-proof-up with
+its wiring, for the registry re-add after the publish; three
+sessions in his history; the packet; working directories under /tmp.
+The mac proof follows with a bundle that carries only the four
+archives and a fixed driver.
+
 ### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
 On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
 (run 38213993300, attempt 4, job 114712113037) on PR #304, which
@@ -6073,6 +6135,33 @@ a pnpm of another version with switching off must be refused; the
 Node and platform refusals stay hand-checked and are stated so. No
 source, lock or workflow change.
 
+Accepted 2026-10-13 (antst/dashi PR #316, squash
+997b71de6a4d033c1b50572576efd2c3a11e6c94; four
+files, no source, lock or workflow change). A fifth point joined the
+four during the host proof: the install guide told every user to put
+the catalog override for dsh-codex into the profile's package.json,
+which pnpm 11 and 12 ignore. Measured on a tiny fixture by the
+builder and again by the reviewer, for pnpm 10.28.1, 10.34.7, 11.28.5
+and 12.11.2: an override in the profile's pnpm-workspace.yaml alone
+applies on all four; with both places filled pnpm 10 reads only
+package.json and pnpm 11 and 12 read only the workspace file. The
+guide now names that one file, which DSH creates in every profile,
+and tells readers of the earlier instruction to move their entries
+and remove the old block. The other four as written above: the
+sibling control changes only the range and fails when the sibling
+check is removed; a failing build shows the compiler's diagnostics;
+RELEASING.md packs into a directory outside the working tree and
+says that the local check reads the registry; a decoy directory
+survives the clean and a pnpm of another version is refused before
+any clean, build or pack. Review by an opus agent at ca98f05:
+accept; hosted run 38339325441, 23 of 23; the Linux gate printed the
+four lines of W-131 unchanged. Carried to the next change of these
+files: the spec's comment on toolchain admission is no longer exact,
+and RELEASING.md's directory variable lives in one shell under /tmp.
+The owner's own profile on the dsh host still has its override in
+package.json, which works on pnpm 10.28.1; it moves to the workspace
+file with the post-publish upgrade.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -6127,6 +6216,36 @@ amendment of "partial lists have no public representation". Our DSH
 plugin's list tool has no timeout and hangs for the whole stall. The
 three review reports are kept on the dsh host under
 ~/.local/state/dsh-architect/sessionbus-108/.
+
+### B-006 DSH: two processes drop each other's scheduled tasks — status: backlog (DSH gap, to be reproduced and reported)
+Found by the verifier of the W-131 host proof on 2026-10-13, from
+the installed @deepseek-ai/dsh-schedule 0.2.1-alpha.2 over
+dsh-storage-json: one schedule table per DSH home in one file, read
+once when a process boots, rewritten whole from that process's copy
+on every change, with no lock between processes. Two DSH processes
+that both use /loop or reminders (two dashi windows, or dashi beside
+the web server) each write the file from their own copy, and the
+later writer drops the other's tasks from it; they live on only in
+the memory of the process that made them. Not yet reproduced with
+two processes. Then: an upstream report on the owner's word, and a
+line in the README's known gaps.
+
+### B-007 dashi: two things a user cannot see at 120 columns — status: backlog
+From the W-131 host proof, both unchanged since alpha.2. After
+/config the settings document is printed with its path as the first
+of 53 lines, which is above the viewport at 40 rows. In the resume
+picker a migration-required row with a long title ends in
+"migration..." at 120 columns and shows the full label only when the
+terminal is wider.
+
+### B-008 dashi: a maintained host-proof driver — status: backlog
+The W-131 host proof stopped eight times, five of them on its
+per-proof driver (labels typed from memory, keys batched across a
+frame, an unsupported list field, a guessed id prefix, an exit
+queued with an observation). The plugin had the same history and
+answered it with W-134. For dashi: one maintained driver for the
+two proof places of D-053, with a replay test, written once the
+mac bundle of this release shows what a second host needs.
 
 ## Upstream reports
 
