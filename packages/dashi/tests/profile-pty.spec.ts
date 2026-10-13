@@ -1,4 +1,4 @@
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
@@ -45,6 +45,7 @@ import {
   packWorkspacePackage,
   PtyShell,
   waitForIdleAfter,
+  waitForTerminalMode,
   relevantTerminalMode,
   parsedFrame,
   firstFrame,
@@ -1807,6 +1808,88 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
     await expectResumable(id, replayFixture, { DSH_HOME: hardeningHome }, hardeningCwd)
   }, 60_000)
+
+  it.each([false, true])('restores after native SIGTERM with a held-flush fault armed=%s', async armed => {
+    const evidence = join(root, '.cache', 'w137-forced-exit', `${process.pid}-${Date.now()}-${armed}`)
+    mkdirSync(evidence, { recursive: true })
+    const receiptPath = join(evidence, 'native-exit.json')
+    const patch = join(evidence, 'fixture.patch.yml')
+    const fixture = new URL('./fixtures/held-flush.mjs', import.meta.url).href
+    writeFileSync(patch, `- insert:\n    - id: held-flush-fixture\n      name: '${fixture}'\n`)
+    const { baseline, shell } = await prepareShell({
+      DSH_DASHI_HELD_FLUSH_RECEIPT: receiptPath,
+      DEEPSEEK_API_KEY: undefined,
+      SESSIONBUS_LAUNCH_TOKEN: undefined,
+      SESSIONBUS_GROUPS: undefined,
+      SESSIONBUS_SOCKET: join(evidence, 'absent.sock'),
+    })
+    let passed = false
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(patch)} --fullscreen`)
+      await shell.waitFor('idle ·', start)
+      if (armed) {
+        const armingAt = shell.output.length
+        shell.write('/dashi-arm-held-flush\r')
+        await shell.waitFor('W137_FLUSH_ARMED', armingAt)
+        await shell.waitFor('W137_FLUSH_ENTERED', armingAt)
+        await vi.waitFor(async () => {
+          expect((await parsedFrame(shell.output)).status).toContain('idle ·')
+        }, { timeout: testCeiling(20_000) })
+      }
+      const pid = shell.childPid()
+      const signalledAt = shell.output.length
+      process.kill(pid, 'SIGTERM')
+      await vi.waitFor(() => {
+        expect(existsSync(receiptPath)).toBe(true)
+        expect(() => { process.kill(pid, 0) }).toThrow()
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      const receipt = JSON.parse(readFileSync(receiptPath, 'utf8')) as {
+        pid: number; code: number; signalledAt: number; exitedAt: number;
+        armedSession?: string; flushEnteredAt?: number; heldAt?: number;
+        held: boolean; maintenanceError?: string; stack: string;
+      }
+      expect(receipt.pid).toBe(pid)
+      expect(receipt.code).toBe(0)
+      expect(receipt.signalledAt).toBeTypeOf('number')
+      if (armed) {
+        expect(receipt.armedSession).toBe(sessionId(shell.output, start))
+        expect(receipt.maintenanceError).toBeUndefined()
+        expect(receipt.flushEnteredAt).toBeTypeOf('number')
+        expect(receipt.flushEnteredAt).toBeLessThanOrEqual(receipt.signalledAt)
+        expect(receipt.held).toBe(true)
+        expect(receipt.heldAt).toBeTypeOf('number')
+        expect(receipt.heldAt).toBeGreaterThanOrEqual(receipt.signalledAt)
+        expect(receipt.heldAt).toBeLessThan(receipt.exitedAt)
+        expect(shell.output.slice(signalledAt)).toContain('W137_FLUSH_HELD')
+        expect(receipt.stack).toContain('Timeout.')
+        expect(receipt.stack).toContain('profile-boot-')
+        expect(receipt.stack).toContain('forceExitOnce')
+      } else {
+        expect(receipt.held).toBe(false)
+        expect(receipt.stack).not.toContain('Timeout.')
+      }
+      const terminal = new HeadlessTerminal({ allowProposedApi: true, cols: 80, rows: 24 })
+      await new Promise<void>(resolveWrite => { terminal.write(shell.output, resolveWrite) })
+      const buffer = terminal.buffer.active.type
+      const restoredAt = shell.output.length
+      shell.write("printf '__MODE_AFTER__\\n'; stty -a | tr '\\n' ' '; printf '\\n__SHELL_OK__\\n'\n")
+      const restored = await waitForTerminalMode(shell, '__MODE_AFTER__', restoredAt)
+      await shell.waitFor('__SHELL_OK__', restoredAt)
+      writeFileSync(join(evidence, 'terminal.txt'), shell.output)
+      writeFileSync(join(evidence, 'observed.json'), JSON.stringify({
+        armed, pid, buffer, baseline: relevantTerminalMode(baseline), restored: relevantTerminalMode(restored),
+        alternateScreenLeave: shell.output.slice(signalledAt).includes('\u001B[?1049l'),
+        signalToExitMs: receipt.exitedAt - receipt.signalledAt,
+      }, null, 2) + '\n')
+      expect(buffer).toBe('normal')
+      expect(shell.output.slice(signalledAt)).toContain('\u001B[?1049l')
+      expect(relevantTerminalMode(restored)).toBe(relevantTerminalMode(baseline))
+      passed = true
+    } finally {
+      await shell.close()
+      if (passed) rmSync(evidence, { recursive: true, force: true })
+    }
+  }, testCeiling(30_000))
 
   it('contains a throwing presenter across resize and keeps the session resumable', async () => {
     const snapshot = presenterFailureSnapshot()
