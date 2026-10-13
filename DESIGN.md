@@ -368,15 +368,16 @@ accessible modes. Sanitize model, path, title, tool, and plugin text before it
 reaches pi-tui.
 
 There are no always-on job or subagent rows between the conversation and the
-composer. The unchanged state comes first in the footer, then its activity
-key and running counts in words (`running · Ctrl+B 20 jobs, 2 agents`), also
-in accessible mode; the model status uses the same native counts. With only
-settled entries the hint is `Ctrl+B activity`. One order at every width keeps
-the key visible while truncation may cut the counts' tail. The one
+composer: labels, elapsed time and progress are no longer always visible.
+In plain idle/running footers, new output comes first when present, then the
+state, activity key/counts (`running · Ctrl+B 20 jobs, 2 agents`), context
+percentage and long hints, also in accessible mode. The model status uses
+the same native counts. With only settled entries the hint is `Ctrl+B activity`.
+One order at every width preserves the key before long hints. The one
 complete activity list is `Ctrl+B` or `/tasks`, including settled entries and
 their output. A foreground command remains in its tool cell, not a second
-activity block. The activity key is omitted during a decision and deferred
-until Escape closes search. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
+activity block. Other footers are unchanged, including the old activity hint
+during a decision, where its key does nothing. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
 cards. One blank row always separates the conversation from the model status
 (or from the composer when that status is not shown).
 
@@ -397,15 +398,18 @@ Tool output is compact by default: first 12 and last 8 lines plus an omitted
 count. Detail opens in a scrollable overlay; the durable session remains the
 only full log. Hidden reasoning is never reconstructed.
 
-Collapsed Context heads, including job and subagent notices, and activity
-list rows are one sanitised terminal row. Activity rows put the native state
-and elapsed time before the label. Command heads and receipts remain complete
+In collapsed card mode only, Context heads (including job/subagent notices)
+are one sanitised terminal row. Activity list rows are also one row, with
+native status, its full detail and elapsed time before the label. Command heads and receipts remain complete
 in every card mode; tool and Todo heads retain wrapping so their status cannot
 be truncated away. Expanded content and human/assistant text are unchanged.
 
-A job notice reads its state only from DSH's documented, anchored
-`tool-jobs`/`notice` body; any other form keeps the native summary without an
-inferred state. DSH's capped job notices and subagent notices do not carry a
+A job notice reads the whole state bracket only from DSH's documented,
+anchored `tool-jobs`/`notice` body with one boundary delimiter; ambiguous or
+capped forms keep the native summary without an inferred state. Shell commands
+report completed even on nonzero exit, so their exit detail remains visible.
+Export and search carry the same head as the screen, alongside its full body.
+DSH's capped job notices and subagent notices do not carry a
 structured outcome/stop reason: this is a DSH gap, not presentation state.
 A background settlement enters the conversation only when the model takes
 the native notice, not at its inbox splice. Until then the running count

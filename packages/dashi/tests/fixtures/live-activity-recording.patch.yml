@@ -1,0 +1,8 @@
+# Private volume fixture only. These are both non-default test settings.
+- id: jobs
+  config: { maxConcurrentJobsPerOwner: 20 }
+- id: tool-jobs
+  config: { completionDelivery: quiet }
+- insert:
+    - id: live-activity-recording
+      name: !!js 'file://' + process.cwd() + '/packages/dashi/tests/fixtures/live-activity-producer.mjs'

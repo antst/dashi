@@ -171,7 +171,7 @@ function latestPendingCommand(cells: readonly TerminalCell[]): TerminalCell | un
 function activityText(activity: Activity, now: number): string {
   if (activity.kind === 'job') {
     const job = activity.value
-    return plain(`Job · ${job.status} · ${duration(jobElapsed(job, now))} · ${job.label}${job.progress === undefined ? '' : ` · ${job.progress}`}${job.detail === undefined ? '' : ` · ${job.detail}`}`)
+    return plain(`Job · ${job.status}${job.detail === undefined ? '' : `, ${job.detail}`} · ${duration(jobElapsed(job, now))} · ${job.label}${job.progress === undefined ? '' : ` · ${job.progress}`}`)
   }
   const subagent = activity.value
   const elapsed = subagentElapsed(subagent, now)
@@ -445,6 +445,13 @@ export function createRenderer(options: RendererOptions): Renderer {
       const header = width >= 100
         ? [line(`${title}  ${DIM}${identity}${RESET}`, width)]
         : [line(title, width), line(`${DIM}${identity}${RESET}`, width)]
+      const { agents, jobs, entries } = activityCounts(root)
+      const counts = [
+        ...(jobs === 0 ? [] : [`${String(jobs)} job${jobs === 1 ? '' : 's'}`]),
+        ...(agents === 0 ? [] : [`${String(agents)} agent${agents === 1 ? '' : 's'}`]),
+      ].join(', ')
+      const context = root?.contextPercent === undefined ? '' : ` · ${String(root.contextPercent)}% context`
+      const activity = entries === 0 ? '' : ` · Ctrl+B ${counts || 'activity'}`
       const baseStatusText = state.exitArmed
         ? `${DIM}Ctrl+C or Ctrl+D again to exit${RESET}`
         : state.decisions.length > 0
@@ -457,22 +464,15 @@ export function createRenderer(options: RendererOptions): Renderer {
         : pendingCommand !== undefined
           ? `${DIM}running ${plain(pendingCommand.text).split(/\s/u)[0] ?? 'command'}${pendingCommand.startedAt === undefined ? '' : ` · ${duration(now - pendingCommand.startedAt)}`}${RESET}`
         : root === undefined
-          ? `${DIM}no session · Ctrl+J newline · Ctrl+O cards ${state.toolMode} · Ctrl+L redraw${RESET}`
+          ? `${DIM}no session · cards ${state.toolMode} · Ctrl+J newline · Ctrl+L redraw${RESET}`
           : root.status === 'running'
-            ? `${DIM}running${accessible ? ` · ${plain(root.model)}` : ''} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T steer/queue · Ctrl+O cards ${state.toolMode} · Esc interrupt${RESET}`
-            : `${DIM}idle${accessible ? ` · ${plain(root.model)}` : ''} · Enter send · Ctrl+O cards ${state.toolMode}${RESET}`
-      const { agents, jobs, entries } = activityCounts(root)
-      const counts = [
-        ...(jobs === 0 ? [] : [`${String(jobs)} job${jobs === 1 ? '' : 's'}`]),
-        ...(agents === 0 ? [] : [`${String(agents)} agent${agents === 1 ? '' : 's'}`]),
-      ].join(', ')
-      const activityHint = state.decisions.length > 0 || entries === 0 ? ''
-        : `${state.search === undefined ? 'Ctrl+B' : 'Ctrl+B after Esc'} ${counts || 'activity'}`
-      const [stateStatus, ...longHints] = baseStatusText.split(' · ')
-      const status = [stateStatus, ...(activityHint === '' ? [] : [activityHint]),
-        ...(state.newOutput === 0 ? [] : [`${YELLOW}${accessible ? '[new]' : '↓'} ${String(state.newOutput)} new output${state.newOutput === 1 ? '' : 's'} · Ctrl+End${RESET}`]),
-        ...longHints,
-      ].join(' · ') + (root?.contextPercent === undefined ? '' : ` · ${String(root.contextPercent)}% context`)
+            ? `${DIM}running${activity}${context}${accessible ? ` · ${plain(root.model)}` : ''} · Enter ${state.sendMode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T steer/queue · Ctrl+O cards ${state.toolMode} · Esc interrupt${RESET}`
+            : `${DIM}idle${activity}${context}${accessible ? ` · ${plain(root.model)}` : ''} · Enter send · Ctrl+O cards ${state.toolMode}${RESET}`
+      const plainStatus = !state.exitArmed && state.decisions.length === 0 && state.search === undefined
+        && state.overlay === undefined && pendingCommand === undefined && root !== undefined
+      const baseStatus = baseStatusText + (plainStatus ? '' : `${context}${entries === 0 ? '' : ' · Ctrl+B activity'}`)
+      const status = state.newOutput === 0 ? baseStatus
+        : `${YELLOW}${accessible ? '[new]' : '↓'} ${String(state.newOutput)} new output${state.newOutput === 1 ? '' : 's'} · Ctrl+End${RESET} · ${baseStatus}`
       const decision = state.decisions[0]
       const attachmentRows = state.attachments.map((attachment, index) => line(
         `${YELLOW}[image ${String(index + 1)}]${RESET} ${plain(attachment.name)} · ${attachment.mediaType} · ${String(attachment.bytes)} B · ${plain(attachment.path)}`,
@@ -518,7 +518,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       if (transcript.length > 0 && control[0] === '') transcript.pop()
       const visible = options.inline ? transcript : transcript.slice(-available)
       const spacerRows = options.inline ? 0 : Math.max(0, available - visible.length)
-      return [...header, '', ...Array.from({ length: spacerRows }, () => ''), ...visible, ...control, line(status, width)]
+      const emptyComposer = options.inline && visible.length === 0 && attachmentRows.length === 0
+        && decision === undefined && state.search === undefined && state.overlay === undefined
+      return [...header, ...(emptyComposer ? [] : ['']), ...Array.from({ length: spacerRows }, () => ''), ...visible, ...control, line(status, width)]
     },
   }
 

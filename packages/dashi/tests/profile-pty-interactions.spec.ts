@@ -1902,7 +1902,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u001B[B')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · completed · \d+s · sleep 0\.5; printf DASHI_JOB_DONE/u)
+          .toMatch(/› Job · completed, exit code: 0 · \d+s · sleep 0\.5; printf DASHI_JOB_DONE/u)
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_DONE', jobListAt)
@@ -1983,7 +1983,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/tasks\r')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/Job · killed · \d+s · printf DASHI_JOB_OUTPUT; sleep 30/u)
+          .toMatch(/› Job · killed, signal: SIGTERM; cancelled by the user · \d+s · printf /u)
+      }, { timeout: testCeiling(20_000) })
+      shell.write('\r')
+      await vi.waitFor(async () => {
+        const frame = (await parsedFrame(shell.output.slice(start))).overlay
+        expect(frame).toContain('Job bash-1 · killed')
+        expect(frame).toContain('signal: SIGTERM; cancelled by the user')
+        expect(frame).toContain('DASHI_JOB_OUTPUT')
       }, { timeout: testCeiling(20_000) })
       const killClosedAt = shell.output.length
       shell.write('\u001B')

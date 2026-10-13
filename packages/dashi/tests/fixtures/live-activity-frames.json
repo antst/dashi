@@ -2,6 +2,7 @@
   "provenance": {
     "dsh": "0.2.1-alpha.2",
     "maxConcurrentJobsPerOwner": 20,
+    "completionDelivery": "quiet",
     "producer": "live-activity-producer.mjs",
     "sessionId": "session-b6c7c213-ffaa-48be-b526-69e7b49e9506"
   },

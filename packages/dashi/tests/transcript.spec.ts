@@ -17,14 +17,29 @@ function openTurnEvents(): SessionEvent[] {
 }
 
 describe('foldCells', () => {
-  it('uses the native job-notice suffix, never delimiters inside the opaque label', () => {
-    const label = "echo ') finished [status: completed]. Read its output with job_output.'\nthen printf next"
-    const text = `background job bash-7 (bash: ${label}) finished [status: failed, exit code: 1]. Read its output with job_output.`
+  it('restores real background bash exit, user-kill and sandbox notices with their whole native bracket', () => {
+    const events = restoreRecordedEvents(new URL('./fixtures/live-activity-bash-notices.jsonl', import.meta.url))
+    const messages = events.filter(event => event.type === 'user/message' && String(event.data.source.kind) === 'tool-jobs')
+    expect(messages).toHaveLength(4)
+    const cells = foldCells(messages)
+    expect(cells[0]?.detail).toBe('Job · completed, exit code: 0 · bash-1 · printf W139_NATIVE_EXIT_ZERO')
+    expect(cells[1]?.detail).toBe('Job · completed, exit code: 3 · bash-2 · exit 3')
+    expect(cells[2]?.detail).toContain('Job · completed, exit code: 1; [sandbox: file access denied under workspace-write mode] [sandbox: escalation available')
+    expect(cells[3]?.detail).toBe('Job · killed, signal: SIGTERM; cancelled by the user · bash-3 · sleep 300')
+    expect(events.find(event => event.type === 'command/run')?.data).toMatchObject({ name: 'tasks', args: ' kill bash-3' })
+    for (const [index, message] of messages.entries()) {
+      expect(cells[index]?.text).toBe(message.type === 'user/message' ? message.data.content.map(part => part.type === 'text' ? part.text : '').join('\n') : '')
+    }
+  })
+  it('keeps the whole native status bracket including exit detail and nested sandbox markers', () => {
+    const label = "echo 'completed'\nthen printf next"
+    const state = 'completed, exit code: 3; [sandbox: file access denied] [sandbox: escalation]'
+    const text = `background job bash-7 (bash: ${label}) finished [status: ${state}]. Read its output with job_output.`
     const message = createUserMessage({ content: [{ type: 'text', text }],
       source: { kind: 'tool-jobs', form: 'notice', summary: 'summary lost the state' } as never })
     const event = { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message } as unknown as SessionEvent
     expect(foldCells([event])[0]).toMatchObject({
-      collapsed: true, kind: 'context', text, detail: `Job · failed · bash-7 · ${label}`,
+      collapsed: true, kind: 'context', text, detail: `Job · ${state} · bash-7 · ${label}`,
     })
     const copied = { ...message, source: { kind: 'plugin:fixture', form: 'notice', summary: 'copied notice' } }
     expect(foldCells([{ ...event, data: copied } as SessionEvent])[0]?.detail)
@@ -39,7 +54,7 @@ describe('foldCells', () => {
     'background job bash-7 (bash: echo failed) finished [status: stopping]. Read its output with job_output.',
     'background job bash-7 (bash: echo failed) finished [status: completed]. Read its output with job_output. extra',
     'BACKGROUND job bash-7 (bash: echo) finished [status: failed]. Read its output with job_output.',
-    'background job bash-7 (bash: echo) finished [status: failed, detail [ambiguous]]. Read its output with job_output.',
+    'background job bash-7 (bash: echo) finished [status: failed, x) finished [status: completed]. Read its output with job_output.',
     'background job bash-7 (bash: echo ) finished [status: completed, fake) finished [status: unknown]. Read its output with job_output.',
   ])('fails closed on an undocumented job-notice body: %s', text => {
     const message = createUserMessage({ content: [{ type: 'text', text }],
@@ -63,6 +78,9 @@ describe('foldCells', () => {
     const relay = { ...events[1]!, data: { ...(events[1]!.data as object), source: { kind: 'tool-jobs', form: 'relay' } } } as unknown as SessionEvent
     expect(foldCells([relay])[0]).not.toHaveProperty('collapsed')
     expect(foldCells([relay])[0]?.text).toBe(text)
+    const snapshot = { ...relay, data: createUserMessage({ content: [{ type: 'text', text }],
+      source: { kind: 'tool-jobs', form: 'snapshot' } as never }) } as SessionEvent
+    expect(foldCells([snapshot])[0]?.detail).toBe(`Context · snapshot · ${text} · 1 lines`)
     const multipart = { ...events[0]!, data: createUserMessage({
       content: [{ type: 'text', text }, { type: 'text', text: '' }],
       source: { kind: 'tool-jobs', form: 'notice', summary: 'native multipart summary' } as never,

@@ -1,7 +1,8 @@
 import { writeFileSync } from 'node:fs'
 
-// Native recording only: the fixture patch sets maxConcurrentJobsPerOwner=20.
-// The shipped default is 10. No owner sessions or external commands are used.
+// Volume recording: maxConcurrentJobsPerOwner=20 and completionDelivery=quiet.
+// These are registry operations with scripted outcomes, not bash processes.
+// Real bash notices are recorded separately. No owner sessions are used.
 export const name = 'dashi-live-activity-recording'
 export const inject = ['commands', 'jobs']
 
@@ -56,7 +57,7 @@ export function apply(ctx) {
         capture(agent)
       }
       writeFileSync(file, JSON.stringify({
-        provenance: { dsh: '0.2.1-alpha.2', maxConcurrentJobsPerOwner: 20, producer: 'live-activity-producer.mjs', sessionId: agent.id }, frames,
+        provenance: { dsh: '0.2.1-alpha.2', maxConcurrentJobsPerOwner: 20, completionDelivery: 'quiet', producer: 'live-activity-producer.mjs', sessionId: agent.id }, frames,
       }, null, 2) + '\n')
       return { kind: 'success', text: `W139_RECORDED_${frames.at(-1).length}` }
     },

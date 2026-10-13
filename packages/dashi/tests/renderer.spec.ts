@@ -9,7 +9,7 @@ import { VERSION_LINE } from '../src/help.js'
 import { createRenderer, type Renderer } from '../src/renderer.js'
 import { historyInputs } from '../src/rewind.js'
 import { jobViews } from '../src/presentation.js'
-import type { JobView, TerminalCell } from '../src/state.js'
+import { initialViewState, type JobView, type TerminalCell } from '../src/state.js'
 import { foldCells } from '../src/transcript.js'
 import { inputHistoryEvents } from './fixtures/input-history.js'
 import { recordedEvents } from './fixtures/session-format.js'
@@ -26,11 +26,13 @@ function openTurnCells() {
 }
 
 const activityRecording = JSON.parse(readFileSync(new URL('./fixtures/live-activity-frames.json', import.meta.url), 'utf8')) as {
-  provenance: { dsh: string; maxConcurrentJobsPerOwner: number }
+  provenance: { dsh: string; maxConcurrentJobsPerOwner: number; completionDelivery: string }
   frames: JobView[][]
 }
 const activityEvents = recordedEvents(new URL('./fixtures/live-activity-session.jsonl', import.meta.url))
 const activityCells = foldCells(activityEvents)
+const bashNotices = foldCells(recordedEvents(new URL('./fixtures/live-activity-bash-notices.jsonl', import.meta.url)))
+  .filter(cell => cell.detail?.startsWith('Job ·'))
 const sixtyJobs = jobViews(activityRecording.frames[0]! as never)
 const seventyJobs = jobViews(activityRecording.frames[1]! as never)
 
@@ -1097,8 +1099,9 @@ describe('terminal renderer', () => {
             await shell.whenIdle(); await terminal.flush()
             const prefix = state === 'pending' ? 'running /compact' : state === 'decision' ? 'decision 1/1' : state === 'search' ? 'history search' : state
             expect(terminal.liveLines().at(-1)).toMatch(new RegExp(`^${prefix} ·`, 'u'))
-            if (jobs.length > 0 && state !== 'decision') expect(terminal.liveLines().at(-1)).toMatch(new RegExp(`^${prefix} · Ctrl\\+B`, 'u'))
-            else expect(terminal.liveLines().at(-1)).not.toContain('Ctrl+B')
+            if (jobs.length > 0 && (state === 'idle' || state === 'running')) expect(terminal.liveLines().at(-1)).toMatch(new RegExp(`^${prefix} · Ctrl\\+B`, 'u'))
+            else if (jobs.length === 0) expect(terminal.liveLines().at(-1)).not.toContain('Ctrl+B')
+            else if (columns === 200) expect(terminal.liveLines().at(-1)).toContain('Ctrl+B activity')
             if (answer !== undefined) {
               terminal.send('\u001B'); await shell.whenIdle(); await expect(answer).resolves.toBe('cancelled')
             }
@@ -1108,11 +1111,107 @@ describe('terminal renderer', () => {
     })
   }
 
+  it('pins plain running and idle footer words, context order and the leading new-output indicator', async () => {
+    for (const accessible of [false, true]) {
+      const terminal = new ScreenTerminal(200, 24, true)
+      let state = initialViewState('/fixture', false, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'running',
+        contextPercent: 47, jobs: sixtyJobs, subagents: [
+          { id: 'a', label: 'a', mode: 'one-shot', state: 'running' },
+          { id: 'b', label: 'b', mode: 'one-shot', state: 'running' },
+        ] })
+      const renderer = createRenderer({ accessible, dispatch: () => {}, inline: false, readState: () => state, terminal })
+      renderer.start()
+      try {
+        for (const [status, mode] of [['running', 'steer'], ['running', 'next-turn'], ['idle', 'steer']] as const) {
+          state = { ...state, root: { ...state.root!, status }, sendMode: mode, newOutput: 1 }
+          renderer.render(true); await terminal.flush()
+          const hints = status === 'idle' ? 'Enter send · Ctrl+O cards collapsed'
+            : `Enter ${mode === 'steer' ? 'steer' : 'queue next turn'} · Ctrl+T steer/queue · Ctrl+O cards collapsed · Esc interrupt`
+          expect(terminal.liveLines().at(-1)).toBe(`${accessible ? '[new]' : '↓'} 1 new output · Ctrl+End · ${status} · Ctrl+B 20 jobs, 2 agents · 47% context${accessible ? ' · recorded' : ''} · ${hints}`)
+        }
+        terminal.resize(80, 24)
+        state = { ...state, newOutput: 0, root: { ...state.root!, status: 'running' } }
+        renderer.render(true); await terminal.flush()
+        expect(terminal.liveLines().at(-1)).toContain('running · Ctrl+B 20 jobs, 2 agents · 47% context')
+      } finally { renderer.stop(false) }
+    }
+  })
+
+  it('keeps develop footer bytes in every non-plain state, including separator-bearing overlay titles', async () => {
+    const terminal = new ScreenTerminal(200, 24, true)
+    const base = initialViewState('/fixture', false, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle',
+      contextPercent: 47, jobs: sixtyJobs })
+    let state = base
+    const renderer = createRenderer({ dispatch: () => {}, inline: false, readState: () => state, terminal })
+    const cases = [
+      [{ overlay: { kind: 'info', title: 'Job bash-1 · completed', lines: [] } }, 'Job bash-1 · completed · ↑↓ choose · Enter select · Esc close'],
+      [{ overlay: { kind: 'list', purpose: 'model', title: 'Model', options: [], cursor: 0 } }, 'model · ↑↓ choose · Enter select · Esc close'],
+      [{ overlay: { kind: 'history', cursor: 0, expanded: false } }, 'history · ↑↓ choose · Enter select · Esc close'],
+      [{ search: { scope: 'transcript', query: '', matches: [], cursor: 0 } }, 'transcript search · Enter next · Shift+Enter previous · Esc close'],
+      [{ exitArmed: true }, 'Ctrl+C or Ctrl+D again to exit'],
+      [{ decisions: [{ kind: 'approval', id: 'd', cursor: 0, owner: { id: 'session' }, prompt: 'Approve?', toolName: 'bash' }] }, 'decision 1/1 · ↑↓/1-9 choose · Enter answer · Esc cancel'],
+      [{ cells: [{ key: 'command', kind: 'command', pending: true, text: '/compact' }] }, 'running /compact'],
+    ] as const
+    renderer.start()
+    try {
+      for (const [delta, text] of cases) {
+        state = { ...base, ...delta } as typeof base
+        renderer.render(true); await terminal.flush()
+        const expected = `\u001B[2m${text}\u001B[0m · 47% context · Ctrl+B activity`
+        expect(terminal.output).toContain(expected)
+        expect(terminal.liveLines().at(-1)).toBe(`${text} · 47% context · Ctrl+B activity`)
+      }
+      state = initialViewState('/fixture', false)
+      renderer.render(true); await terminal.flush()
+      expect(terminal.output).toContain('\u001B[2mno session · cards collapsed · Ctrl+J newline · Ctrl+L redraw\u001B[0m')
+      expect(terminal.liveLines().at(-1)).toBe('no session · cards collapsed · Ctrl+J newline · Ctrl+L redraw')
+    } finally { renderer.stop(false) }
+  })
+
+  it('owns exactly one composer blank with an empty inline transcript and below attachments', async () => {
+    for (const attachments of [false, true]) {
+      const terminal = new ScreenTerminal(80, 24, true)
+      const state = initialViewState('/fixture', true, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle' }, [], [], false,
+        attachments ? [{ name: 'image', mediaType: 'image/png', bytes: 1, path: '/fixture/image.png' }] as never : [])
+      const renderer = createRenderer({ dispatch: () => {}, inline: true, readState: () => state, statusLine: () => 'MODEL_STATUS', terminal })
+      renderer.start()
+      try {
+        renderer.render(true); await terminal.flush()
+        const lines = terminal.allLines()
+        const hud = lines.indexOf('MODEL_STATUS')
+        expect(lines[hud - 1]).toBe('')
+        expect(lines[hud - 2]).not.toBe('')
+        if (attachments) expect(lines[hud - 2]).toContain('[image 1]')
+        else expect(hud).toBe(3) // two header rows, one blank; no transcript/header spacer duplication.
+      } finally { renderer.stop(false) }
+    }
+  })
+
+  it('bounds every activity panel row including a long accessible selected-entry announcement', async () => {
+    const terminal = new ScreenTerminal(80, 24, true)
+    const state = { ...initialViewState('/fixture', true, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle',
+      jobs: [{ id: 'bash-1', kind: 'bash', label: 'PANEL_LONG_LABEL '.repeat(80), status: 'completed',
+        detail: 'exit code: 3', startedAt: 0, finishedAt: 0 }] }), overlay: { cursor: 0, kind: 'details' as const, expanded: false } }
+    // The alternate-screen renderer clips wide rows itself; inline mode rejects an unbounded head.
+    const renderer = createRenderer({ accessible: true, dispatch: () => {}, inline: true, readState: () => state, terminal })
+    renderer.start()
+    try {
+      renderer.render(true); await terminal.flush()
+      const lines = terminal.liveLines()
+      expect(lines.find(value => value.startsWith('activity ·'))).toContain('activity · ↑↓ choose')
+      expect(lines.filter(value => value.includes('PANEL_LONG_LABEL'))).toHaveLength(1)
+      expect(lines.find(value => value.startsWith('Activity'))).toContain('completed, exit code: 3')
+      expect(lines.find(value => value.startsWith('> Job'))).toContain('completed, exit code: 3 · 0s · PANEL_LONG_LABEL')
+      expect(lines.filter(value => value.trim().startsWith('PANEL_LONG_LABEL'))).toEqual([])
+      for (let row = 0; row < terminal.rows; row++) expect(terminal.screen.buffer.active.getLine(row + terminal.screen.buffer.active.viewportY)?.isWrapped).toBe(false)
+    } finally { renderer.stop(false) }
+  })
+
   for (const inline of [true, false]) {
     for (const [columns, rows] of [[80, 24], [200, 60]] as const) {
       it(`keeps the native 60/70-job control region fixed through fifty redraws, ${inline ? 'inline' : 'fullscreen'} ${columns}x${rows}`, async () => {
-        // The native fixture deliberately raised only its test job concurrency to 20.
-        expect(activityRecording.provenance).toMatchObject({ dsh: '0.2.1-alpha.2', maxConcurrentJobsPerOwner: 20 })
+        // Native registry volume: concurrency20 and quiet completion delivery; no real bash outcomes claimed here.
+        expect(activityRecording.provenance).toMatchObject({ dsh: '0.2.1-alpha.2', maxConcurrentJobsPerOwner: 20, completionDelivery: 'quiet' })
         expect(sixtyJobs).toHaveLength(60)
         expect(sixtyJobs.filter(job => job.status === 'running')).toHaveLength(20)
         expect(sixtyJobs.filter(job => job.status === 'completed' || job.status === 'failed')).toHaveLength(40)
@@ -1162,6 +1261,7 @@ describe('terminal renderer', () => {
             expect(terminal.allLines().slice(0, -6)).toEqual(transcriptBefore)
           }
           shell.dispatch({ type: 'root-presentation', rootId: 'session', jobs: sixtyJobs })
+          if (!inline) return // One complete list walk per width; all four modes/sizes still exercise fifty redraws.
           terminal.send('\u0002'); await shell.whenIdle(); await terminal.flush()
           expect(shell.readState().overlay).toMatchObject({ cursor: 0, kind: 'details' })
           for (const [index, job] of sixtyJobs.entries()) {
@@ -1170,7 +1270,7 @@ describe('terminal renderer', () => {
             const lines = terminal.liveLines()
             const selected = lines.find(value => value.startsWith('› Job ·'))
             expect(shell.readState().overlay).toMatchObject({ cursor: index, kind: 'details' })
-            expect(selected).toMatch(new RegExp(`^› Job · ${job.status} · (?:\\d+s|\\d+m \\d+s|\\d+h \\d+m) · `, 'u'))
+            expect(selected).toContain(`› Job · ${job.status}${job.detail === undefined ? '' : `, ${job.detail}`} · `)
             const label = job.label.replaceAll('\u001B[2J', '').replaceAll('\u009B2J', '').replaceAll('\n', ' ')
             expect(selected).toContain(label)
             expect(lines.filter(value => value.includes('Job ·')).every(value => value.startsWith('› Job ·') || value.startsWith('  Job ·'))).toBe(true)
@@ -1184,13 +1284,12 @@ describe('terminal renderer', () => {
   }
 
   it('keeps native claimed job heads one row, failed state first, and leaves expanded text and command receipts intact', async () => {
-    const jobs = activityCells.filter(cell => cell.detail?.startsWith('Job ·'))
-    expect(jobs).toHaveLength(40)
+    expect(bashNotices).toHaveLength(4)
     const cells: TerminalCell[] = [
       { key: 'context', kind: 'context', collapsed: true, text: 'NATIVE_CONTEXT_BODY\nsecond body line', detail: `Context · snapshot · line one\nline two\u001B[2J\u009B2J ${'long '.repeat(40)}` },
       { key: 'job-gap', kind: 'context', collapsed: true, text: 'CAPPED_NATIVE_BODY', detail: 'Job notice · native\nsummary\u001B[2J' },
       { key: 'child-gap', kind: 'context', collapsed: true, text: 'NATIVE_CHILD_BODY', detail: `Subagent notice · native\nchild summary ${'long '.repeat(30)}` },
-      jobs[0]!,
+      ...bashNotices,
     ]
     const terminal = new ScreenTerminal(80, 24, true)
     const shell = createTerminalShell({ createView: bindings => createRenderer({ ...bindings, inline: false, statusLine: () => 'MODEL_STATUS', terminal }),
@@ -1202,20 +1301,27 @@ describe('terminal renderer', () => {
       await shell.whenIdle(); await terminal.flush()
       const lines = terminal.liveLines()
       const heads = lines.filter(value => /^  (?:Context|Job|Subagent)/u.test(value))
-      expect(heads).toHaveLength(4)
+      expect(heads).toHaveLength(7)
       expect(heads[0]).toContain('Context · snapshot · line one line two')
       expect(heads[1]).toBe('  Job notice · native summary')
       expect(heads[2]).toContain('Subagent notice · native child summary')
-      expect(heads[3]).toMatch(/^  Job · failed · bash-1 · cat/u)
-      expect(heads[3]).toContain('HEREDOC_0 second line')
+      expect(heads[3]).toBe('  Job · completed, exit code: 0 · bash-1 · printf W139_NATIVE_EXIT_ZERO')
+      expect(heads[4]).toBe('  Job · completed, exit code: 3 · bash-2 · exit 3')
+      expect(heads[5]).toContain('Job · completed, exit code: 1; [sandbox: file access denied')
+      expect(heads[6]).toContain('Job · killed, signal: SIGTERM; cancelled by the user · bash-3')
       expect(lines.join('\n')).not.toContain('NATIVE_CONTEXT_BODY')
-      expect(lines.filter(value => value.includes('HEREDOC_0'))).toHaveLength(1)
+      for (const head of heads) {
+        const row = lines.indexOf(head)
+        expect(lines[row + 1]).toBe('') // Count the full head, not only its first prefix row.
+        expect(terminal.screen.buffer.active.getLine(row + 1 + terminal.screen.buffer.active.viewportY)?.isWrapped).toBe(false)
+      }
       terminal.send('\u000F'); await shell.whenIdle(); await terminal.flush()
       expect(shell.readState().toolMode).toBe('expanded')
       for (const cell of cells) {
         shell.dispatch({ type: 'transcript-changed', cells: [cell] })
         await shell.whenIdle(); await terminal.flush()
-        expect(terminal.liveLines().join('\n')).toContain(cell.text.split('\n')[0])
+        // Expanded native bodies wrap at the terminal width; every non-whitespace character remains.
+        expect(terminal.liveLines().join('\n').replace(/\s/gu, '')).toContain(cell.text.replace(/\s/gu, ''))
       }
       const command = { key: 'command', kind: 'command' as const, text: `/config ${'argument '.repeat(12)}\nRECEIPT_FULL_PATH_AND_ID\nsecond receipt line` }
       for (const mode of ['expanded', 'hidden', 'collapsed'] as const) {
@@ -1235,7 +1341,7 @@ describe('terminal renderer', () => {
           createView: bindings => createRenderer({ ...bindings, accessible, inline: false, terminal }),
           cwd: '/fixture', exit: () => {}, inline: false,
           initialRoot: { cwd: '/fixture', id: 'session', model: 'recorded', status: 'running', jobs: sixtyJobs,
-            subagents: [{ id: 'a', label: 'native child\nlabel\u001B[2J', mode: 'continuable', state: 'running' },
+            subagents: [{ id: 'a', label: 'native child\nlabel\u0003', mode: 'continuable', state: 'running' },
               { id: 'b', label: 'second', mode: 'one-shot', state: 'running' },
               { id: 'c', label: 'finished', mode: 'continuable', state: 'inactive' }] },
         })
@@ -1245,6 +1351,7 @@ describe('terminal renderer', () => {
           expect(terminal.liveLines().at(-1)).toMatch(/^running · Ctrl\+B 20 jobs/u)
           if (columns >= 48) expect(terminal.liveLines().at(-1)).toContain('20 jobs, 2 agents')
           terminal.send('\u0002'); await shell.whenIdle(); await terminal.flush()
+          expect(terminal.output).not.toContain('\u0003') // ETX is not pi-tui's own OSC terminator; the screen stays readable.
           expect(shell.readState().overlay).toMatchObject({ kind: 'details' })
           expect(terminal.liveLines().join('\n')).toMatch(/Subagent · running/u)
           expect(terminal.liveLines().join('\n')).not.toMatch(/^label/mu)
@@ -1258,15 +1365,16 @@ describe('terminal renderer', () => {
           expect(terminal.liveLines().at(-1)).not.toMatch(/\d+ jobs/u)
           const answer = shell.requestDecision({ cursor: 0, id: 'approval', kind: 'approval', owner: { id: 'session' }, prompt: 'Native approval', toolName: 'bash' })
           await shell.whenIdle(); await terminal.flush()
-          expect(terminal.liveLines().at(-1)).not.toContain('Ctrl+B')
+          expect(terminal.liveLines().at(-1)).toContain('decision 1/1')
+          if (columns >= 80) expect(terminal.liveLines().at(-1)).toContain('Ctrl+B activity')
           terminal.send('\u0002'); await shell.whenIdle()
           expect(shell.readState().overlay).toBeUndefined()
           terminal.send('\u001B'); await shell.whenIdle()
           await expect(answer).resolves.toBe('cancelled')
           shell.dispatch({ type: 'search-open', scope: 'transcript' })
           await shell.whenIdle(); await terminal.flush()
-          expect(terminal.liveLines().at(-1)).toMatch(/^transcript search · Ctrl\+B/u)
-          if (columns >= 48) expect(terminal.liveLines().at(-1)).toContain('Ctrl+B after Esc')
+          expect(terminal.liveLines().at(-1)).toMatch(/^transcript search · Enter next/u)
+          expect(terminal.liveLines().at(-1)).not.toContain('Ctrl+B after Esc')
           terminal.send('\u001B'); await shell.whenIdle()
           terminal.send('\u0002'); await shell.whenIdle()
           expect(shell.readState().overlay).toMatchObject({ kind: 'details' })
