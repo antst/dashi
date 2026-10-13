@@ -7,7 +7,9 @@ import { checkReleaseVersion, releasePackages, releaseRoot } from './check-relea
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', ...options })
-  if (result.error || result.status !== 0) throw new Error(command + ' failed: ' + (result.error ?? result.stderr))
+  if (result.error || result.status !== 0) {
+    throw new Error(command + ' failed:\n' + [result.stdout, result.stderr, result.error?.message].filter(Boolean).join('\n'))
+  }
   return result.stdout
 }
 
