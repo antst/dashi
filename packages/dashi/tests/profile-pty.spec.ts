@@ -77,7 +77,7 @@ import {
 setupProfileFixtures()
 
 describe.sequential('shipped profile terminal lifecycle', () => {
-  it('shows native request, chunks, pending tool and retry facts, pulses, then clears at turn end', async () => {
+  it('shows native request, chunks, pending tool and retry facts, pulses, then clears at turn end', async ({ onTestFailed }) => {
     // Published keyless replay adapter, scripted override; real DSH loop/tools/retry records, not a model recording.
     const started = performance.now()
     const gate = join(testDir, 'w143-tool-release')
@@ -85,46 +85,70 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     writeFileSync(patch, readFileSync(replayPatch, 'utf8').replace('            name: Replay',
       '            name: Replay\n            retryPolicy:\n              mode: normal\n              maxRetries: 1\n              retryableCodes: [TIMEOUT]\n              backoff: {initialDelayMs: 1000, maxDelayMs: 1000, jitterRatio: 0}'))
     const shell = new PtyShell(replayFixture, undefined, root, {
-      DSH_WORKING_PROOF: gate, DSH_REPLAY_PACE_MS: '750',
+      // Two 500 ms pulse periods plus 250 ms for publication/polling before the first chunk.
+      DSH_WORKING_PROOF: gate, DSH_REPLAY_PACE_MS: '1250',
       DSH_SNAPSHOT_OVERRIDE: join(root, 'packages/dashi/tests/fixtures/working-row.override.json'),
     })
+    let stage = 'first session header'
+    const stages: [string, number][] = [[stage, performance.now() - started]]
+    let lastRows = '(no decoded frame yet)'
+    let start = 0
+    onTestFailed(async () => {
+      const elapsed = performance.now() - started
+      const failedStage = stage
+      try { lastRows = (await parsedFrame(shell.output.slice(start))).text }
+      catch { lastRows += '\n(last frame could not be decoded)' }
+      process.stderr.write(`W143 native failure: waiting for ${failedStage} at ${elapsed.toFixed(0)} ms\n`
+        + `elapsed stages: ${JSON.stringify(stages)}\nlast decoded rows:\n${lastRows}\n`)
+    })
+    const mark = (name: string): void => { stage = name; stages.push([name, performance.now() - started]) }
+    const wait = async (name: string, check: (frame: Awaited<ReturnType<typeof parsedFrame>>) => void, interval?: number): Promise<void> => {
+      mark(name)
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(shell.output.slice(start))
+        lastRows = frame.text
+        try { check(frame) }
+        catch (error) { throw new Error(`Waiting for ${name}\nlast decoded rows:\n${lastRows}`, { cause: error }) }
+      }, { timeout: testCeiling(20_000), ...(interval === undefined ? {} : { interval }) })
+    }
     let id = ''
     try {
-      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(patch)} --fullscreen`)
+      start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(patch)} --fullscreen`)
       id = sessionId(shell.output, start)
-      await vi.waitFor(async () => { expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle ·') }, { timeout: testCeiling(20_000) })
+      await wait('first idle frame', frame => { expect(frame.status).toContain('idle ·') })
       shell.write('W143 exercise working facts\r')
       const row = (text: string) => text.split('\n').find(line => /^[·•●] /u.test(line))
-      await vi.waitFor(async () => {
-        expect(row((await parsedFrame(shell.output.slice(start))).text)).toMatch(/Retry wait · \d+s · turn \d+s · retry 1/u)
-      }, { timeout: testCeiling(20_000) })
+      await wait('Retry wait', frame => {
+        expect(row(frame.text)).toMatch(/Retry wait · \d+s · turn \d+s · retry 1/u)
+      })
       const shapes = new Set<string>()
-      await vi.waitFor(async () => {
-        const line = row((await parsedFrame(shell.output.slice(start))).text)
+      await wait('Waiting for model with two pulse shapes', frame => {
+        const line = row(frame.text)
         expect(line).toMatch(/Waiting for model · \d+s · turn \d+s · retry 1/u)
         shapes.add(line![0]!)
         expect(shapes.size).toBeGreaterThanOrEqual(2)
-      }, { timeout: testCeiling(20_000), interval: 20 })
-      for (const phase of ['Reasoning', 'Receiving text', 'Tool request']) await vi.waitFor(async () => {
-        expect(row((await parsedFrame(shell.output.slice(start))).text)).toContain(phase)
-      }, { timeout: testCeiling(20_000), interval: 20 })
-      await vi.waitFor(async () => {
-        expect(row((await parsedFrame(shell.output.slice(start))).text)).toMatch(/Tool pending · \d+s · turn \d+s · dashi_working_hold/u)
-      }, { timeout: testCeiling(20_000) })
+      }, 20)
+      for (const phase of ['Reasoning', 'Receiving text', 'Tool request']) await wait(phase, frame => {
+        expect(row(frame.text)).toContain(phase)
+      }, 20)
+      await wait('Tool pending dashi_working_hold', frame => {
+        expect(row(frame.text)).toMatch(/Tool pending · \d+s · turn \d+s · dashi_working_hold/u)
+      })
       writeFileSync(gate, 'release after observed native pending call\n')
-      await vi.waitFor(async () => {
-        const frame = await parsedFrame(shell.output.slice(start))
+      await wait('native completed text, idle frame and working row absent', frame => {
         expect(frame.text).toContain('W143_NATIVE_COMPLETE')
         expect(frame.status).toContain('idle ·')
         expect(row(frame.text)).toBeUndefined()
-      }, { timeout: testCeiling(20_000) })
+      })
       const exitAt = shell.output.length
       shell.write('\u0004\u0004')
+      mark('alternate screen released after ordinary exit')
       await shell.waitFor('\u001B[?1049l', exitAt)
     } finally {
       await shell.close()
       if (process.env.DSH_WORKING_CAPTURE !== undefined) writeFileSync(process.env.DSH_WORKING_CAPTURE, shell.output)
     }
+    mark('native call, result, retry and completed-turn records')
     const events = sessionLog(id).events as unknown as SessionEvent[]
     if (process.env.DSH_WORKING_CAPTURE !== undefined) writeFileSync(`${process.env.DSH_WORKING_CAPTURE}.events.json`, JSON.stringify(events, null, 2))
     const retries = events.filter(event => String(event.type) === 'llm/retry' || String(event.type) === 'llm/retry-started')
