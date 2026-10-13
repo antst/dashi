@@ -42,7 +42,6 @@ jobs:
         run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
       - uses: pnpm/action-setup@v6
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
       - name: Pack and check the annotated tag before any other release job
         run: |
           node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
@@ -85,7 +84,6 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
       - name: Verify plain release version
         id: release
         run: |
@@ -106,7 +104,7 @@ jobs:
             echo "GitHub release $GITHUB_REF_NAME already exists"
             exit 0
           fi
-          if ! rg -q '\(HTTP 404\)' "$RUNNER_TEMP/release-query-error.log"; then
+          if ! grep -Fq '(HTTP 404)' "$RUNNER_TEMP/release-query-error.log"; then
             cat "$RUNNER_TEMP/release-query-error.log" >&2
             exit 1
           fi

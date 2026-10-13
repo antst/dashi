@@ -536,9 +536,7 @@ installable previews of all three packages through pkg.pr.new once its GitHub
 App is installed.
 Run `pnpm gate:docker` to execute the same containerized gate used by CI.
 
-To release, update the versions and changelog on `develop`, merge it to `main`,
-then push the matching `vX.Y.Z` tag. The release workflow runs the full gate,
-creates the GitHub release, and publishes to npm with trusted publishing.
+Maintainers: follow [RELEASING.md](RELEASING.md) to cut a release.
 
 After `pnpm install`, build, install both local workspace packages into an
 isolated `dashi-dev` profile, and boot it with one command:

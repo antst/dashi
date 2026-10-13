@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkReleaseVersion, releasePackages, releaseRoot } from './check-release-version.mjs'
@@ -49,6 +49,9 @@ export function packRelease(directory) {
   if (manager !== 'pnpm@' + actual) throw new Error('Release pack requires workspace ' + manager + ', got pnpm@' + actual)
   const packages = releasePackages()
   checkReleaseVersion('v' + packages[0].manifest.version, packages.map(pkg => pkg.manifest.version))
+  rmSync(resolve(releaseRoot, 'packages/file-uploads-none/lib'), { recursive: true, force: true })
+  rmSync(resolve(releaseRoot, 'packages/dashi/lib'), { recursive: true, force: true })
+  console.error(run('pnpm', ['build'], { cwd: releaseRoot }).trim())
   mkdirSync(directory, { recursive: true })
   for (const pkg of packages) {
     console.error(run('pnpm', ['--dir', pkg.directory, 'pack', '--pack-destination', resolve(directory)], { cwd: releaseRoot }).trim())
@@ -56,7 +59,7 @@ export function packRelease(directory) {
   return readReleaseArchives(directory)
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   if (!process.argv[2]) throw new Error('Usage: node scripts/pack-release.mjs ARCHIVE_DIRECTORY')
   for (const payload of packRelease(process.argv[2])) console.log(payload.sha256 + '  ' + payload.filename)
 }

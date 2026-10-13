@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readReleaseArchives } from './pack-release.mjs'
@@ -56,12 +56,12 @@ export async function publishRelease(payloads, lock) {
     const identity = payload.manifest.name + '@' + payload.manifest.version
     if (present[index]) { console.log(identity + ': already published with equal bytes'); continue }
     const result = spawnSync('pnpm', ['publish', payload.archive, '--access', 'public', '--provenance', '--no-git-checks', '--tag', 'latest'],
-      { cwd: releaseRoot, stdio: 'inherit' })
+      { cwd: releaseRoot, stdio: 'inherit', env: { ...process.env, pnpm_config_fetch_retries: '0' } })
     if (result.error || result.status !== 0) throw new Error(identity + ': publish failed; registry outcome may be uncertain (' + (result.error ?? result.status) + ')')
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   if (!process.argv[2]) throw new Error('Usage: node scripts/publish-release-payloads.mjs ARCHIVE_DIRECTORY')
   await publishRelease(readReleaseArchives(process.argv[2]), readFileSync(resolve(releaseRoot, 'pnpm-lock.yaml'), 'utf8'))
 }
