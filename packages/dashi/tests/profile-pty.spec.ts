@@ -82,13 +82,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const id = sessionId(shell.output, start)
       shell.write('/dashi-unowned-job-proof\r')
       await vi.waitFor(async () => {
-        expect((await parsedFrame(shell.output.slice(start))).transcript)
-          .toContain('Job · W114 unowned output · completed')
+        const frame = await parsedFrame(shell.output.slice(start))
+        expect(frame.status).toContain('Ctrl+B activity')
+        expect(frame.transcript).not.toContain('Job ·')
       }, { timeout: testCeiling(20_000) })
       for (let read = 0; read < 2; read++) {
         shell.write('/tasks\r')
         await vi.waitFor(async () => {
-          expect((await parsedFrame(shell.output.slice(start))).overlay).toContain('W114 unowned output')
+          expect((await parsedFrame(shell.output.slice(start))).overlay)
+            .toMatch(/Job · completed · \d+s · W114 unowned output/u)
         }, { timeout: testCeiling(20_000) })
         shell.write('\r')
         await vi.waitFor(async () => {
@@ -96,7 +98,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         }, { timeout: testCeiling(20_000) })
         shell.write('\u001B')
         await vi.waitFor(async () => {
-          expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle · Enter send')
+          expect((await parsedFrame(shell.output.slice(start))).status).toContain('idle · Ctrl+B activity · Enter send')
         }, { timeout: testCeiling(20_000) })
       }
       shell.write('/dashi-unowned-job-proof consume\r')

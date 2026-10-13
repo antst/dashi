@@ -351,10 +351,11 @@ own Agent registry, not whether another process owns the session. Title may be
  Assistant
  The race was caused by returning the stale entry after the version check…
 
+   deepseek-chat · high · workspace-write · ctx 84k/200k 42%
  ─────────────────────────────────────────────────────────────────────
    Ask a follow-up…
  ─────────────────────────────────────────────────────────────────────
-   workspace-write · deepseek-chat/high · 42% context · Enter send · F1 help
+   idle · Ctrl+B 2 jobs · Enter send · Ctrl+O cards collapsed
 ```
 
 DSH owns every fact shown in the header. There is no Git branch because this
@@ -365,6 +366,19 @@ diff green/red. Avoid nested boxes, decorative chrome, and indispensable
 animation. Respect `NO_COLOR`; retain ASCII status markers in monochrome and
 accessible modes. Sanitize model, path, title, tool, and plugin text before it
 reaches pi-tui.
+
+There are no always-on job or subagent rows between the conversation and the
+composer. The unchanged state comes first in the footer, then its activity
+key and running counts in words (`running · Ctrl+B 20 jobs, 2 agents`), also
+in accessible mode; the model status uses the same native counts. With only
+settled entries the hint is `Ctrl+B activity`. One order at every width keeps
+the key visible while truncation may cut the counts' tail. The one
+complete activity list is `Ctrl+B` or `/tasks`, including settled entries and
+their output. A foreground command remains in its tool cell, not a second
+activity block. The activity key is omitted during a decision and deferred
+until Escape closes search. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
+cards. One blank row always separates the conversation from the model status
+(or from the composer when that status is not shown).
 
 Under 72 columns, identity moves to a second line. Under 48, show title or full
 ID with `/status` retaining all details. Full-screen mode refuses dimensions
@@ -382,6 +396,20 @@ Cells are keyed by durable event range or live identity:
 Tool output is compact by default: first 12 and last 8 lines plus an omitted
 count. Detail opens in a scrollable overlay; the durable session remains the
 only full log. Hidden reasoning is never reconstructed.
+
+Collapsed Context heads, including job and subagent notices, and activity
+list rows are one sanitised terminal row. Activity rows put the native state
+and elapsed time before the label. Command heads and receipts remain complete
+in every card mode; tool and Todo heads retain wrapping so their status cannot
+be truncated away. Expanded content and human/assistant text are unchanged.
+
+A job notice reads its state only from DSH's documented, anchored
+`tool-jobs`/`notice` body; any other form keeps the native summary without an
+inferred state. DSH's capped job notices and subagent notices do not carry a
+structured outcome/stop reason: this is a DSH gap, not presentation state.
+A background settlement enters the conversation only when the model takes
+the native notice, not at its inbox splice. Until then the running count
+changes and `Ctrl+B` shows the settled status; there is no early inbox mirror.
 
 `/history` opens a cell browser. Arrows select, Enter expands, `/` searches,
 `y` copies trusted plain text, and Escape returns to the composer. `Ctrl+O`

@@ -4,7 +4,15 @@ import type { JobView as NativeJobView } from '@deepseek-ai/dsh-api-job-controll
 import type {} from '@deepseek-ai/dsh-subagent'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-token-meter'
-import type { JobView, SubagentView } from './state.js'
+import type { JobView, RootView, SubagentView } from './state.js'
+
+export function activityCounts(root: RootView | undefined): { agents: number; jobs: number; entries: number } {
+  return {
+    agents: root?.subagents?.filter(item => item.state === 'running').length ?? 0,
+    jobs: root?.jobs?.filter(item => item.status === 'running' || item.status === 'stopping').length ?? 0,
+    entries: (root?.subagents?.length ?? 0) + (root?.jobs?.length ?? 0),
+  }
+}
 
 /** Web-equivalent context occupancy; undefined until both DSH projection fields exist. */
 export function contextPercent(value: unknown): number | undefined {
