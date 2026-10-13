@@ -5884,6 +5884,81 @@ sessions in his history; the packet; working directories under /tmp.
 The mac proof follows with a bundle that carries only the four
 archives and a fixed driver.
 
+Host proof on the owner's mac, 2026-10-13 (D-049, D-053): passed in
+both parts. The pack script refuses anything but Linux, so the four
+Linux-packed archives travelled with a fixed driver as a bundle on a
+throwaway branch (three cuts; the third, 0a85b00, ran), cloned over
+anonymous https and checked against its commit and manifest hash. The
+driver carries the archives, one Node script, a terminal bridge in
+Python's standard library and one vendored published file; nothing is
+built or installed as a helper on the mac. An opus agent reviewed
+each cut for safety before anything ran there. The first cut could
+not work on a mac (/tmp is a link there and the path comparison
+stopped at the first command) and pressed Enter on a permission
+dialog unchecked; the second fixed that and the other points raised
+and was found safe with conditions; the third raised the real turn's
+bound from 120 to 600 seconds after the owner said that his model
+server was overloaded and that slowness is fine, and the builder
+found that a second, enclosing bound of 180 seconds would otherwise
+still have cut it. The driver approves nothing: a permission request
+is a stop with the frame recorded.
+Run by the architect through a lane on the mac in a window the
+daemon team opened, started detached so that no tool deadline could
+cut it. Part F, a new user's first run in a private DSH home with
+the candidate launcher: passed; graph 540 of 540 entries checked,
+289 DSH records, none missing or wrong; the first prompt ended in
+the missing-credential outcome and nothing was sent. Part U, a
+profile dashi-proof-up in the mac's real DSH home built as the
+owner's is there (published alpha.2 app, a byte copy of his patch
+file; no dsh-codex on the mac) and upgraded in place by the one
+native add under pnpm 11.18.0, with the two selectors in the
+workspace file: passed; a real turn with the shell tool on his model
+server, /model cancelled, exit. Packet on the mac,
+dsh-host-dashi-020/20261013T085537Z-mac, 89 files, manifest
+8e8dbbbd...9b46 (a27cdb0d...0c46 after Part F). Re-measured
+read-only through the lane afterwards: the four archive hashes; the
+installed app, core and provider byte-equal to the archives in both
+places and the launcher in the proof project; one copy each, the
+plugin at 0.1.1; the owner's dashi and web profiles, his global
+shims and launcher, his credential store's metadata and his running
+DSH process unchanged; in his real DSH home only the proof's one
+session and its projection record are new.
+Stated limits. The mac's packet was not read by an independent
+agent: it holds the owner's provider identifiers and stays on his
+machine; the evidence is the reviewed, hash-bound driver, its sealed
+packet and the architect's own read-only measurements. The short
+list on the mac was by ruling: no group item, no missing-dsh hint,
+no /loop, /resume or /config. Left there: dashi-proof-up for the
+registry re-add, the session, the packet, working directories under
+/tmp.
+Both proofs of D-049 for these four archives now exist. Before the
+tag the release tree needs a complete green hosted run on both
+platforms; see the amendment below.
+
+Amendment 2026-10-13: install rows and a slow registry. The push run
+at 997b71d (tree identical to the head that had passed 23 of 23 an
+hour earlier) had six red install rows, and three more fell in the
+two runs after it, every one `Command exceeded 180000 ms` inside
+npm's, pnpm's or npx's own fetch of DSH, between about 03:22 and
+04:06 UTC. The builder's read of the captures: clients waiting on
+connections to registry.npmjs.org, pnpm's own warnings of a
+36-second metadata request and archives at 2 to 39 KiB/s for
+unchanged DSH packages, a same-command pass at 175 s beside a
+failure, on two hosting locations; images, tool versions and the
+532 installed versions identical to the green runs; service, edge
+or path not localised. In green runs the same commands take 20 to
+57 seconds. Rulings: the bound stays 180 seconds; no retry
+mechanism; those rows stay red and are not re-run. One narrow
+exception joins the EINVAL one: an install row that fails with
+exactly that message inside a package-acquisition command, with the
+client's own slow-request evidence or the same failure in other
+rows of the same half hour, is reported first and may be re-run
+once on the architect's word after the registry answers normally.
+The operator pushes no tag while the release tree lacks a complete
+green hosted run or while cold installs sit near the bound. The
+same hour one preview job failed because its preview service was
+unreachable; it gates nothing.
+
 ### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
 On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
 (run 38213993300, attempt 4, job 114712113037) on PR #304, which
