@@ -6382,6 +6382,23 @@ in 95 ms because the fixture had not admitted a hold. Linux only;
 nothing here explains the two macOS timeouts. The fix is W-138;
 parts 2 to 4 wait for it.
 
+Amended 2026-10-13. Two more failures of the hosted macOS gate, in
+run 38403478491 at the W-138 head 9edcdb7 (the Linux gate of the
+same run passed): the throwing-presenter-across-resize case
+(profile-pty.spec.ts:1894), 6.2 to 7.5 s in every other run on
+record, hit its 60 s outer bound with no helper diagnostic; and the
+install-failure control (install-failure.spec.ts:102) read `pnpm
+finished; command alive` where it expects `terminated`, as it had
+once before on macOS at 6b3b374 (run 38331766267). The reviewer
+counted three other macOS gate failures in the last 80 runs. None
+was re-run. New order: parts 2 and 3 no longer wait behind the
+release; they come directly after W-139's pull request and before
+any 0.2.1 release preparation, extended to the throwing-presenter
+case, because the release run uses this gate and is not tagged on a
+blind re-run. Part 5, new: the install-failure control: which
+process should have been terminated, by what, within which wait,
+and why `command alive` can be read first. Part 4 stays last.
+
 ### W-138 dashi: a forced exit leaves the terminal on the alternate screen — status: open (owner dsh-exec, then a plain 0.2.1)
 From W-137 part 1. When DSH ends the process itself, dashi's
 terminal guard never runs: teardown is still waiting for the agent
@@ -6438,6 +6455,32 @@ Pre-existing and untouched: an external editor open at SIGTERM is
 orphaned after five seconds. Carried: three existing PTY cases
 depend on the length of TMPDIR.
 
+Accepted 2026-10-13 and merged: PR #320 at 9edcdb7, squash
+6a125025e72ded111a40d5a61a38d76eacd4d228. The follow-up push did
+the four ruled things in three files, 60 lines: the stop is
+contained in the exit callback only (the one catch in the file; the
+ordinary release still rejects), three controls for registration
+before the start, consumption before the stop and a throwing stop,
+success-only removal of the native cases' run directories, and the
+limits naming SIGHUP and SIGQUIT. Delta review: accept with notes;
+of 22 mutations 20 fail a committed test, the two survivors being
+`on` for `once`, which changes no behaviour, and a rejecting drain
+that skips the stop, in code older than this item (carried). Core
+archive 6c19f99d...ad542, only lib/terminal-guard.js differing from
+0.2.0; the other three archives byte-identical to 0.2.0. Local gate
+399 of 399. Hosted run 38403478491: Linux gate and ten Linux rows
+passed, both native cases and the ten guard controls passed on both
+systems, the macOS gate failed in two existing cases outside the
+diff and its nine rows were skipped; not re-run, recorded under
+W-137. The route by which a user meets this defect with nothing
+going wrong, observed by the reviewer: a SIGTERM to the launcher's
+process group reaches DSH twice, directly and through the
+launcher's forward, and DSH exits at once on the second; 0.2.0
+leaves the alternate screen in 4 of 4 such runs, the fix restores
+it in 4 of 4. Release note: "Restore the terminal when DSH ends the
+process before dashi's cleanup has finished, for example when a
+termination signal reaches it twice." Ships in 0.2.1.
+
 ### W-139 dashi: the live activity rows flood the screen — status: open (owner dsh-exec, analysis first; ships in 0.2.1 with W-138)
 From the owner, 2026-10-13, on long-running sessions with dozens of
 background jobs (0.2.0-alpha.2, about 200 by 60): two screens of
@@ -6486,6 +6529,71 @@ background failure is visible before the next turn. How a message
 relayed from another session reads (today the plugin's envelope,
 kept on purpose by D-045 ruling 4, W-027 and W-101) is analysed
 with it and ruled separately.
+
+Proposal accepted with rulings, 2026-10-13. The builder's analysis
+keeps two causes apart, a tall suffix displacing the transcript and
+multi-line or control-byte labels breaking the row count; its own
+probe with 60 jobs over 50 renders left 100 stale rows at 200 by
+60, forced 51 clear-and-replays at 80 by 24, and a clear-screen
+sequence in a label removed the status line. Removal as decided;
+it was put to the owner twice and he raised no objection. The
+settlement notice's head is read only by DSH's documented form
+(dsh-tool-jobs README.md:40), for a message whose durable source is
+kind tool-jobs and form notice: id and kind from the documented
+prefix, status from the documented suffix, the label whatever lies
+between; anything else falls back to `Job notice` with the native
+summary and no state. A message under another source is never
+classified by its text. Timing stays as DSH claims the notice: no
+early projection of inbox splices in this item, and DESIGN 6.2 says
+that a background settlement appears when the model takes the
+notice, with the count and Ctrl+B until then (the general question
+is W-140). Footer: running counts in words next to their key,
+early, omitted while a decision is open; the status line's fields
+unchanged. One-row heads in the collapsed card mode only. Ceilings:
+renderer.ts 90 changed lines, transcript.ts 50, the count helper
+15, no state field. Title `W-139: remove the live activity rows`,
+branch from e299cc5.
+
+### W-140 dashi: what waits for the model, and who sent it — status: open (owner dsh-exec, analysis exists, after 0.2.1)
+From W-139. Two things a user cannot see today. A message that DSH
+has put into the agent's inbox (a job or subagent notice, a message
+from another session) gives a transcript row only when the model
+takes it; with a busy or stuck model that can be long. And a
+message relayed by the Sessionbus plugin is shown as the plugin's
+envelope: the opening tag, a raw metadata line, the text, the
+closing tag (kept on purpose by D-045 ruling 4, W-027 and the W-101
+PTY case, so that the sender is visible). Starting point, from the
+builder's W-139 analysis: the durable `agent/inbox/spliced` record
+carries the inserted message, so the fold can show it without a
+mirror; a relayed message would read as a header naming the peer
+and then the text, the raw envelope staying in the expanded and
+history detail, gated on the durable source kind and form, unknown
+or malformed forms left opaque. Not decided: whether pending items
+of every source are shown or none, and how a pending row differs
+from a taken one. Overrides the three entries named above if
+accepted.
+
+### W-141 dashi launcher: a group-wide signal reaches DSH twice — status: open (owner dsh-exec, analysis first, after W-139)
+Found in the W-138 review. The launcher forwards SIGTERM and SIGINT
+to DSH (dashi-launcher/bin/dashi.js:27-29); a signal sent to the
+process group reaches DSH directly as well, and DSH treats a second
+signal as an escalation and exits at once (profile-boot 63-66), 40
+to 55 ms after the signal in four measured runs. So a group-wide
+kill skips DSH's orderly shutdown whatever the terminal does; W-138
+only restores the terminal. A signal to the launcher alone is
+forwarded once and shuts down in order. Wanted from the analysis:
+what the orderly shutdown saves that the forced exit loses, and the
+smallest launcher that does not double a signal, for example one
+that replaces itself with DSH instead of parenting it, if the
+supported Node versions allow that on the gated platforms.
+
+### W-142 dashi: NO_COLOR is not respected — status: open (owner dsh-exec, after 0.2.1)
+Found in the W-139 analysis: with NO_COLOR=1 the renderer still
+emits colour sequences, also in accessible mode; its colour
+constants and theme are unconditional. DESIGN 6.1 says to respect
+NO_COLOR and to keep ASCII status markers in monochrome and
+accessible modes. Not part of W-139, whose rows and counts must
+read correctly without colour in any case.
 
 ## Backlog
 
