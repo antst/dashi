@@ -90,7 +90,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         shell.write('/tasks\r')
         await vi.waitFor(async () => {
           expect((await parsedFrame(shell.output.slice(start))).overlay)
-            .toMatch(/Job · completed · \d+s · W114 unowned output/u)
+            .toMatch(/Job · bash-1 · \d+s · completed · W114 unowned output/u)
         }, { timeout: testCeiling(20_000) })
         shell.write('\r')
         await vi.waitFor(async () => {

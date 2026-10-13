@@ -22,10 +22,10 @@ describe('foldCells', () => {
     const messages = events.filter(event => event.type === 'user/message' && String(event.data.source.kind) === 'tool-jobs')
     expect(messages).toHaveLength(4)
     const cells = foldCells(messages)
-    expect(cells[0]?.detail).toBe('Job · completed, exit code: 0 · bash-1 · printf W139_NATIVE_EXIT_ZERO')
-    expect(cells[1]?.detail).toBe('Job · completed, exit code: 3 · bash-2 · exit 3')
-    expect(cells[2]?.detail).toContain('Job · completed, exit code: 1; [sandbox: file access denied under workspace-write mode] [sandbox: escalation available')
-    expect(cells[3]?.detail).toBe('Job · killed, signal: SIGTERM; cancelled by the user · bash-3 · sleep 300')
+    expect(cells[0]?.detail).toBe('Job · bash-1 · completed, exit code: 0 · printf W139_NATIVE_EXIT_ZERO')
+    expect(cells[1]?.detail).toBe('Job · bash-2 · completed, exit code: 3 · exit 3')
+    expect(cells[2]?.detail).toContain('Job · bash-4 · completed, exit code: 1; [sandbox: file access denied under workspace-write mode] [sandbox: escalation available')
+    expect(cells[3]?.detail).toBe('Job · bash-3 · killed, signal: SIGTERM; cancelled by the user · sleep 300')
     expect(events.find(event => event.type === 'command/run')?.data).toMatchObject({ name: 'tasks', args: ' kill bash-3' })
     for (const [index, message] of messages.entries()) {
       expect(cells[index]?.text).toBe(message.type === 'user/message' ? message.data.content.map(part => part.type === 'text' ? part.text : '').join('\n') : '')
@@ -39,7 +39,7 @@ describe('foldCells', () => {
       source: { kind: 'tool-jobs', form: 'notice', summary: 'summary lost the state' } as never })
     const event = { type: 'user/message', seq: 1, time: 1, surfaceOp: 'append', data: message } as unknown as SessionEvent
     expect(foldCells([event])[0]).toMatchObject({
-      collapsed: true, kind: 'context', text, detail: `Job · ${state} · bash-7 · ${label}`,
+      collapsed: true, kind: 'context', text, detail: `Job · bash-7 · ${state} · ${label}`,
     })
     const copied = { ...message, source: { kind: 'plugin:fixture', form: 'notice', summary: 'copied notice' } }
     expect(foldCells([{ ...event, data: copied } as SessionEvent])[0]?.detail)

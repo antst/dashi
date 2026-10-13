@@ -4,6 +4,12 @@ All logs restore through DSH's current strict codec. No owner's session is
 included. The only mechanical edits replace the builder's worktree and private
 home prefixes with `/recorded/dashi-workspace` and `/recorded/dashi-private-home`;
 ids, times, sequence numbers, outcomes and content structure remain unchanged.
+One replacement artefact is the denied job's summary: it has 112 characters
+instead of DSH's 120-character cut, because its replaced prefix is eight
+characters shorter. The recording was not regenerated after that replacement.
+The capture driver is not committed. The raw original no longer exists, so
+the replacements of the builder's worktree and private-home path prefixes
+cannot be compared against it.
 
 The volume recording uses the committed `live-activity-recording.patch.yml`
 beside a replay-model patch in a private DSH home, from the repository root.

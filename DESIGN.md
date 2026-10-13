@@ -377,7 +377,7 @@ One order at every width preserves the key before long hints. The one
 complete activity list is `Ctrl+B` or `/tasks`, including settled entries and
 their output. A foreground command remains in its tool cell, not a second
 activity block. Other footers are unchanged, including the old activity hint
-during a decision, where its key does nothing. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
+during a decision or search, where its key does nothing. `Ctrl+T` switches steer/queue; `Ctrl+O` controls
 cards. One blank row always separates the conversation from the model status
 (or from the composer when that status is not shown).
 
@@ -400,11 +400,13 @@ only full log. Hidden reasoning is never reconstructed.
 
 In collapsed card mode only, Context heads (including job/subagent notices)
 are one sanitised terminal row. Activity list rows are also one row, with
-native status, its full detail and elapsed time before the label. Command heads and receipts remain complete
+the job id and elapsed time first, then native status, its full detail and
+progress before the label. Command heads and receipts remain complete
 in every card mode; tool and Todo heads retain wrapping so their status cannot
 be truncated away. Expanded content and human/assistant text are unchanged.
 
-A job notice reads the whole state bracket only from DSH's documented,
+A job notice reads `Job · <id> · <whole state> · <label>`. It reads the whole
+state bracket only from DSH's documented,
 anchored `tool-jobs`/`notice` body with one boundary delimiter; ambiguous or
 capped forms keep the native summary without an inferred state. Shell commands
 report completed even on nonzero exit, so their exit detail remains visible.

@@ -65,7 +65,7 @@ function collapsedContextCell(message: UserMessage, key: string): TerminalCell |
       && text.split(') finished [status: ').length === 2
       ? /^background job (\S+) \(([^():\r\n]+): ([\s\S]*)\) finished \[status: ((?:completed|killed|failed)(?:, [\s\S]*)?)\]\. Read its output with job_output\.$/u.exec(text)
       : null
-    head = match === null ? `Job notice · ${first}` : `Job · ${match[4]} · ${match[1]} · ${match[3]}`
+    head = match === null ? `Job notice · ${first}` : `Job · ${match[1]} · ${match[4]} · ${match[3]}`
   } else if (form === 'notice' && source.kind === 'subagent-settled') head = `Subagent notice · ${first}`
   return {
     collapsed: true,

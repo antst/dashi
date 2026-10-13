@@ -1902,7 +1902,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('\u001B[B')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · completed, exit code: 0 · \d+s · sleep 0\.5; printf DASHI_JOB_DONE/u)
+          .toMatch(/› Job · bash-1 · \d+s · completed, exit code: 0 · sleep 0\.5; printf DASHI_JOB_DONE/u)
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_DONE', jobListAt)
@@ -1970,7 +1970,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('Activity', readAt)
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/Job · running · \d+s · printf DASHI_JOB_OUTPUT; sleep 30/u)
+          .toMatch(/Job · bash-1 · \d+s · running · printf DASHI_JOB_OUTPUT; sleep 30/u)
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_OUTPUT', readAt)
@@ -1983,7 +1983,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/tasks\r')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · killed, signal: SIGTERM; cancelled by the user · \d+s · printf /u)
+          .toMatch(/› Job · bash-1 · \d+s · killed, signal: SIGTERM; cancelled by the user · printf/u)
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await vi.waitFor(async () => {

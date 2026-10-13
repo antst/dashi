@@ -1067,7 +1067,7 @@ describe('terminal renderer', () => {
     screen = terminal.lines().join('\n')
     expect(screen).toContain('Activity')
     expect(screen).toMatch(/Subagent · running · \d+s · research/u)
-    expect(screen).toMatch(/Job · running · \d+s · build/u)
+    expect(screen).toMatch(/Job · bash-1 · \d+s · running · build/u)
     expect(screen).toContain('Found the cause')
     terminal.send('\r')
     await shell.whenIdle()
@@ -1115,7 +1115,7 @@ describe('terminal renderer', () => {
     for (const accessible of [false, true]) {
       const terminal = new ScreenTerminal(200, 24, true)
       let state = initialViewState('/fixture', false, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'running',
-        contextPercent: 47, jobs: sixtyJobs, subagents: [
+        contextPercent: 47, jobs: sixtyJobs.map((job, index) => index === 59 ? { ...job, status: 'stopping' } : job), subagents: [
           { id: 'a', label: 'a', mode: 'one-shot', state: 'running' },
           { id: 'b', label: 'b', mode: 'one-shot', state: 'running' },
         ] })
@@ -1201,10 +1201,69 @@ describe('terminal renderer', () => {
       expect(lines.find(value => value.startsWith('activity ·'))).toContain('activity · ↑↓ choose')
       expect(lines.filter(value => value.includes('PANEL_LONG_LABEL'))).toHaveLength(1)
       expect(lines.find(value => value.startsWith('Activity'))).toContain('completed, exit code: 3')
-      expect(lines.find(value => value.startsWith('> Job'))).toContain('completed, exit code: 3 · 0s · PANEL_LONG_LABEL')
+      expect(lines.find(value => value.startsWith('> Job'))).toContain('bash-1 · 0s · completed, exit code: 3 · PANEL_LONG_LABEL')
       expect(lines.filter(value => value.trim().startsWith('PANEL_LONG_LABEL'))).toEqual([])
       for (let row = 0; row < terminal.rows; row++) expect(terminal.screen.buffer.active.getLine(row + terminal.screen.buffer.active.viewportY)?.isWrapped).toBe(false)
     } finally { renderer.stop(false) }
+  })
+
+  it('retains the transcript trailing blank before an attachment or activity panel', async () => {
+    for (const inline of [true, false]) {
+      for (const panel of ['attachment', 'activity'] as const) {
+        const terminal = new ScreenTerminal(80, 24, true)
+        const base = initialViewState('/fixture', inline, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle',
+          jobs: [{ id: 'bash-1', kind: 'bash', label: 'build', status: 'completed', startedAt: 0, finishedAt: 0 }] },
+        [{ key: 'last', kind: 'assistant', text: 'LAST_TRANSCRIPT_ROW' }], [], false,
+        panel === 'attachment' ? [{ name: 'image', mediaType: 'image/png', bytes: 1, path: '/fixture/image.png' }] as never : [])
+        const state = panel === 'activity' ? { ...base, overlay: { kind: 'details' as const, cursor: 0, expanded: false } } : base
+        const renderer = createRenderer({ dispatch: () => {}, inline, readState: () => state, statusLine: () => 'MODEL_STATUS', terminal })
+        renderer.start()
+        try {
+          renderer.render(true); await terminal.flush()
+          const lines = terminal.liveLines()
+          const firstControl = lines.findIndex(value => value.startsWith(panel === 'attachment' ? '[image 1]' : 'Activity'))
+          expect(firstControl).toBeGreaterThan(1)
+          expect(lines[firstControl - 1]).toBe('')
+          expect(lines[firstControl - 2]).toContain('LAST_TRANSCRIPT_ROW')
+        } finally { renderer.stop(false) }
+      }
+    }
+  })
+
+  it('pins the whole activity row with id and elapsed before state, detail, progress and label', async () => {
+    const terminal = new ScreenTerminal(200, 24, true)
+    const state = { ...initialViewState('/fixture', false, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle',
+      jobs: [{ id: 'bash-7', kind: 'bash', label: 'build', status: 'completed', detail: 'exit code: 3',
+        progress: 'native progress', startedAt: 0, finishedAt: 2_000 }] }),
+    overlay: { kind: 'details' as const, cursor: 0, expanded: false } }
+    const renderer = createRenderer({ dispatch: () => {}, inline: false, readState: () => state, terminal })
+    renderer.start()
+    try {
+      renderer.render(true); await terminal.flush()
+      expect(terminal.liveLines().find(value => value.startsWith('› Job')))
+        .toBe('› Job · bash-7 · 2s · completed, exit code: 3 · native progress · build')
+    } finally { renderer.stop(false) }
+  })
+
+  it('distinguishes long denied notices by id before their native state at 80 and 200 columns', async () => {
+    const denied = bashNotices[2]!
+    expect(denied.detail).toContain('Job · bash-4 · completed, exit code: 1; [sandbox:')
+    // Reuse the recorded denial verbatim; a second presentation id tests identity, not a new recording.
+    const cells = [denied, { ...denied, key: 'denied-second', detail: denied.detail!.replace('Job · bash-4 ·', 'Job · bash-5 ·') }]
+    for (const columns of [80, 200]) {
+      const terminal = new ScreenTerminal(columns, 24, true)
+      const state = initialViewState('/fixture', false, { cwd: '/fixture', id: 'session', model: 'recorded', status: 'idle' }, cells)
+      const renderer = createRenderer({ dispatch: () => {}, inline: false, readState: () => state, terminal })
+      renderer.start()
+      try {
+        renderer.render(true); await terminal.flush()
+        const heads = terminal.liveLines().filter(value => value.startsWith('  Job ·'))
+        expect(heads).toHaveLength(2)
+        expect(heads[0]).toContain('  Job · bash-4 · completed, exit code: 1; [sandbox:')
+        expect(heads[1]).toContain('  Job · bash-5 · completed, exit code: 1; [sandbox:')
+        expect(heads[0]).not.toBe(heads[1])
+      } finally { renderer.stop(false) }
+    }
   })
 
   for (const inline of [true, false]) {
@@ -1270,9 +1329,13 @@ describe('terminal renderer', () => {
             const lines = terminal.liveLines()
             const selected = lines.find(value => value.startsWith('› Job ·'))
             expect(shell.readState().overlay).toMatchObject({ cursor: index, kind: 'details' })
-            expect(selected).toContain(`› Job · ${job.status}${job.detail === undefined ? '' : `, ${job.detail}`} · `)
+            const elapsed = selected?.split(' · ')[2]
+            expect(elapsed).toMatch(/^\d+(?:s|m \d+s|h \d+m)$/u)
+            expect(selected).toContain(`${job.status}${job.detail === undefined ? '' : `, ${job.detail}`} · `)
             const label = job.label.replaceAll('\u001B[2J', '').replaceAll('\u009B2J', '').replaceAll('\n', ' ')
-            expect(selected).toContain(label)
+            const wholeRow = `› Job · ${job.id} · ${elapsed} · ${job.status}${job.detail === undefined ? '' : `, ${job.detail}`}${job.progress === undefined ? '' : ` · ${job.progress}`} · ${label}`
+            // These ASCII labels may now be cut after the bounded id/elapsed and whole native state.
+            expect(selected).toBe(wholeRow.length > columns ? `${wholeRow.slice(0, columns - 1)}…` : wholeRow)
             expect(lines.filter(value => value.includes('Job ·')).every(value => value.startsWith('› Job ·') || value.startsWith('  Job ·'))).toBe(true)
             const selectedRow = lines.indexOf(selected!)
             expect(terminal.screen.buffer.active.getLine(terminal.screen.buffer.active.viewportY + selectedRow)?.isWrapped).toBe(false)
@@ -1283,7 +1346,7 @@ describe('terminal renderer', () => {
     }
   }
 
-  it('keeps native claimed job heads one row, failed state first, and leaves expanded text and command receipts intact', async () => {
+  it('keeps native claimed job heads one row, id before whole state, and leaves expanded text and command receipts intact', async () => {
     expect(bashNotices).toHaveLength(4)
     const cells: TerminalCell[] = [
       { key: 'context', kind: 'context', collapsed: true, text: 'NATIVE_CONTEXT_BODY\nsecond body line', detail: `Context · snapshot · line one\nline two\u001B[2J\u009B2J ${'long '.repeat(40)}` },
@@ -1305,10 +1368,10 @@ describe('terminal renderer', () => {
       expect(heads[0]).toContain('Context · snapshot · line one line two')
       expect(heads[1]).toBe('  Job notice · native summary')
       expect(heads[2]).toContain('Subagent notice · native child summary')
-      expect(heads[3]).toBe('  Job · completed, exit code: 0 · bash-1 · printf W139_NATIVE_EXIT_ZERO')
-      expect(heads[4]).toBe('  Job · completed, exit code: 3 · bash-2 · exit 3')
-      expect(heads[5]).toContain('Job · completed, exit code: 1; [sandbox: file access denied')
-      expect(heads[6]).toContain('Job · killed, signal: SIGTERM; cancelled by the user · bash-3')
+      expect(heads[3]).toBe('  Job · bash-1 · completed, exit code: 0 · printf W139_NATIVE_EXIT_ZERO')
+      expect(heads[4]).toBe('  Job · bash-2 · completed, exit code: 3 · exit 3')
+      expect(heads[5]).toContain('Job · bash-4 · completed, exit code: 1; [sandbox: file access denied')
+      expect(heads[6]).toContain('Job · bash-3 · killed, signal: SIGTERM; cancelled by the user')
       expect(lines.join('\n')).not.toContain('NATIVE_CONTEXT_BODY')
       for (const head of heads) {
         const row = lines.indexOf(head)
@@ -1453,7 +1516,7 @@ describe('terminal renderer', () => {
 
     shell.dispatch({ type: 'open-details' })
     await shell.whenIdle(); await terminal.flush()
-    expect(terminal.lines().join('\n')).toMatch(/Activity · 1 item · selected 1: Job · running · \d+s · tests/u)
+    expect(terminal.lines().join('\n')).toMatch(/Activity · 1 item · selected 1: Job · job · \d+s · running · tests/u)
     shell.dispatch({ type: 'overlay-close' })
 
     shell.dispatch({ type: 'search-open', scope: 'transcript' })
