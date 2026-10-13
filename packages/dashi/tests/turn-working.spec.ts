@@ -85,7 +85,13 @@ describe('native turn working facts', () => {
     expect(turnWorking([start, step], stream(undefined, { turn: 9 }))?.phase).toBe('Working')
     expect(turnWorking([start, step], stream(undefined, { step: 9 }))?.phase).toBe('Working')
     const next = event('step/start', { turn: 1, step: 2 }, 10)
-    expect(turnWorking([start, step, retry(), call('old'), next], stream())?.phase).toBe('Working')
+    expect(turnWorking([start, step, retry(), call('old', 'bash', 8), next], stream())).toEqual({ startedAt: 1000, phase: 'Working' })
+
+    const settled = event('assistant/attempt', { turn: 1, step: 1,
+      stream: [{ type: 'text-chunks', time0: 4000, index: 0, dt: [0], texts: ['settled'] }] }, 6)
+    expect(turnWorking([start, step, settled])).toEqual({ startedAt: 1000, phase: 'Working' })
+    expect(turnWorking([start, step, settled], stream(undefined, { startedAfterSeq: 6, observedAt: 8000 })))
+      .toEqual({ startedAt: 1000, phase: 'Waiting for model', phaseStartedAt: 8000 })
     expect(turnWorking([start, step, retry(), event('turn/start', { turn: 2 }, 10)]))
       .toEqual({ startedAt: 10000, phase: 'Working' })
   })

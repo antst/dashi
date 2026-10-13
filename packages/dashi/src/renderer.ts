@@ -32,7 +32,7 @@ const THEME_GENERATION = 1
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const
 const SPINNER_INTERVAL_MS = 80
 const WORKING_FRAMES = ['·', '•', '●', '•'] as const
-const WORKING_INTERVAL_MS = 250
+const WORKING_INTERVAL_MS = 500
 const MASK_TOKEN = new RegExp(String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|[_P^X][^\u0007]*(?:\u0007|\u001B\\))|[^\s]`, 'gu')
 
 const markdownTheme: MarkdownTheme = {
@@ -233,7 +233,6 @@ export function createRenderer(options: RendererOptions): Renderer {
   const tui: TUI = options.inline
     ? new class extends TuiMainScreen { protected override stopped = true }(terminal, true)
     : new class extends TuiAltScreen {
-      protected override stopped = true
       protected override isOverlayFocused(): boolean { return options.readState().overlay !== undefined || super.isOverlayFocused() }
     }(terminal, true, undefined, { mouse: true })
   let editor = new Editor(tui, theme(), { paddingX: 1 })
@@ -268,7 +267,7 @@ export function createRenderer(options: RendererOptions): Renderer {
     const rendered = lines.map(value => `  ${value}`)
     if (cell.pending !== true) {
       lineCache.set(key, rendered)
-      if (lineCache.size > 512) lineCache.delete(lineCache.keys().next().value as string)
+      if (lineCache.size > Math.max(512, options.readState().cells.length)) lineCache.delete(lineCache.keys().next().value as string)
     }
     return rendered
   }
@@ -443,6 +442,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       const workingRow = working === undefined ? [] : [line(plain([
         `${accessible ? '*' : WORKING_FRAMES[Math.floor(now / WORKING_INTERVAL_MS) % WORKING_FRAMES.length]} ${working.phase}`,
         ...(working.phaseStartedAt === undefined ? [] : [duration(now - working.phaseStartedAt)]),
+        ...(working.lastChunkAt !== undefined && ['Reasoning', 'Receiving text', 'Tool request'].includes(working.phase) && now - working.lastChunkAt >= 3_000
+          ? [`no data ${duration(now - working.lastChunkAt)}`] : []),
         `turn ${duration(now - working.startedAt)}`,
         ...(working.tail === undefined ? [] : [working.tail]),
       ].join(' · ')), width)]

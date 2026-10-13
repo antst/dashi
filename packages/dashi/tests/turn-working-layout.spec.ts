@@ -8,6 +8,9 @@ import { createTerminalShell } from '../src/application.js'
 import { initialViewState, reduce, type JobView, type ViewState } from '../src/state.js'
 import { createTerminalGuard } from '../src/terminal-guard.js'
 import { foldCells } from '../src/transcript.js'
+import { turnWorking } from '../src/turn-working.js'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { recordedEvents } from './fixtures/session-format.js'
 
 const now = 1_800_000_000_000
@@ -120,10 +123,94 @@ describe('working row layout and timer ownership', () => {
     } finally { await shell.dispose(); terminal.screen.dispose() }
   })
 
+  it('shows silence only from the current live stream, and removes it on a new chunk', async () => {
+    const terminal = new Screen()
+    const events = [
+      { type: 'turn/start', seq: 1, time: now - 70_000, data: { turn: 1 } },
+      { type: 'step/start', seq: 2, time: now - 60_000, data: { turn: 1, step: 1 } },
+    ] as SessionEvent[]
+    let state = rootState()
+    const renderer = createRenderer({ terminal, inline: false, readState: () => state, dispatch() {} })
+    renderer.start()
+    try {
+      for (const [chunk, phase] of [
+        [{ type: 'reasoning-delta', index: 0, text: 'reason' }, 'Reasoning'],
+        [{ type: 'text-delta', index: 0, text: 'text' }, 'Receiving text'],
+        [{ type: 'tool-call-delta', index: 0, id: ToolCallId('call'), name: 'read', argumentsDelta: '{}' }, 'Tool request'],
+      ] as const) {
+        const live = { attemptId: 'current', turn: 1, step: 1, startedAfterSeq: 2, lastChunk: { time: now, chunk } }
+        state = { ...state, root: { ...state.root!, working: turnWorking(events, live)! } }
+        clock = now + 2_999; renderer.render(false); await terminal.flush()
+        expect(terminal.lines().join('\n')).not.toContain('no data')
+        clock = now + 3_000; renderer.render(false); await terminal.flush()
+        expect(terminal.lines().find(line => line.includes(phase))).toContain(`${phase} · no data 3s · turn 1m 13s`)
+        clock = now + 11_000; renderer.render(false); await terminal.flush()
+        expect(terminal.lines().find(line => line.includes(phase))).toContain(`${phase} · no data 11s · turn 1m 21s`)
+        state = { ...state, root: { ...state.root!, working: turnWorking(events, { ...live, lastChunk: { time: clock, chunk } })! } }
+        renderer.render(false); await terminal.flush()
+        expect(terminal.lines().join('\n')).not.toContain('no data')
+      }
+      const phases = [
+        turnWorking(events, { attemptId: 'new', turn: 1, step: 1, startedAfterSeq: 2, observedAt: now }),
+        turnWorking([...events, { type: 'tool/call', seq: 3, time: now, data: { turn: 1, step: 1, callId: 'a', name: 'bash' } } as SessionEvent]),
+        turnWorking([...events, { type: 'llm/retry', seq: 3, time: now, data: { turn: 1, step: 1, retry: 1 } } as unknown as SessionEvent]),
+      ]
+      for (const working of phases) {
+        state = { ...state, root: { ...state.root!, working: working! } }
+        renderer.render(false); await terminal.flush()
+        expect(terminal.lines().join('\n')).not.toContain('no data')
+      }
+    } finally { renderer.stop(true); terminal.screen.dispose() }
+  })
+
+  it('shows the row exactly once with a completion list, and gives every long panel one row', async () => {
+    const terminal = new Screen()
+    const base = rootState()
+    const { working: _working, ...idleRoot } = base.root!
+    let state = base
+    const options = Array.from({ length: 60 }, (_, index) => ({ label: `ENTRY_${index}`, value: { kind: 'insert' as const, text: `command-${index}` } }))
+    const deltas = [
+      { overlay: { kind: 'list', purpose: 'completion', title: 'Completion', cursor: 0, options } },
+      { overlay: { kind: 'list', purpose: 'model', title: 'Model', cursor: 0, options } },
+      { overlay: { kind: 'info', title: 'Info', lines: options.map(option => option.label) } },
+      { decisions: [{ id: 'many', kind: 'question', cursor: 0, index: 0, custom: '', selected: [], answers: [], owner: { id: 'root' },
+        questions: [{ id: 'q', question: 'Pick', multiSelect: false, options: options.map(option => ({ label: option.label })) }] }] },
+    ]
+    const renderer = createRenderer({ terminal, inline: false, readState: () => state, dispatch() {} })
+    renderer.start()
+    try {
+      for (const delta of deltas) {
+        state = { ...base, ...delta, root: idleRoot } as ViewState
+        renderer.render(true); await terminal.flush()
+        const without = terminal.lines().filter(line => line.includes('ENTRY_')).length
+        state = { ...base, ...delta } as ViewState
+        renderer.render(true); await terminal.flush()
+        const lines = terminal.lines()
+        expect(lines.filter(line => /^[·•●] Waiting for model/u.test(line))).toHaveLength(1)
+        expect(lines.filter(line => line.includes('ENTRY_'))).toHaveLength(without - 1)
+      }
+    } finally { renderer.stop(true); terminal.screen.dispose() }
+  })
+
+  it('does no work before the inline terminal is acquired', async () => {
+    const terminal = new Screen()
+    const timers = vi.spyOn(globalThis, 'setTimeout')
+    const renderer = createRenderer({ terminal, inline: true, readState: rootState, dispatch() {} })
+    try {
+      renderer.render(false); await terminal.flush()
+      expect(terminal.output).toBe('')
+      expect(timers.mock.calls.some(call => call[1] === 500)).toBe(false)
+      renderer.start(); renderer.render(false); await terminal.flush()
+      expect(rowOf(terminal.lines())).toBeGreaterThanOrEqual(0)
+      expect(timers.mock.calls.filter(call => call[1] === 500)).toHaveLength(1)
+    } finally { renderer.stop(true); terminal.screen.dispose() }
+  })
+
   for (const inline of [true, false]) for (const [columns, rows] of [[80, 24], [200, 60]] as const) {
     it(`redraws one row over seventy jobs for 100 ticks, ${inline ? 'inline' : 'fullscreen'} ${columns}x${rows}`, async () => {
       const terminal = new Screen(columns, rows)
-      const state = { ...rootState(inline), cells }
+      const base = rootState(inline)
+      const state = { ...base, cells, root: { ...base.root!, working: { ...working, startedAt: now - 50_000, phaseStartedAt: now - 50_000 } } }
       const renderer = createRenderer({ inline, terminal, readState: () => state, dispatch() {}, statusLine: () => 'MODEL_STATUS' })
       renderer.setComposer('W143_UNSENT_DRAFT', { line: 0, col: 7 })
       renderer.start()
@@ -138,10 +225,11 @@ describe('working row layout and timer ownership', () => {
         const scroll = terminal.screen.buffer.active.baseY
         const cursor = [terminal.screen.buffer.active.cursorX, terminal.screen.buffer.active.cursorY]
         const shapes = new Set<string>()
+        const ages = new Set<string>()
         const samples: number[] = []
         const bytes: number[] = []
         for (let tick = 1; tick <= 100; tick++) {
-          clock = now + tick * 250
+          clock = now + tick * 500
           const from = terminal.output.length
           const started = performance.now()
           renderer.render(false)
@@ -157,8 +245,12 @@ describe('working row layout and timer ownership', () => {
           bytes.push(Buffer.byteLength(terminal.output.slice(from)))
           expect(lines[row]).toMatch(/^[·•●] Waiting for model · /u)
           shapes.add(lines[row]![0]!)
+          expect(lines[row]![0]).toBe(['·', '•', '●', '•'][Math.floor(clock / 500) % 4])
+          ages.add(lines[row]!.slice(2))
         }
         expect([...shapes].sort()).toEqual(['·', '•', '●'].sort())
+        expect(ages.has('Waiting for model · 59s · turn 59s')).toBe(true)
+        expect(ages.has('Waiting for model · 1m 0s · turn 1m 0s')).toBe(true)
         samples.sort((a, b) => a - b)
         process.stdout.write(`performance: working-row-${inline ? 'inline' : 'fullscreen'}-${columns} median ${samples[50]!.toFixed(3)} ms p95 ${samples[95]!.toFixed(3)} ms bytes/tick ${Math.min(...bytes)}-${Math.max(...bytes)}\n`)
       } finally { renderer.stop(true); terminal.screen.dispose() }
@@ -233,28 +325,28 @@ describe('working row layout and timer ownership', () => {
     const handles = (delay: number) => timers.mock.calls.flatMap((call, index) => call[1] === delay ? [timers.mock.results[index]!.value as NodeJS.Timeout] : [])
     try {
       renderer.render(false)
-      expect(handles(250)).toHaveLength(0)
+      expect(handles(500)).toHaveLength(0)
       renderer.start(); renderer.render(true); await terminal.flush()
-      expect(handles(250)).toHaveLength(1)
-      expect(handles(250)[0]!.hasRef()).toBe(false)
-      const expiry = timers.mock.calls.find(call => call[1] === 250)![0] as () => void
+      expect(handles(500)).toHaveLength(1)
+      expect(handles(500)[0]!.hasRef()).toBe(false)
+      const expiry = timers.mock.calls.find(call => call[1] === 500)![0] as () => void
       state = reduce(state, { type: 'root-presentation', rootId: 'root', working: null })[0]
       renderer.render(false); await terminal.flush()
-      expect(cancelled.mock.calls.some(call => call[0] === handles(250)[0])).toBe(true)
-      const count = handles(250).length
+      expect(cancelled.mock.calls.some(call => call[0] === handles(500)[0])).toBe(true)
+      const count = handles(500).length
       expiry(); renderer.render(false); await terminal.flush()
-      expect(handles(250)).toHaveLength(count)
+      expect(handles(500)).toHaveLength(count)
       renderer.stop(true)
       state = { ...rootState(), cells: [{ key: 'cmd', kind: 'command', pending: true, text: '/compact' }] }
       renderer.start(); renderer.render(true); await terminal.flush()
       expect(handles(80)).toHaveLength(1)
       expect(handles(80)[0]!.hasRef()).toBe(false)
-      expect(handles(250)).toHaveLength(count)
+      expect(handles(500)).toHaveLength(count)
       renderer.stop(true)
       const commandExpiry = timers.mock.calls.find(call => call[1] === 80)![0] as () => void
       commandExpiry(); renderer.render(false); await terminal.flush()
       expect(handles(80)).toHaveLength(1)
-      expect(handles(250)).toHaveLength(count)
+      expect(handles(500)).toHaveLength(count)
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 
@@ -269,26 +361,30 @@ describe('working row layout and timer ownership', () => {
       const indices = timers.mock.calls.flatMap((call, index) => call[1] === 1000 ? [index] : [])
       expect(indices).toHaveLength(1)
       expect((timers.mock.results[indices[0]!]!.value as NodeJS.Timeout).hasRef()).toBe(false)
-      expect(timers.mock.calls.some(call => call[1] === 80 || call[1] === 250)).toBe(false)
+      expect(timers.mock.calls.some(call => call[1] === 80 || call[1] === 500)).toBe(false)
       expect(terminal.lines().some(line => line.startsWith('* Waiting for model'))).toBe(true)
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 
   it('re-arms that one timer after expiry and switches to the command rate on its next render', async () => {
     const timers = vi.spyOn(globalThis, 'setTimeout')
+    const cancelled = vi.spyOn(globalThis, 'clearTimeout')
     const terminal = new Screen()
     let state = rootState()
     const renderer = createRenderer({ terminal, inline: false, readState: () => state, dispatch() {} })
     renderer.start()
     try {
       renderer.render(true); await terminal.flush()
-      const first = timers.mock.calls.findIndex(call => call[1] === 250)
+      const first = timers.mock.calls.findIndex(call => call[1] === 500)
       const handle = timers.mock.results[first]!.value as NodeJS.Timeout
+      state = { ...state, overlay: { kind: 'list', purpose: 'model', cursor: 0, title: 'Model', options: [] } }
+      renderer.render(false); await terminal.flush()
+      expect(cancelled.mock.calls.some(call => call[0] === handle)).toBe(false)
       clearTimeout(handle) // Settle the real handle before invoking its own expiry callback.
-      clock += 250
+      clock += 500
       ;(timers.mock.calls[first]![0] as () => void)()
       renderer.render(false); await terminal.flush()
-      const pulseTimers = timers.mock.calls.flatMap((call, index) => call[1] === 250 ? [index] : [])
+      const pulseTimers = timers.mock.calls.flatMap((call, index) => call[1] === 500 ? [index] : [])
       expect(pulseTimers).toHaveLength(2)
       expect((timers.mock.results[pulseTimers[1]!]!.value as NodeJS.Timeout).hasRef()).toBe(false)
       state = { ...state, cells: [{ key: 'cmd', kind: 'command', pending: true, text: '/compact' }] }
@@ -297,7 +393,7 @@ describe('working row layout and timer ownership', () => {
       ;(timers.mock.calls[next]![0] as () => void)()
       renderer.render(false); await terminal.flush()
       expect(timers.mock.calls.filter(call => call[1] === 80)).toHaveLength(1)
-      expect(timers.mock.calls.filter(call => call[1] === 250)).toHaveLength(2)
+      expect(timers.mock.calls.filter(call => call[1] === 500)).toHaveLength(2)
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 
@@ -330,11 +426,11 @@ describe('working row layout and timer ownership', () => {
     const edit = guard.withCookedTerminal(() => new Promise<void>(resolve => { release = resolve }))
     try {
       await terminal.flush()
-      const first = timers.mock.calls.findIndex(call => call[1] === 250)
+      const first = timers.mock.calls.findIndex(call => call[1] === 500)
       expect(cancelled.mock.calls.some(call => call[0] === timers.mock.results[first]!.value)).toBe(true)
       const from = terminal.output.length
       state = { ...state, root: { ...state.root!, working: { ...working, phase: 'Receiving text' } } }
-      const expiry = timers.mock.calls.find(call => call[1] === 250)![0] as () => void
+      const expiry = timers.mock.calls.find(call => call[1] === 500)![0] as () => void
       expiry(); renderer.render(false); await terminal.flush()
       expect(terminal.output.slice(from)).toBe('')
       release(); await edit; await terminal.flush()
@@ -342,7 +438,7 @@ describe('working row layout and timer ownership', () => {
       const listener = process.listeners('exit').find(value => !prior.has(value))!
       expect(listener).toBeTypeOf('function')
       listener(0) // The guard's own callback; never exit the Vitest worker.
-      const last = timers.mock.calls.flatMap((call, index) => call[1] === 250 ? [index] : []).at(-1)!
+      const last = timers.mock.calls.flatMap((call, index) => call[1] === 500 ? [index] : []).at(-1)!
       expect(last).toBeGreaterThan(first)
       expect(cancelled.mock.calls.some(call => call[0] === timers.mock.results[last]!.value)).toBe(true)
       const stopped = terminal.output.length
@@ -362,11 +458,11 @@ describe('working row layout and timer ownership', () => {
     try {
       await terminal.flush()
       const from = terminal.output.length
-      const count = timers.mock.calls.filter(call => call[1] === 250).length
+      const count = timers.mock.calls.filter(call => call[1] === 500).length
       await guard.dispose()
       release(); await edit; renderer.render(false); await terminal.flush()
       expect(terminal.output.slice(from)).toBe('')
-      expect(timers.mock.calls.filter(call => call[1] === 250)).toHaveLength(count)
+      expect(timers.mock.calls.filter(call => call[1] === 500)).toHaveLength(count)
     } finally { release(); await edit; await guard.dispose(); terminal.screen.dispose() }
   })
 })

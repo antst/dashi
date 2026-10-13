@@ -368,11 +368,19 @@ accessible modes. Sanitize model, path, title, tool, and plugin text before it
 reaches pi-tui.
 
 An open root turn has one disposable working row after the blank, before the
-model status or active panel. Its shape pulse (`· • ● •`, 250 ms) is additional
+model status or active panel. Its shape pulse (`· • ● •`, 500 ms) is additional
 feedback, not the information: words and elapsed time remain beside it;
 accessible mode uses a fixed `*` and one-second updates. The existing single
 renderer timer owns both this pulse and pending-command animation, stops on
 turn end or terminal release, and cannot alone keep the process alive.
+Inline mode still passes the full loaded document through pi-tui's per-frame
+normalisation, line comparison and image scans. With the line cache sized to
+loaded cells, real-timer measurements on a synthetic mixed transcript cost
+about 1.7% of a core at 2,000 cells and 5.6% at 6,000 while waiting; full-screen
+mode materialises only its viewport. This is a pi-tui cost limit, not a
+constant-time redraw claim. At 6,000 cells the larger cache adds approximately
+3.4 MiB of retained renderer heap in that fixture; its existing eviction retains
+the largest loaded capacity until the renderer is discarded.
 
 There are no always-on job or subagent rows between the conversation and the
 composer: labels, elapsed time and progress are no longer always visible.
@@ -430,7 +438,11 @@ The working row reads native turn/step, stream categories, paired pending tool
 calls and DSH's recorded retry number. Request age starts at the observed live
 start frame, not at submit or a reused header; a turn found already running
 has no request age because DSH supplies no start timestamp. Tool pending is
-not proof of a running OS process. Quiet streams retain their last category.
+not proof of a running OS process. For the current live reasoning, text or
+tool-request stream, three seconds without a chunk adds `no data <age>` from
+that stream's latest native chunk time; a new chunk removes it immediately.
+Settled streams supply no silence age. Waiting, tool-pending and retry phases
+keep their own facts and do not receive this label.
 Stock providers expose usage only at the end: live token counts are a DSH
 gap, not character/chunk estimates. No working row enters durable history.
 

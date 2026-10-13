@@ -1,5 +1,4 @@
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
-import { expandAssistantStream } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 
 export interface WorkingStream {
@@ -26,11 +25,10 @@ export function turnWorking(events: readonly SessionEvent[], stream?: WorkingStr
   let step = -1
   let retry: number | undefined
   let settledAfterSeq = -1
-  let lastChunkAt: number | undefined
   const calls = new Map<string, { name: string; time: number }>()
   for (const event of events) {
     if (event.type === 'turn/start') {
-      turn = event.data.turn; step = -1; retry = undefined; lastChunkAt = undefined; calls.clear()
+      turn = event.data.turn; step = -1; retry = undefined; calls.clear()
       view = { startedAt: event.time, phase: 'Working' }
     } else if (event.type === 'turn/end' && event.data.turn === turn) view = undefined
     else if (view !== undefined) {
@@ -44,8 +42,6 @@ export function turnWorking(events: readonly SessionEvent[], stream?: WorkingStr
         view = { startedAt: view.startedAt, phase: 'Working' }
       } else if ((event.type === 'assistant/message' || event.type === 'assistant/attempt') && event.data.turn === turn && event.data.step === step) {
         settledAfterSeq = event.seq
-        const last = expandAssistantStream(event.data.stream).at(-1)
-        lastChunkAt = last?.time
         view = { startedAt: view.startedAt, phase: 'Working' }
       } else if (String(event.type) === 'llm/retry' || String(event.type) === 'llm/retry-started') {
         // dsh-llm-retry README.md:54: scheduled before backoff, started after it.
@@ -60,7 +56,6 @@ export function turnWorking(events: readonly SessionEvent[], stream?: WorkingStr
     }
   }
   if (view === undefined) return undefined
-  if (lastChunkAt !== undefined) view = { ...view, lastChunkAt }
   if (retry !== undefined) view = { ...view, tail: `retry ${String(retry)}` }
   const first = calls.values().next().value
   if (first !== undefined) return { ...view, phase: 'Tool pending', phaseStartedAt: first.time,

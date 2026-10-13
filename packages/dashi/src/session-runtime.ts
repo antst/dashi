@@ -1,7 +1,7 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { basename } from 'node:path'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { Agent, TurnBoundaryProjection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type { JobListFrame } from '@deepseek-ai/dsh-api-job-controller'
 import type {} from '@deepseek-ai/dsh-attachment'
@@ -25,7 +25,7 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {
   ScheduleCreateValue, ScheduleDeleteValue, ScheduleListValue, ScheduleView,
 } from '@deepseek-ai/dsh-schedule'
-import { SessionId, SessionLogOffset, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
@@ -308,9 +308,10 @@ export async function createSessionRuntime(
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
 
-  const workingFor = (agent: Agent, stream?: WorkingStream) => {
-    const from = ctx.sessionProjections.stateOf(agent.session, 'turnBoundary')?.openTurnStartSeq
-    return from == null ? undefined : turnWorking(agent.session.snapshotEvents(SessionLogOffset(from)), stream)
+  const workingFor = (events: readonly SessionEvent[], stream?: WorkingStream) => {
+    let from = events.length - 1
+    while (from > 0 && events[from]?.type !== 'turn/start') from--
+    return turnWorking(events.slice(Math.max(0, from)), stream)
   }
 
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
@@ -356,10 +357,19 @@ export async function createSessionRuntime(
       const initialContextPercent = contextPercent(controlOpening.value.projections[sessionId]?.values.contextPressure)
       const parentTurn = agent.session.header.parentSession === undefined ? undefined
         : inheritedTurn(agent.session.snapshotEvents(), agent.session.inheritedEventCount)
+      const events = eventsFromRecords(opening.records)
+      let hasMore = opening.hasMore
+      const from = (opening.projections.values.turnBoundary as TurnBoundaryProjection | undefined)?.openTurnStartSeq
+      while (from != null && (events[0]?.seq ?? Infinity) > from && hasMore) {
+        const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]!.seq, maxMessages: 50 }, abort.signal)
+        const older = eventsFromRecords(page.records)
+        if (older.length === 0 || older.at(-1)!.seq >= (events[0]?.seq ?? Infinity)) throw new Error('DSH returned no earlier open-turn history')
+        events.unshift(...older); hasMore = page.hasMore
+      }
       const active = opening.assistantStream?.activeAttempt
       const workingStream = active === undefined ? undefined : { attemptId: String(active.attemptId), turn: active.turn, step: active.step, startedAfterSeq: active.startedAfterSeq,
         lastChunk: expandAssistantStream(active.stream as never).at(-1) }
-      const working = workingFor(agent, workingStream)
+      const working = workingFor(events, workingStream)
       return {
         abort,
         agent,
@@ -367,8 +377,8 @@ export async function createSessionRuntime(
         controlIterator,
         cursor: opening.cursor,
         disposers,
-        events: eventsFromRecords(opening.records),
-        hasMore: opening.hasMore,
+        events,
+        hasMore,
         iterator,
         jobIterator,
         presenter: createToolPresenter(tool => ctx.tools.get(tool, agent)),
@@ -488,7 +498,7 @@ export async function createSessionRuntime(
 
   const publish = (bound: Binding): void => {
     bound.timer = undefined
-    const working = workingFor(bound.agent, bound.workingStream)
+    const working = workingFor(bound.events, bound.workingStream)
     const { working: _working, ...root } = bound.root
     bound.root = { ...root, ...(working === undefined ? {} : { working }) }
     dispatch({
@@ -548,7 +558,6 @@ export async function createSessionRuntime(
     if (event.type === 'assistant/message' || event.type === 'assistant/attempt') bound.streamCells = []
     if (event.type === 'turn/end') {
       bound.workingStream = undefined
-      dispatch({ type: 'root-presentation', rootId: bound.root.id, working: null })
       void refreshRepo(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
       if (startedAt !== undefined) {
