@@ -5959,6 +5959,40 @@ green hosted run or while cold installs sit near the bound. The
 same hour one preview job failed because its preview service was
 unreachable; it gates nothing.
 
+Released 2026-10-13 as dashi 0.2.0, the first plain release: the four
+packages on npm `latest` (the `alpha` tag stays at 0.2.0-alpha.2).
+main was fast-forwarded to 514b7fac8a4525c23011953c9fb8597cc605a452;
+the annotated tag v0.2.0 there carries exactly the four hash lines
+(D-052); release run 38381375736, 22 of 22 jobs on the first attempt:
+the preflight and the publish job each re-packed the four archives to
+the proven hashes, all nineteen install rows and the Linux gate
+passed, and the four uploads went through in the order provider,
+core, app, launcher with provenance, then the GitHub release. The
+registry archives are byte-identical to the proven files; the app's
+published manifest pins core and provider 0.2.0, the plugin 0.1.1
+and roller 0.1.4 exactly. The upload through trusted publishing with
+pnpm 11.28.5, a stated limit of the preparation, worked.
+One thing was not resolved before the tag and the owner decided it.
+The push run at 514b7fa (38373974104) ended red on the macOS gate:
+the idle SIGTERM case of the shipped-profile terminal lifecycle
+timed out at its outer 30 seconds with no trace of where, because
+the helper waits inside it are 60 seconds on CI and cannot report
+first. The ledger pull request's run at the identical tree was 23
+of 23 green. The builder's read: the case normally takes 1.5 to 3.3
+seconds there, so load does not explain it; the teardown path, the
+six lifecycle cases and their helpers are byte-identical to the
+published 0.2.0-alpha.2 with the same DSH and pi-tui; since alpha.1
+the case passed 95 of 96 recorded macOS attempts and 98 of 98 on
+Linux; no path in the case makes or waits on a network request. One
+risk was named from the source and not observed: DSH's forced exit
+five seconds after SIGTERM could come before dashi has restored the
+terminal. The owner sent SIGTERM by hand to the candidate, saw it
+exit at once, and chose to release and to track the timeout as its
+own item (W-137). The red run was not re-run.
+Next: the registry re-add on the two proof profiles, then, on the
+owner's instruction of the same day, his own installations on every
+host except the one he named as not to be touched.
+
 ### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
 On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
 (run 38213993300, attempt 4, job 114712113037) on PR #304, which
@@ -6154,6 +6188,79 @@ releases were all in scripts rewritten per proof, none in the plugin.
 The owner's home project is not a target of that script. Ships as
 0.1.2.
 
+Accepted and released 2026-10-13 as @sessionbus/dsh 0.1.2
+(sessionbus/sessionbus-dsh PRs #69, #70 and #71; main
+10301a1b60402798d87d1f460427d0a543ef8ed9; tag v0.1.2, release run
+38376790704, npm `latest`; archive sha256 508485c5...ebaa, registry
+integrity sha512-7ioCh0r8...BTmSQ==, byte-identical to the proven
+file, with provenance).
+The shipped change is ten lines: the Open callback records its own
+refusal when the cancel signal is not aborted, and the unopened-close
+warning is skipped only then. A rejection caused by the transport
+closing still warns; a refusal and a close in the same tick may
+resolve either way and that is stated. 41 open and turn rows give
+byte-identical output on 0.1.1 and 0.1.2; against 0.1.1 only
+README.md, package.json and plugin.cjs differ.
+The maintained host-proof runner (unshipped) took five reviewed
+heads. The architect's guide of 500 and 300 lines was a wrong
+estimate, met at first only by long lines; formatted normally the
+runner is 1066 lines and its test 900, under ceilings set on what
+exists. Operation (archive, registry, none) and the acceptance lane
+are independent explicit parameters; every input is checked before
+the first tool call; a stop is terminal, sealed and names every live
+lane; nothing is retried. The replay test runs the real observer and
+the real row installer on a tree it builds.
+Three corrections came from the real host, where a sandbox could not
+show them. (1) Unopened files were compared on their whole lstat
+record: 507 hard-linked package files with credential-like names sit
+in the protected roots, and any install from the shared store moves
+their link count and ctime. Equality is now on type, size, mode,
+owner, mtime and inode; a same-size write with a restored mtime is
+not seen for files that are never opened. Measured with pnpm
+10.28.1: installs elsewhere move only link count and ctime. (2) The
+first real run stopped after the upgrade because its fixed 60 s wait
+expired on a turn that took 160 s on the owner's overloaded model
+server ("slowness is OK"); the lane then retired itself and its
+result was lost. The wait is now a required total in required
+slices, a still-running turn has its own message, and the
+continuation ran as operation none with a fresh lane. (3) The route
+check required a reasoning effort that the profile's default row
+does not carry; it is compared only when the row has one.
+Host proof (D-049), verified with stated limits by an opus agent
+that read all three packets and re-measured the host; no defect.
+Packets under dsh-host-sessionbus-012: 20261013T030143Z-archive-lane
+(the upgrade; manifest ba928e18...8f89), 20261013T083405Z-
+continuation-lane (acceptance and refusals; 763fc408...551f),
+20261013T093839Z-registry-lane (after the publish; aab43fe8...1db0).
+The lane profile was upgraded in place from published 0.1.1; the
+installer wrote nothing and the patch with the owner's rows kept
+hash, inode and times through 21 snapshots. Acceptance lanes
+completed on the unchanged default route with the marker and were
+collected, acknowledged, closed and absent. Three refused opens
+through the permanent daemon each returned spawn_failed with a tail
+of exactly one line equal to the expected reason and left no session
+directory and no worker. Against 0.1.1 on the same daemon the change
+is shown by the unregistered-provider case, which had two lines
+there; the invalid-effort case already had one, and the
+malformed-model case has no 0.1.1 capture. After the publish the
+profile was re-added from the registry: plain version, registry
+integrity, no reference to the archive.
+Stated limits. The upgrade step rests on the stopped packet alone.
+The sliced wait ran one slice in both later runs. With no effort in
+the default row the route check accepts any effort. A refused open
+still reports exit code 0. A refusal whose frame cannot be written
+loses its reason in both versions, and 0.1.2 prints nothing there.
+The owner's web profile and home project were not touched; the home
+copy stays at 0.1.1 because the launcher file is unchanged. Not
+shown: peer mode on a host, refusals after session creation. The
+continuation packet holds 913 MB of file bytes, thirteen copies of
+one metadata map. Carried to the next change of the runner: three
+test lines (a throw that is not on the last slice, a refused slice,
+a short remainder), the effort compared with the provider row's own
+default, one map per run instead of one per snapshot. For the
+daemon's architect: status answers unknown_session for a lane whose
+row is retained offline, while list by id still returns it.
+
 ### W-135 dashi: the renderer timing check runs alone — status: open (owner dsh-exec, before W-131)
 On 2026-10-12 the local gate of the release branch failed one
 unchanged case: the 200k-cell redraw p95 measured 36.5 ms against its
@@ -6236,6 +6343,32 @@ and RELEASING.md's directory variable lives in one shell under /tmp.
 The owner's own profile on the dsh host still has its override in
 package.json, which works on pnpm 10.28.1; it moves to the workspace
 file with the post-publish upgrade.
+
+### W-137 dashi: a terminal lifecycle test timed out on macOS with no trace — status: open (owner dsh-exec, the forced-exit proof first)
+From the 0.2.0 release (W-131): one timeout of the idle SIGTERM case
+on the hosted macOS gate, run 38373974104, cause not localised; a
+sibling case (stdin already closed) failed the same way once on
+2026-10-11 (W-123). Four parts, in this order. (1) The one risk
+named from the source, tested deterministically and alone:
+a test-only plugin holds the native session flush after its own
+SIGTERM so that DSH's five-second forced exit fires, with a receipt
+that the timeout path ran, and the terminal is then checked as in
+the other cases (the child's exit, the alternate buffer, the four
+stty flags, the shell marker), beside an unarmed control. If the
+terminal is not restored, that is a product defect: no skip and no
+weaker oracle, and its fix is a patch release. (2) The W-123
+convention for all six lifecycle cases, so that a helper's wait can
+report before the test's own bound; the last helper is not
+guaranteed its full ceiling, which the capture covers. (3)
+Failure-only phase capture for this family alone: stage and elapsed
+boundaries, the own child's pid and state, the last 4 KiB of the
+PTY, written when the outer failure fires; nothing on the passing
+path but in-memory marks; uploaded on failure from both gates and
+from the release workflow's verify job, the only workflow change.
+(4) A bounded attempt on a hosted mac: 300 runs each of the two
+cases that have failed, serial, stopping at the first failure; a
+clean result is reported as not reproduced. No ceiling is raised and
+no red gate is re-run to close this.
 
 ## Backlog
 
