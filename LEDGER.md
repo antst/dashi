@@ -6399,6 +6399,17 @@ blind re-run. Part 5, new: the install-failure control: which
 process should have been terminated, by what, within which wait,
 and why `command alive` can be read first. Part 4 stays last.
 
+Added 2026-10-13, gate hygiene, found in the W-139 review: the
+repository has no test-runner configuration and the gate passes no
+include (its one exclude is the renderer file, which it runs first
+on its own, scripts/gate.mjs:97-98), so the runner also collects
+specs under the ignored `.cache/` directory; an untracked capture
+spec in the builder's worktree ran in its local gate and was
+counted (356 where the committed tree has 355), and by the
+builder's own statement it overwrote, on those runs, the raw
+capture a committed fixture had been made from. Part 6: the gate
+runs tracked tests only, and says how many files it ran.
+
 ### W-138 dashi: a forced exit leaves the terminal on the alternate screen — status: open (owner dsh-exec, then a plain 0.2.1)
 From W-137 part 1. When DSH ends the process itself, dashi's
 terminal guard never runs: teardown is still waiting for the agent
@@ -6554,6 +6565,131 @@ renderer.ts 90 changed lines, transcript.ts 50, the count helper
 15, no state field. Title `W-139: remove the live activity rows`,
 branch from e299cc5.
 
+Rulings after the first review, 2026-10-13. The review at 701084c
+(accept with notes; head not accepted by the architect) measured
+with real background jobs what the first head read wrongly: DSH's
+bash tool reports every command that was not killed as `completed`
+and puts the exit code after it (dsh-tool-bash
+lib/index.js:42-49), so `exit 3` and commands that died of TERM
+and KILL all read `Job · completed`; a sandbox-denied job got no
+state, because DSH appends bracketed markers to the detail
+(dsh-sandbox lib/index.js:64-65, :76-77); a detail that itself
+contained a second boundary gave the wrong state (DSH wrote
+`[status: failed, x) finished [status: completed]` and the head
+read `Job · completed`); and the footer's state token was found by
+splitting composed text, which cut an overlay title in two. One
+follow-up push ruled. The job's state is the whole content of the
+documented status bracket, found by anchors only: the documented
+prefix, the exact suffix `]. Read its output with job_output.` at
+the very end, and exactly one `) finished [status: ` in the body;
+anything else is `Job notice` with the native summary. Head `Job ·
+<whole state> · <id> · <label>`; in the Ctrl+B list status and
+detail come before the label. Footer: the new shape (new-output
+indicator, state, `Ctrl+B` with the running counts in words, `%
+context`, the long hints) exists only in the plain running and
+plain idle states; every other state is byte-identical to the
+base, with no text splitting. One blank row above the status line
+also with an empty transcript in inline mode. Controls for the
+surviving mutations that change behaviour. A second recording made
+with real background bash jobs for exit 0, a non-zero exit, a kill
+through `/tasks kill` and a sandbox-denied write; the volume
+recording stays registry jobs with scripted outcomes and is
+labelled so; both settings it was made with are named. DESIGN 6.1
+and 6.2 say that the one-row head holds in the collapsed card mode
+only and state the loss: for a running job "labels, elapsed time
+and progress are no longer always visible"; it is a count next to
+its key and a row in the Ctrl+B list. Withdrawn by the architect,
+his own hasty ruling: that `/export` and search must read as on
+the base; on the base both already carry a cell's text and its
+head (session-export.ts, state.ts), so the new head loses nothing
+and no field or prefix is added. One oracle change approved in
+advance: at 80 columns a killed job's row keeps the whole state
+and reason and cuts the command, so the adapted native case
+asserts the state on the row and the full details in the job's
+output view. Not confirmed and not to be cited: the builder's
+figure for the base's scrollback growth (27 to 412 rows); the
+reviewer did not reproduce it. Claude Code's documentation names
+Ctrl+B and `/tasks` for background work and nothing about a footer
+count; the count is this item's own choice.
+
+Second correction, 2026-10-13, the architect's own ruling again.
+The delta review at ec4e10c (accept with notes: the rulings on the
+state, the footer, the blank row, the recording and DESIGN
+implemented as ruled, the controls present for seven of the
+reviewer's eight earlier survivors; 456 footers compared with the
+base, the 260 outside the two plain states identical in text and
+styling) measured what the state in front of the id does to a
+sandbox-denied job. DSH's state for it is 262 characters; at 80
+and at 200 columns the notice head and the Ctrl+B list row held
+nothing but the start of that state: no id, no command, no elapsed
+time, so that two denied jobs could not be told apart (two
+identical rows are in the builder's capture of that head). Head
+not accepted. Bounded fields come first: head `Job · <id> · <whole
+state> · <label>`; list row id and elapsed, then the whole state
+with detail and progress, then the label. The state stays whole;
+anchors, the one-boundary rule and the fallback are unchanged.
+With it: controls for the footer's job count with a stopping job,
+for the trailing blank, for the whole list row and for the denied
+job's row; the four conditions of the empty-transcript blank
+reduced to the one the line above already uses; DESIGN naming
+search beside the decision for the old hint whose key does
+nothing. The recording: the reviewer repeated the capture in its
+own home and found the four notice bodies byte for byte DSH's own
+and 49 of 56 events identical apart from ids, times and paths;
+that the committed bytes came from one particular run cannot be
+shown, because the raw original no longer exists (by the builder's
+statement its own capture spec overwrote it during its local
+gates); the recording note says that it is gone and that the two
+path replacements cannot be compared with it, and names the one
+artefact of the replacement (a summary of 112 characters where DSH
+cuts at 120). A label that itself contains the documented boundary
+gives `Job notice` and no state: a wrong state would be worse than
+none.
+
+Accepted 2026-10-13 and merged: PR #324 at 3dc57d8, squash
+60a113db369064811d8c33d47abbb9096ebece87. Three review rounds by
+one independent reviewer, one per head, the last at this head: the
+second correction is done as ruled and its five controls each fail
+under their mutation; 456 footers are identical in text and
+styling to the head before it, so the 260 outside the two plain
+states are still identical to the base. A fresh native run of 21
+notices, two of them real sandbox denials: 17 parse and show the
+id first, 4 fall back to DSH's own summary, which carries no id;
+the state is whole in 15 of the 17 at 80 and at 200 columns, the
+two denials being cut after the id and the start of their state;
+21 distinct list rows. Core archive 843bf7c2...ebd00, in which
+lib/renderer.js and lib/transcript.js differ from the review
+before; the other three archives byte-identical to 0.2.0. The
+builder's local gate and both hosted gates: 435 of 435 (80 in the
+renderer file, 355 others); the reviewer's own gate 80 of 80 and
+354 of 355, the one failure being the `/init` case, which fails
+there with a short temporary directory on any build and passes
+with the long one. Hosted run 38448332130: 23 of 23 jobs on the
+first attempt, both gates and all nineteen layout rows; the two
+macOS cases recorded under W-137 passed in this run and in the one
+before, which changes nothing in W-137. Whole item: renderer.ts 38
+changed lines of 90, transcript.ts 12 of 50, the count helper 7
+lines, 14 changed with its import and call site, of 15; no state
+field, no timer, no dependency. Carried into W-143's pull request,
+as its first test line: the blank above a panel on an empty inline
+transcript (renderer.ts:521) is held by one condition whose
+removal fails no committed test; and one native assertion lost a
+trailing space. Limits: a background settlement still appears only
+when the model takes the notice (W-140); a denied job's command is
+on neither its head nor its list row at 80 or at 200 columns (it
+returns above about 280), the id tells two apart, and the command
+is in the notice's body in the expanded card mode, not in the
+job's output view; a plugin job kind of unbounded length would
+push the state out again, and none of the installed DSH
+0.2.1-alpha.2 packages has one (their kinds are bash, pwsh,
+pty-send and workflow), so no cap was added; the recording's raw
+original is gone. Release note: "Background jobs and subagents no
+longer take rows above the prompt: their count is in the footer
+next to Ctrl+B and their rows are in the Ctrl+B list. A finished
+job's line leads with its id and its status, exit code included;
+where DSH's notice cannot be read unambiguously the line shows
+DSH's own summary."
+
 ### W-140 dashi: what waits for the model, and who sent it — status: open (owner dsh-exec, analysis exists, after 0.2.1)
 From W-139. Two things a user cannot see today. A message that DSH
 has put into the agent's inbox (a job or subagent notice, a message
@@ -6594,6 +6730,196 @@ constants and theme are unconditional. DESIGN 6.1 says to respect
 NO_COLOR and to keep ASCII status markers in monochrome and
 accessible modes. Not part of W-139, whose rows and counts must
 read correctly without colour in any case.
+
+### W-143 dashi: nothing shows that a turn is working — status: open (owner dsh-exec, ships in 0.2.1 after W-139)
+Owner 2026-10-13: "it is unclear, you send prompt and then silence
+till you get reply. everybody else are indicating it", "with
+pulsing symbol"; kept in 0.2.1 on his word. Between a prompt and
+the first visible output dashi shows nothing that tells a waiting
+model from a dead session; with a model that answers after minutes
+that is most of the time. Ruled after the builder's analysis,
+reduced: one disposable row directly above the model status line,
+present only while the root's native turn is open, and gone with
+it. While it is there the control region is one row taller and the
+blank row separates the conversation from that row; W-139's
+assertions of six rows and of a blank directly above the status
+line in a running root, and DESIGN 6.1's sentence on the blank,
+change with it. A pulse of four frames (`·`, `•`, `●`, `•`) at 250
+ms on the renderer's one timer, which today runs only while a
+command is pending (80 ms, one second in accessible mode) and now
+also while a turn is open; in accessible mode a `*` at one second.
+The words come from native facts only: Working; Waiting for model,
+with the observed age of the attempt and none on a resumed turn;
+Reasoning; Receiving text; Tool request; Tool pending, with the
+name and the count; Retry wait and Retrying, with DSH's own retry
+number; and the turn's elapsed time. Not built: labels for an open
+approval or question (the decision surface says it), an attempt
+ordinal of dashi's own, a token counter. The time of the last
+received chunk is kept, so that a stalled stream reads as stalled.
+No state beyond the one reducer, no second timer, no persistence.
+Ceilings: turn-working.ts 90 lines, session-runtime.ts 50 changed,
+state.ts 20, renderer.ts 50. Evidence: unit tests of the phases
+over recorded logs and one native PTY case that waits on the row
+appearing and on its going with the turn's end. Carried from W-139
+as this pull request's first test line: the blank above a panel on
+an empty inline transcript (renderer.ts:521). Title `W-143: show
+that a turn is working`, branch from develop after W-139 merges.
+
+### W-144 sessionbus plugin: a delivered message waits when the recipient's turn fails — status: open (owner codex-roller)
+Owner 2026-10-13: long-running dashi sessions on one host showed
+`pi-ai stream idle timeout after 300000ms` and stopped answering
+peers. The transport was sound: the sessions were attached and
+every delivery to them was `injected`. Reproduced by the builder
+with the published plugin 0.1.2 in peer mode, a private DSH
+0.2.1-alpha.2 home, a private daemon and a controlled adapter, and
+then with no plugin and no daemon at all: input steered into a
+running turn stays pending, with the agent idle and no new turn,
+when that turn ends in a provider error or in a cancel that keeps
+the inbox before it reaches its next step boundary; the next
+waking input takes both. A follow-up queued during such a turn is
+stranded the same way; by the same mechanism that should also
+concern a prompt typed into dashi while a turn runs, which was not
+measured through dashi (W-140). While a request is retried the
+step repeats the request and takes no pending input between
+attempts, so with the default policy of five retries and a
+five-minute idle limit a message can wait through six requests
+before the error end strands it: source reading and arithmetic,
+not a timed run. An independent check re-ran the reduction with
+identical results, checked every cited line in the installed
+packages, corrected four line references and several sentences
+that said more than was measured, and found nothing in the source
+that contradicts it. Not established: that this explains every
+hour of the owner's sessions. Their logs were not read: the
+architect's script decoded whole logs, was killed by the kernel
+for memory twice and took that host's bus daemon through one
+restart by its service manager; the owner's sessions stayed up.
+Rule since then: a script sent to an owner's host is bounded in
+memory and time, streams its input and never decodes a session log
+whole.
+Ruled. The plugin does not wake the session itself. A synthetic
+waking message was rejected. The public route found by the check,
+removing the pending message and steering it again, was analysed
+and not adopted: it makes two durable operations out of one
+admitted message, with a window in which the message is in neither
+place; DSH logs the removal as a cancelled, discarded input; it
+wakes the whole agent, a queued user prompt included, on the
+plugin's decision, where the session controller uses the pair only
+to move a queued item into a running agent's next step; in a loop
+over two pending messages it reverses their order, since the wake
+is synchronous and takes all pending input; and the next peer
+message already delivers everything. No change to the receipt
+either: `injected` is true of what it names. What ships is plugin
+0.1.3: the README says in a user's words what `injected` promises
+and what it does not, what is seen when the recipient's turn
+fails, and to send another message or prompt that session; the
+reproduction is committed as proofs titled as a known gap, written
+to fail with a message that says so on the day DSH wakes pending
+input after an error end. plugin.cjs stays byte-identical to
+0.1.2. Upstream: DSH discussion 4952 carries a comment of the same
+day reporting the error-end case for queued follow-ups with the
+same mechanism; a comment of 2026-09-20 on discussion 274
+reproduced it after five exhausted retries and links a candidate
+fix; a comment on discussion 9370 says that a turn that errors or
+is cancelled keeps later steering on purpose and that seven
+existing tests failed when every waking send was latched;
+discussion 7328 asks for a wake operation; none of the eighteen
+authors in these threads was marked as a maintainer when they were
+fetched (2026-10-13T17:22Z). The architect found these only after
+the report had been drafted and checked twice; the checked text
+stays as the backing document, and what goes upstream is one short
+comment on 4952 with what is new (the next-step case, a
+reproduction from published packages, the retry interplay, the
+type comment that does not name an error-ended turn), on the
+owner's word. A side finding kept apart, in the plugin
+repository's own note: after a rejected recovery pre-step the
+steering that step had already claimed was gone, while steering
+that arrived during the rejection stayed parked as the type
+comment says; not a contradiction of that comment.
+
+Accepted 2026-10-13 and merged, not released:
+sessionbus/sessionbus-dsh PR #72 at c5ed269, squash
+37d1e97764d4b65c31eff07265d83060a2db552f, tree identical to the
+reviewed head. Three commits. The first hosted run stopped at 15
+of 17: on the hosted runner the proof's directory is longer, the
+daemon refused the lane socket it derives under it (114 bytes
+against a limit of 107) and exited before any root, request or
+message of the proof, and the proof's readiness wait hid the exit
+for ten seconds; not re-run. The correction computes the longest
+derived socket path before the daemon starts and stops with the
+length and the limit, ends the wait at once when the child exits,
+and moves the socket one directory up. The reviewer had passed the
+first head after running the proof in a 9-byte directory of its
+own, having met the same limit locally and worked around it; it
+withdrew that verdict, reproduced the failure, and measured the
+rule to the byte (a socket directory of 63 bytes passes, 64 is
+refused, by the proof and by the daemon alike). At the final head:
+13 cases, five of them known-gap; 203 unit tests; hosted run
+38447390422, 17 of 17 on the first attempt; archive
+4fd87eed...cca622, in which only README.md and the version line
+differ from 0.1.2. Against a simulated upstream fix each of the
+five known-gap cases fails with a message naming the upstream
+change; against simulated loss of the input, run for four of the
+five, it fails with a different one. Limit: a wake added on the
+plugin's side would be credited to upstream by that oracle; only
+the capture tells them apart. Seven points in unshipped files are
+carried to the next change of the plugin. The upstream report did
+not go out as a new thread. A short reply on discussion 4952 was
+posted on the owner's word the same day and read back identical:
+its backing report had been checked twice and the reply once by
+the independent checker; the corrections from that check and two
+wording points of the architect were then applied and verified by
+the architect's own diff, not by a further independent reading. No
+tag before the packed candidate is proven on the dsh host under
+D-049 and D-053: a peer profile under another name in the real DSH
+home upgraded from 0.1.2, and the lane profile in a private DSH
+home; the permanent daemon cannot start a lane on a profile under
+another name, so the lane round trip runs on a private released
+daemon, a stated limit.
+
+### W-145 fleet and dashi: a local model silent for more than five minutes — status: open (architect; the owner's choice between two routes pending)
+Owner 2026-10-13, pointing at DSH discussion 3157: for every dashi
+configuration with the local model, "put this timeout to 30 min".
+Done the same day on four hosts, in every profile patch that
+carries the local provider row, twelve profiles in all:
+`streamIdleTimeoutMs: 1800000` and `timeoutMs: 1800000` under that
+provider, each patch backed up first and each profile checked to
+compose with the values in the composed tree. Not yet: the web
+profile on the dsh host, whose running process reloads its patch
+live and is the owner's; and four hosts that follow with the 0.2.1
+fleet update. Sessions started before the change keep the old
+limit.
+The setting alone does not pass five minutes. Measured against a
+loopback server with DSH 0.2.1-alpha.2 on Node 25.9: with both
+values at thirty minutes a request that got its headers and then
+390 seconds of silence was ended after about 300.3 to 300.4
+seconds by the body timeout of Node's HTTP client and surfaced as
+`terminated`, code TRANSPORT; a request that got no headers was
+ended after the same time by the headers timeout of the same
+client, code TIMEOUT. `timeoutMs` made no difference where it was
+compared, with headers and then silence; with no headers only the
+run with both values exists; by the code it bounds only the wait
+for headers inside the model client and nothing passes it to
+Node's HTTP client. With the defaults DSH's own watchdog ends the
+request about half a second earlier, which is the message the
+owner saw. A server that sends its headers at once and a comment
+line every twenty seconds was not cut: 390 seconds, one attempt,
+answer received. Each cut request was sent again as a full new
+request, the first about half a second later and the second about
+one second later; the default policy allows five such retries, per
+provider (`retryPolicy` under the provider row). Not measured: the
+final outcome after all retries, keep-alive lines against DSH's
+watchdog at its default, more than 390 seconds, other protocols. A
+search of the DSH 0.2.1-alpha.2 packages found no setting that
+reaches the two limits of Node's HTTP client; none was tested, and
+the dispatcher that DSH's proxy plugin installs was not inspected
+at run time. If there is none, that is a DSH gap, named as such.
+Two routes, the owner's choice: his model server sends headers at
+once and keep-alive lines while it works, which in the one run
+that did so carried a request through 390 seconds, longer not
+measured; or a dashi-side change that lifts the two limits for the
+process, which is a mechanism dashi would own and is not built
+without his word. Also his: fewer retries for the local provider,
+and whether these measurements go to discussion 3157.
 
 ## Backlog
 
@@ -6758,3 +7084,4 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-12 pnpm issue: v10: removeDirectDependency reads the old manifest while removing the dependency entry; a read/remove race visible in source, gone from 11.28.3 through pnpm PR 16415, still in 10.x; our two macOS EINVAL failures with the stack, the link between them stated as not demonstrated, not reproduced in 200 lighter iterations; request to carry the ordering to 10.x (W-130). Posted on the owner's word after two independent checks. https://github.com/pnpm/pnpm/issues/16876
 - 2026-10-12 pnpm issue 16876 closed as completed the same day: the maintainer merged pnpm PR 16878, "fix(modules-cleaner): remove a dependency's bins before its directory (v10 backport)", into release/10, three hours after the report; not yet in a published 10.x release (W-130).
 - 2026-10-12 DSH Discussion #9261 (another user's report that `dsh plugin add` hangs on Windows after pnpm prints Done), follow-up comment: the same hang three times on macOS with pnpm 11.18.0 and the process list showing pnpm still alive; pnpm's worker-pool fix in 11.23.0, which the reported versions predate, stated as fitting and not proven; DSH's CLI wait is unbounded by its own README; two questions (is interrupt-and-rerun the supported recovery; an opt-in limit for unattended callers) (W-132). Posted on the owner's word after an independent check. https://github.com/deepseek-ai/deepseek-harness/discussions/9261#discussioncomment-18886224
+- 2026-10-13 DSH Discussion #4952 (another user's report that follow-ups queued during a turn are never admitted), reply under that day's comment on the error-end case: the case confirmed independently on the published 0.2.1-alpha.2 packages, with the next-step (steer) case added, a 97-line reproduction from published packages only, the retry interplay as source reading and arithmetic, the type comment that does not name an error-ended turn, and pointers to the comments on #274 and #9370 and to #7328; no side taken between a re-wake after an error end and a wake operation (W-144). Posted on the owner's word; the backing report checked twice and the reply once independently, the final wording verified by the architect's diff; read back identical. https://github.com/deepseek-ai/deepseek-harness/discussions/4952#discussioncomment-18908166
