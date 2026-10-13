@@ -15,21 +15,37 @@ concurrency:
 
 jobs:
   install-layouts-linux:
+    needs: versions
     uses: ./.github/workflows/install-layouts.yml
     with:
       os: ubuntu-latest
 
   install-layouts-macos:
+    needs: versions
     uses: ./.github/workflows/install-layouts.yml
     with:
       os: macos-latest
 
   versions:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       tested: ${{ steps.versions.outputs.tested }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.3
+      - name: Refuse non-plain or mismatched versions first
+        run: node scripts/check-release-version.mjs "$GITHUB_REF_NAME"
+      - uses: pnpm/action-setup@v6
+      - run: pnpm install --frozen-lockfile
+      - name: Pack and check the annotated tag before any other release job
+        run: |
+          node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
+          node scripts/check-release-payloads.mjs "$GITHUB_REF_NAME" "$RUNNER_TEMP/dashi-release-archives"
       - id: versions
         run: echo "tested=$(node -p 'JSON.stringify(require("./packages/dashi/validated-dsh-versions.json").tested)')" >> "$GITHUB_OUTPUT"
 
@@ -54,71 +70,43 @@ jobs:
       - run: pnpm gate:docker
 
   publish:
-    needs: [verify, install-layouts-linux, install-layouts-macos]
+    needs: [versions, verify, install-layouts-linux, install-layouts-macos]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 22.23.3
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Verify packed package entries
-        run: |
-          node --input-type=module <<'NODE'
-          import { spawnSync } from 'node:child_process'
-
-          const expected = {
-            'packages/file-uploads-none': 'lib/index.js',
-            'packages/dashi': 'lib/index.js',
-            'packages/dashi-app': 'cordis.patch.yml',
-            'packages/dashi-launcher': 'bin/dashi.js',
-          }
-          for (const [cwd, entry] of Object.entries(expected)) {
-            const packed = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd, encoding: 'utf8' })
-            if (packed.status !== 0) throw new Error(`${cwd}: npm pack --dry-run failed\n${packed.stderr}`)
-            const files = JSON.parse(packed.stdout)[0]?.files?.map(file => file.path) ?? []
-            if (!files.includes(entry)) throw new Error(`${cwd}: packed package is missing ${entry}`)
-            console.log(`${cwd}: ${entry}`)
-          }
-          NODE
-      - name: Select release metadata
+      - name: Verify plain release version
         id: release
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          for manifest in packages/file-uploads-none/package.json packages/dashi/package.json packages/dashi-app/package.json packages/dashi-launcher/package.json; do
-            package_version="$(node -p "require('./$manifest').version")"
-            if [[ "$version" != "$package_version" ]]; then
-              echo "Tag $GITHUB_REF_NAME does not match $manifest version $package_version" >&2
-              exit 1
-            fi
-          done
-          dist_tag="${version#*-}"
-          if [[ "$dist_tag" == "$version" ]]; then
-            dist_tag=latest
-            prerelease=false
-          else
-            dist_tag="${dist_tag%%.*}"
-            prerelease=true
-          fi
-          {
-            printf 'version=%s\n' "$version"
-            printf 'dist_tag=%s\n' "$dist_tag"
-            printf 'prerelease=%s\n' "$prerelease"
-          } >> "$GITHUB_OUTPUT"
+          version="$(node scripts/check-release-version.mjs "$GITHUB_REF_NAME")"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Re-pack and check proven payloads before any gh or npm action
+        run: |
+          node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
+          node scripts/check-release-payloads.mjs "$GITHUB_REF_NAME" "$RUNNER_TEMP/dashi-release-archives"
+      - name: Publish the four verified archives to latest
+        run: node scripts/publish-release-payloads.mjs "$RUNNER_TEMP/dashi-release-archives"
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
-          PRERELEASE: ${{ steps.release.outputs.prerelease }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" > "$RUNNER_TEMP/existing-release.json" 2> "$RUNNER_TEMP/release-query-error.log"; then
             echo "GitHub release $GITHUB_REF_NAME already exists"
             exit 0
+          fi
+          if ! grep -Fq '(HTTP 404)' "$RUNNER_TEMP/release-query-error.log"; then
+            cat "$RUNNER_TEMP/release-query-error.log" >&2
+            exit 1
           fi
           notes="$(awk -v heading="## $RELEASE_VERSION" '
             $0 == heading || index($0, heading " ") == 1 { found = 1; next }
@@ -126,9 +114,6 @@ jobs:
             found { print }
           ' CHANGELOG.md)"
           args=(release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME")
-          if [[ "$PRERELEASE" == true ]]; then
-            args+=(--prerelease)
-          fi
           if [[ -n "$notes" ]]; then
             printf '%s\n' "$notes" > "$RUNNER_TEMP/release-notes.md"
             args+=(--notes-file "$RUNNER_TEMP/release-notes.md")
@@ -136,47 +121,3 @@ jobs:
             args+=(--generate-notes)
           fi
           gh "${args[@]}"
-      - name: Publish @antst/dsh-file-uploads-none
-        env:
-          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if npm view "@antst/dsh-file-uploads-none@$RELEASE_VERSION" version >/dev/null 2>&1; then
-            echo "@antst/dsh-file-uploads-none@$RELEASE_VERSION already published"
-          else
-            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
-          fi
-        working-directory: packages/file-uploads-none
-      - name: Publish @antst/dashi
-        env:
-          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if npm view "@antst/dashi@$RELEASE_VERSION" version >/dev/null 2>&1; then
-            echo "@antst/dashi@$RELEASE_VERSION already published"
-          else
-            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
-          fi
-        working-directory: packages/dashi
-      - name: Publish @antst/dashi-app
-        env:
-          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if npm view "@antst/dashi-app@$RELEASE_VERSION" version >/dev/null 2>&1; then
-            echo "@antst/dashi-app@$RELEASE_VERSION already published"
-          else
-            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
-          fi
-        working-directory: packages/dashi-app
-      - name: Publish @antst/dashi-launcher
-        env:
-          NPM_DIST_TAG: ${{ steps.release.outputs.dist_tag }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if npm view "@antst/dashi-launcher@$RELEASE_VERSION" version >/dev/null 2>&1; then
-            echo "@antst/dashi-launcher@$RELEASE_VERSION already published"
-          else
-            pnpm publish --access public --provenance --no-git-checks --tag "$NPM_DIST_TAG"
-          fi
-        working-directory: packages/dashi-launcher

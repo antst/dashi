@@ -55,6 +55,26 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm gate:docker
+      # Release hashes are produced only under the supported pack conditions (D-052).
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.3
+      - name: Print release archive hashes
+        run: |
+          stat -c 'generated output owner: %n uid=%u gid=%g' packages/file-uploads-none/lib packages/dashi/lib
+          node scripts/pack-release.mjs "$RUNNER_TEMP/dashi-release-archives"
+          node --input-type=module <<'NODE'
+          import { join } from 'node:path'
+          import { packRelease, readReleaseArchives } from './scripts/pack-release.mjs'
+          const first = readReleaseArchives(join(process.env.RUNNER_TEMP, 'dashi-release-archives'))
+          for (let index = 1; index < 3; index++) {
+            const repeated = packRelease(join(process.env.RUNNER_TEMP, 'dashi-release-repeat-' + index))
+            if (repeated.some((payload, position) => payload.sha256 !== first[position].sha256)) {
+              throw new Error('Release archives changed between consecutive packs')
+            }
+          }
+          console.log('release pack: PASS — three consecutive complete pack sets byte-identical')
+          NODE
 
   preview:
     needs: [gate, install-layouts-linux]

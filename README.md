@@ -18,8 +18,8 @@ With npm:
 <!-- install:G-npm -->
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.1-alpha.2
-npm install -g @antst/dashi-launcher@0.2.0-alpha.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npm install -g @antst/dashi-launcher@0.2.0
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 dashi
 ```
 
@@ -28,7 +28,7 @@ With pnpm 10 or pnpm 12:
 <!-- install:G-pnpm10-packages install:G-pnpm11-packages install:G-pnpm12-packages -->
 ```sh
 pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
-pnpm add -g @antst/dashi-launcher@0.2.0-alpha.2
+pnpm add -g @antst/dashi-launcher@0.2.0
 ```
 
 For pnpm 11, apply the [global-store remedy](#dsh-installed-globally-with-pnpm-11)
@@ -36,7 +36,7 @@ below before starting DSH. Then:
 
 <!-- install:G-pnpm10 install:G-pnpm11 install:G-pnpm12 -->
 ```sh
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 dashi
 ```
 
@@ -44,9 +44,9 @@ With npx, without a permanent CLI installation:
 
 <!-- install:G-npx -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0-alpha.2 dashi --version
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0-alpha.2 dashi
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 plugin --profile dashi add @antst/dashi-app@0.2.0
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0 dashi --version
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0 dashi
 ```
 
 To start the installed profile directly, first check the CLI installation:
@@ -91,8 +91,8 @@ From your project directory, with npm:
 
 <!-- install:P-npm -->
 ```sh
-npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 npm exec -- dashi
 ```
 
@@ -100,8 +100,8 @@ With pnpm 10, install as written:
 
 <!-- install:P-pnpm10 install:P-pnpm11 install:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0-alpha.2
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 pnpm exec dashi
 ```
 
@@ -171,8 +171,8 @@ For global npm:
 
 <!-- upgrade:G-npm -->
 ```sh
-npm install -g @antst/dashi-launcher@0.2.0-alpha.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npm install -g @antst/dashi-launcher@0.2.0
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 dashi
 ```
 
@@ -180,8 +180,8 @@ For global pnpm:
 
 <!-- upgrade:G-pnpm10 upgrade:G-pnpm11 upgrade:G-pnpm12 -->
 ```sh
-pnpm add -g @antst/dashi-launcher@0.2.0-alpha.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+pnpm add -g @antst/dashi-launcher@0.2.0
+dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 dashi
 ```
 
@@ -189,8 +189,8 @@ For a project using npm:
 
 <!-- upgrade:P-npm -->
 ```sh
-npm install --save-exact @antst/dashi-launcher@0.2.0-alpha.2
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+npm install --save-exact @antst/dashi-launcher@0.2.0
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 npm exec -- dashi
 ```
 
@@ -198,8 +198,8 @@ For a project using pnpm:
 
 <!-- upgrade:P-pnpm10 upgrade:P-pnpm11 upgrade:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @antst/dashi-launcher@0.2.0-alpha.2
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0-alpha.2
+pnpm add --save-exact @antst/dashi-launcher@0.2.0
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 pnpm exec dashi
 ```
 
@@ -351,8 +351,8 @@ text when no command matches.
 `/reset`, `/continue`, `/branch`, and `/quit` alias `/clear`, `/resume`, `/fork`,
 and `/exit`; `/effort LEVEL` changes only the current model's reasoning effort
 through DSH's model selection.
-DSH 0.2 refuses launch model/provider routes absent from its available model catalog;
-custom routes must first be declared through the native provider configuration.
+Choose a model and provider shown by `/model`. If you use your own provider,
+configure it with `/config` or DSH's Models page before starting dashi with it.
 `/clear [NAME]` starts a fresh session, naming the previous one when NAME is supplied.
 `/agents` selects the current blank
 session's native DSH agent preset; after a conversation starts, choosing a
@@ -536,9 +536,7 @@ installable previews of all three packages through pkg.pr.new once its GitHub
 App is installed.
 Run `pnpm gate:docker` to execute the same containerized gate used by CI.
 
-To release, update the versions and changelog on `develop`, merge it to `main`,
-then push the matching `vX.Y.Z` tag. The release workflow runs the full gate,
-creates the GitHub release, and publishes to npm with trusted publishing.
+Maintainers: follow [RELEASING.md](RELEASING.md) to cut a release.
 
 After `pnpm install`, build, install both local workspace packages into an
 isolated `dashi-dev` profile, and boot it with one command:

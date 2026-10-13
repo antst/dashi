@@ -26,7 +26,7 @@ export function readInstallDescriptors(pid: number, group: number) {
   return observed(() => {
     if (process.platform === 'darwin') {
       const result = spawnSync('lsof', ['-nP', '-a', '-p', String(pid), '-g', String(group), '-F', 'pftn'],
-        { encoding: 'utf8', timeout: 2_000, maxBuffer: 1024 * 1024 })
+        { encoding: 'utf8', timeout: 2_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024 })
       if (result.error) throw result.error
       if (result.status !== 0) throw new Error('lsof exited ' + result.status + ': ' + result.stderr)
       return redact(result.stdout)
@@ -46,11 +46,15 @@ export function recordInstallTimeout(input: {
 }): string {
   const directory = mkdtempSync(join(input.evidence, 'install-failure-'))
   const tree = observed(() => {
-    const result = spawnSync('ps', ['-ax', '-o', 'pid=,ppid=,pgid=,stat=,command='], { encoding: 'utf8', timeout: 5_000 })
+    const result = spawnSync('ps', ['-ax', '-o', 'pid=,ppid=,pgid=,stat=,command='], { encoding: 'utf8', timeout: 5_000, killSignal: 'SIGKILL' })
     if (result.error) throw result.error
     if (result.status !== 0) throw new Error('ps exited ' + result.status + ': ' + result.stderr)
     return result.stdout.split('\n').filter(row => Number(row.trim().split(/\s+/u)[2]) === input.pid).join('\n')
   })
+  const record = { capturedAt: new Date().toISOString(), command: input.command,
+    args: input.args, pid: input.pid, processGroup: tree }
+  const file = join(directory, 'timeout.json')
+  writeFileSync(file, JSON.stringify(record, null, 2))
   const descriptors = 'value' in tree ? tree.value.split('\n').filter(Boolean).map(row => {
     const pid = Number(row.trim().split(/\s+/u)[0])
     return { pid, observation: readInstallDescriptors(pid, input.pid) }
@@ -72,9 +76,7 @@ export function recordInstallTimeout(input: {
     copy(source, join(directory, 'plugin-manager-logs'))
     return { source, copied: true }
   })
-  writeFileSync(join(directory, 'timeout.json'), JSON.stringify({ capturedAt: new Date().toISOString(),
-    command: input.command, args: input.args, pid: input.pid, processGroup: tree, descriptors, logs,
-  }, null, 2))
+  writeFileSync(file, JSON.stringify({ ...record, descriptors, logs }, null, 2))
   return directory
 }
 

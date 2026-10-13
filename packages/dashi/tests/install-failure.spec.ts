@@ -126,6 +126,62 @@ it('reports a vanished owned process as a descriptor read error, not an empty su
   else expect(record).toMatchObject({ code: 'ENOENT' })
 })
 
+it('KILL bounds a ps diagnostic that ignores TERM', () => {
+  const evidence = mkdtempSync(join(tmpdir(), 'dashi-diagnostic-ps-'))
+  const path = process.env.PATH
+  try {
+    writeFileSync(join(evidence, 'ps'), `#!${process.execPath}\nprocess.on('SIGTERM', () => {}); setTimeout(() => {}, 8000)\n`)
+    chmodSync(join(evidence, 'ps'), 0o755)
+    process.env.PATH = evidence + ':' + (path ?? '')
+    const started = performance.now()
+    const capture = recordInstallTimeout({ pid: process.pid, command: 'control', args: [], env: {}, evidence })
+    const elapsed = performance.now() - started
+    const record = JSON.parse(readFileSync(join(capture, 'timeout.json'), 'utf8'))
+    expect(record.processGroup).toMatchObject({ code: 'ETIMEDOUT' })
+    expect(elapsed).toBeLessThan(7_000)
+  } finally {
+    if (path === undefined) delete process.env.PATH
+    else process.env.PATH = path
+    rmSync(evidence, { recursive: true, force: true })
+  }
+}, 10_000)
+
+it('persists the tree before a TERM-ignoring lsof diagnostic and KILLs it at its own bound', () => {
+  const evidence = mkdtempSync(join(tmpdir(), 'dashi-diagnostic-lsof-'))
+  const path = process.env.PATH
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
+  const observed = join(evidence, 'tree-observed.json')
+  const tree = `${process.pid} ${process.ppid} ${process.pid} S control`
+  try {
+    writeFileSync(join(evidence, 'ps'), `#!${process.execPath}\nconsole.log(${JSON.stringify(tree)})\n`)
+    writeFileSync(join(evidence, 'lsof'), `#!${process.execPath}\nconst fs = require('node:fs');
+      const directory = fs.readdirSync(${JSON.stringify(evidence)}).find(name => name.startsWith('install-failure-'));
+      fs.copyFileSync(${JSON.stringify(evidence)} + '/' + directory + '/timeout.json', ${JSON.stringify(observed)});
+      process.on('SIGTERM', () => {}); setTimeout(() => {}, 8000)\n`)
+    chmodSync(join(evidence, 'ps'), 0o755)
+    chmodSync(join(evidence, 'lsof'), 0o755)
+    process.env.PATH = evidence + ':' + (path ?? '')
+    // Exercise the Darwin-only collector on either runner, with fixture-owned executables.
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
+    const started = performance.now()
+    const capture = recordInstallTimeout({ pid: process.pid, command: 'control', args: [], env: {}, evidence })
+    const elapsed = performance.now() - started
+    const early = JSON.parse(readFileSync(observed, 'utf8'))
+    const complete = JSON.parse(readFileSync(join(capture, 'timeout.json'), 'utf8'))
+    expect(early.processGroup.value).toBe(tree)
+    expect(early).not.toHaveProperty('descriptors')
+    expect(complete.processGroup).toEqual(early.processGroup)
+    expect(complete.capturedAt).toBe(early.capturedAt)
+    expect(complete.descriptors[0].observation).toMatchObject({ code: 'ETIMEDOUT' })
+    expect(elapsed).toBeLessThan(4_000)
+  } finally {
+    Object.defineProperty(process, 'platform', platform)
+    if (path === undefined) delete process.env.PATH
+    else process.env.PATH = path
+    rmSync(evidence, { recursive: true, force: true })
+  }
+})
+
 it('KILL escalation removes an owned group member that ignores TERM', async () => {
   const evidence = mkdtempSync(join(tmpdir(), 'dashi-install-kill-'))
   const file = join(evidence, 'ready.log')
