@@ -11,7 +11,7 @@ export interface WorkingStream {
 }
 
 export interface TurnWorking {
-  readonly startedAt: number
+  readonly startedAt?: number | undefined
   readonly phase: string
   readonly phaseStartedAt?: number
   readonly lastChunkAt?: number

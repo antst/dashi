@@ -437,9 +437,11 @@ changes and `Ctrl+B` shows the settled status; there is no early inbox mirror.
 The working row reads native turn/step, stream categories, paired pending tool
 calls and DSH's recorded retry number. Request age starts at the observed live
 start frame, not at submit or a reused header; a turn found already running
-has no request age because DSH supplies no start timestamp. Tool pending is
-not proof of a running OS process. For the current live reasoning, text or
-tool-request stream, three seconds without a chunk adds `no data <age>` from
+has no request age because DSH supplies no start timestamp. Missing or broken
+earlier history never prevents opening: without the turn's start, the row is
+plain `Working`, with no invented turn or request age. Tool pending is
+not proof of a running OS process. For any current live stream, including an
+unknown chunk category, three seconds without a chunk adds `no data <age>` from
 that stream's latest native chunk time; a new chunk removes it immediately.
 Settled streams supply no silence age. Waiting, tool-pending and retry phases
 keep their own facts and do not receive this label.

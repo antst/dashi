@@ -80,7 +80,7 @@ import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
 import { addModelProvider, credentialOptions, missingCredentialNotice, setModelCredential } from './model-setup.js'
-import { turnWorking, type WorkingStream } from './turn-working.js'
+import { turnWorking, type TurnWorking, type WorkingStream } from './turn-working.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
@@ -308,10 +308,10 @@ export async function createSessionRuntime(
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
 
-  const workingFor = (events: readonly SessionEvent[], stream?: WorkingStream) => {
+  const workingFor = (events: readonly SessionEvent[], stream?: WorkingStream, fallback?: TurnWorking) => {
     let from = events.length - 1
     while (from > 0 && events[from]?.type !== 'turn/start') from--
-    return turnWorking(events.slice(Math.max(0, from)), stream)
+    return turnWorking(events.slice(Math.max(0, from)), stream) ?? fallback
   }
 
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
@@ -361,15 +361,16 @@ export async function createSessionRuntime(
       let hasMore = opening.hasMore
       const from = (opening.projections.values.turnBoundary as TurnBoundaryProjection | undefined)?.openTurnStartSeq
       while (from != null && (events[0]?.seq ?? Infinity) > from && hasMore) {
-        const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]!.seq, maxMessages: 50 }, abort.signal)
+        const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]?.seq ?? opening.cursor + 1, maxMessages: 50 }, abort.signal).catch(() => undefined)
+        if (page === undefined) break
         const older = eventsFromRecords(page.records)
-        if (older.length === 0 || older.at(-1)!.seq >= (events[0]?.seq ?? Infinity)) throw new Error('DSH returned no earlier open-turn history')
+        if (older.length === 0 || older.at(-1)!.seq >= (events[0]?.seq ?? Infinity)) break
         events.unshift(...older); hasMore = page.hasMore
       }
       const active = opening.assistantStream?.activeAttempt
       const workingStream = active === undefined ? undefined : { attemptId: String(active.attemptId), turn: active.turn, step: active.step, startedAfterSeq: active.startedAfterSeq,
         lastChunk: expandAssistantStream(active.stream as never).at(-1) }
-      const working = workingFor(events, workingStream)
+      const working = workingFor(events, workingStream, from == null ? undefined : { phase: 'Working' })
       return {
         abort,
         agent,
@@ -498,7 +499,7 @@ export async function createSessionRuntime(
 
   const publish = (bound: Binding): void => {
     bound.timer = undefined
-    const working = workingFor(bound.events, bound.workingStream)
+    const working = workingFor(bound.events, bound.workingStream, bound.root.working)
     const { working: _working, ...root } = bound.root
     bound.root = { ...root, ...(working === undefined ? {} : { working }) }
     dispatch({
@@ -535,8 +536,7 @@ export async function createSessionRuntime(
       if (frame.frame.type === 'start') bound.workingStream = {
         attemptId: String(frame.frame.attemptId), turn: frame.frame.turn, step: frame.frame.step, startedAfterSeq: frame.frame.startedAfterSeq, observedAt: Date.now(),
       }
-      else if (frame.frame.type === 'end') bound.workingStream = undefined
-      else if (bound.workingStream?.attemptId === frame.frame.attemptId) bound.workingStream = {
+      else if (frame.frame.type === 'chunk' && bound.workingStream?.attemptId === frame.frame.attemptId) bound.workingStream = {
         ...bound.workingStream, lastChunk: { time: frame.frame.time, chunk: frame.frame.chunk as StreamChunk },
       }
       if (frame.frame.type !== 'chunk') {
@@ -557,7 +557,8 @@ export async function createSessionRuntime(
     bound.events.push(event)
     if (event.type === 'assistant/message' || event.type === 'assistant/attempt') bound.streamCells = []
     if (event.type === 'turn/end') {
-      bound.workingStream = undefined
+      const { working: _working, ...root } = bound.root
+      bound.root = root
       void refreshRepo(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
       if (startedAt !== undefined) {

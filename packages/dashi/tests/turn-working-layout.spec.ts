@@ -11,6 +11,7 @@ import { foldCells } from '../src/transcript.js'
 import { turnWorking } from '../src/turn-working.js'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import { Markdown } from '@earendil-works/pi-tui'
 import { recordedEvents } from './fixtures/session-format.js'
 
 const now = 1_800_000_000_000
@@ -137,16 +138,19 @@ describe('working row layout and timer ownership', () => {
         [{ type: 'reasoning-delta', index: 0, text: 'reason' }, 'Reasoning'],
         [{ type: 'text-delta', index: 0, text: 'text' }, 'Receiving text'],
         [{ type: 'tool-call-delta', index: 0, id: ToolCallId('call'), name: 'read', argumentsDelta: '{}' }, 'Tool request'],
+        [{ type: 'usage', usage: { inputTokens: 1, outputTokens: 1 } }, 'Working'],
+        [{ type: 'finish', reason: { kind: 'stop' } }, 'Working'],
+        [{ type: 'unknown-provider-event' }, 'Working'],
       ] as const) {
         const live = { attemptId: 'current', turn: 1, step: 1, startedAfterSeq: 2, lastChunk: { time: now, chunk } }
-        state = { ...state, root: { ...state.root!, working: turnWorking(events, live)! } }
+        state = { ...state, root: { ...state.root!, working: turnWorking(events, live as never)! } }
         clock = now + 2_999; renderer.render(false); await terminal.flush()
         expect(terminal.lines().join('\n')).not.toContain('no data')
         clock = now + 3_000; renderer.render(false); await terminal.flush()
         expect(terminal.lines().find(line => line.includes(phase))).toContain(`${phase} · no data 3s · turn 1m 13s`)
         clock = now + 11_000; renderer.render(false); await terminal.flush()
         expect(terminal.lines().find(line => line.includes(phase))).toContain(`${phase} · no data 11s · turn 1m 21s`)
-        state = { ...state, root: { ...state.root!, working: turnWorking(events, { ...live, lastChunk: { time: clock, chunk } })! } }
+        state = { ...state, root: { ...state.root!, working: turnWorking(events, { ...live, lastChunk: { time: clock, chunk } } as never)! } }
         renderer.render(false); await terminal.flush()
         expect(terminal.lines().join('\n')).not.toContain('no data')
       }
@@ -160,6 +164,41 @@ describe('working row layout and timer ownership', () => {
         renderer.render(false); await terminal.flush()
         expect(terminal.lines().join('\n')).not.toContain('no data')
       }
+    } finally { renderer.stop(true); terminal.screen.dispose() }
+  })
+
+  it('keeps unknown turn age absent rather than showing an attach-time clock', async () => {
+    const terminal = new Screen()
+    const state = { ...rootState(), root: { ...rootState().root!, working: { phase: 'Working' } } }
+    const renderer = createRenderer({ terminal, inline: false, readState: () => state, dispatch() {} })
+    renderer.start()
+    try {
+      renderer.render(true); await terminal.flush()
+      expect(terminal.lines().find(line => /^[·•●] Working/u.test(line))).toMatch(/^[·•●] Working$/u)
+    } finally { renderer.stop(true); terminal.screen.dispose() }
+  })
+
+  it('caches the loaded settled cells, but evicts replaced keys at that same bound', async () => {
+    const terminal = new Screen()
+    const markdown = vi.spyOn(Markdown.prototype, 'render')
+    const settled = (prefix: string) => Array.from({ length: 600 }, (_, index) => ({
+      key: `${prefix}-${String(index)}`, kind: 'assistant' as const, text: `${prefix} answer ${String(index)}`,
+    }))
+    const first = settled('FIRST')
+    let state = { ...rootState(true), cells: first, root: { cwd: '/fixture', id: 'root', model: 'recorded', status: 'idle' as const } }
+    const renderer = createRenderer({ terminal, inline: true, readState: () => state, dispatch() {} })
+    renderer.start()
+    try {
+      renderer.render(true); await terminal.flush()
+      expect(markdown).toHaveBeenCalledTimes(600)
+      renderer.render(false); await terminal.flush()
+      expect(markdown).toHaveBeenCalledTimes(600)
+      state = { ...state, cells: settled('SECOND') }
+      renderer.render(false); await terminal.flush()
+      expect(markdown).toHaveBeenCalledTimes(1200)
+      state = { ...state, cells: first }
+      renderer.render(false); await terminal.flush()
+      expect(markdown).toHaveBeenCalledTimes(1800)
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 

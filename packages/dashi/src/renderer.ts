@@ -442,9 +442,9 @@ export function createRenderer(options: RendererOptions): Renderer {
       const workingRow = working === undefined ? [] : [line(plain([
         `${accessible ? '*' : WORKING_FRAMES[Math.floor(now / WORKING_INTERVAL_MS) % WORKING_FRAMES.length]} ${working.phase}`,
         ...(working.phaseStartedAt === undefined ? [] : [duration(now - working.phaseStartedAt)]),
-        ...(working.lastChunkAt !== undefined && ['Reasoning', 'Receiving text', 'Tool request'].includes(working.phase) && now - working.lastChunkAt >= 3_000
+        ...(working.lastChunkAt !== undefined && now - working.lastChunkAt >= 3_000
           ? [`no data ${duration(now - working.lastChunkAt)}`] : []),
-        `turn ${duration(now - working.startedAt)}`,
+        ...(working.startedAt === undefined ? [] : [`turn ${duration(now - working.startedAt)}`]),
         ...(working.tail === undefined ? [] : [working.tail]),
       ].join(' · ')), width)]
       const panelRows = rows - workingRow.length
