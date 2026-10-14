@@ -5,7 +5,7 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 ## Install
 
 Use Node 22.19 or newer on the Node 22 line, or Node 24+. The minimum
-supported DSH is `0.2.1-alpha.2`; dashi 0.2 uses DSH's 0.2 integration.
+supported DSH is `0.2.1-alpha.3`; dashi 0.2 uses DSH's 0.2 integration.
 DSH's profile manager needs `pnpm` on PATH even when DSH is installed
 with npm or run by npx.
 
@@ -17,7 +17,7 @@ With npm:
 
 <!-- install:G-npm -->
 ```sh
-npm install -g @deepseek-ai/dsh@0.2.1-alpha.2
+npm install -g @deepseek-ai/dsh@0.2.1-alpha.3
 npm install -g @antst/dashi-launcher@0.2.0
 dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 dashi
@@ -27,7 +27,7 @@ With pnpm 10 or pnpm 12:
 
 <!-- install:G-pnpm10-packages install:G-pnpm11-packages install:G-pnpm12-packages -->
 ```sh
-pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
+pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.3
 pnpm add -g @antst/dashi-launcher@0.2.0
 ```
 
@@ -44,23 +44,23 @@ With npx, without a permanent CLI installation:
 
 <!-- install:G-npx -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 plugin --profile dashi add @antst/dashi-app@0.2.0
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0 dashi --version
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.2 --package=@antst/dashi-launcher@0.2.0 dashi
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.3 plugin --profile dashi add @antst/dashi-app@0.2.0
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.0 dashi --version
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.0 dashi
 ```
 
 To start the installed profile directly, first check the CLI installation:
 
 <!-- install:G-npx-direct-warm -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 --version
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.3 --version
 ```
 
 Then start the profile:
 
 <!-- install:G-npx-direct -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.1-alpha.2 --profile dashi
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.3 --profile dashi
 ```
 
 ### DSH installed globally with pnpm 11
@@ -79,7 +79,7 @@ Disable the global virtual store and reinstall DSH:
 <!-- install:G-pnpm11-remedy -->
 ```sh
 pnpm config set --global --json enableGlobalVirtualStore false
-pnpm remove -g @deepseek-ai/dsh && pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.2
+pnpm remove -g @deepseek-ai/dsh && pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.3
 ```
 
 The setting affects subsequent installations; it does not migrate existing
@@ -91,7 +91,7 @@ From your project directory, with npm:
 
 <!-- install:P-npm -->
 ```sh
-npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0
+npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.0
 npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 npm exec -- dashi
 ```
@@ -100,7 +100,7 @@ With pnpm 10, install as written:
 
 <!-- install:P-pnpm10 install:P-pnpm11 install:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.2 @antst/dashi-launcher@0.2.0
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.0
 pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0
 pnpm exec dashi
 ```
@@ -215,14 +215,14 @@ pre.20, which consumes the provider as a peer.
 ### Third-party plugins on DSH 0.2.1
 
 `dsh-codex@0.3.2` pins `@deepseek-ai/dsh-session-format-catalog` to
-`0.2.0-rc.1`. On DSH `0.2.1-alpha.2`, it needs this override in the profile's
+`0.2.0-rc.1`. On DSH `0.2.1-alpha.3`, it needs this override in the profile's
 `pnpm-workspace.yaml`, which DSH creates when it initialises the profile.
 Merge the entry into its top-level `overrides`, preserving all other settings
 and existing overrides:
 
 ```yaml
 overrides:
-  '@deepseek-ai/dsh-session-format-catalog': 0.2.1-alpha.2
+  '@deepseek-ai/dsh-session-format-catalog': 0.2.1-alpha.3
 ```
 
 If you followed the earlier `package.json` instruction, move all entries from
@@ -384,7 +384,7 @@ Reading job output does not consume the model's job result. `/subtask TEXT`
 starts a native child activation with TEXT as its prompt. `/loop 5m TEXT` or `/loop 1h TEXT` creates a DSH-owned
 fixed-rate reminder whose firing submits TEXT as a prompt; `/loop` lists active
 schedules and `/loop stop ID` cancels one. DSH sets the minimum interval to
-one minute on DSH 0.2.1-alpha.2. Child agents see the schedule tools but DSH refuses their use.
+one minute on DSH 0.2.1-alpha.3. Child agents see the schedule tools but DSH refuses their use.
 Sessions requiring a format migration are labelled in `/resume`; a cold fork
 that requires migration is refused by DSH rather than silently rewritten.
 `/plugins` lists each

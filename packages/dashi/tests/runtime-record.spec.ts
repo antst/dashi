@@ -27,6 +27,15 @@ function record(): RuntimeRecord {
 }
 
 describe('native installation oracle', () => {
+  it('rejects newer DSH parts in either runtime scope for candidates and historical baselines', () => {
+    for (const scope of ['installation', 'profile']) {
+      const observed = record()
+      observed.resolution.push({ name: '@deepseek-ai/dsh-session-stats', version: '0.2.1-alpha.3', scope, packageDir: '/new' })
+      expect(() => { assertActiveRuntime(observed, '0.2.1-alpha.2', '0.2.0-alpha.2') }).toThrow()
+      expect(() => { assertActiveRuntime(observed, '0.2.1-alpha.2', '0.2.0-alpha.2', 'published') }).toThrow()
+    }
+  })
+
   it('records a published provider shadow but rejects candidate non-convergence', () => {
     const observed = record()
     observed.packages['@antst/dsh-file-uploads-none']!.version = '0.1.2'

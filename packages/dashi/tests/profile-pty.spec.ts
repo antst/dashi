@@ -276,7 +276,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const id = sessionId(shell.output, start)
       shell.write('/dashi-unowned-job-proof\r')
+      let jobId = ''
       await vi.waitFor(async () => {
+        const receipt = sessionEvents(id).find(event => event.type === 'command/done'
+          && String(event.data?.text).startsWith('Unowned job '))
+        jobId = /^Unowned job (bash-[0-9a-f]{16})$/u.exec(String(receipt?.data?.text))?.[1] ?? ''
+        expect(jobId).not.toBe('')
         const frame = await parsedFrame(shell.output.slice(start))
         expect(frame.status).toContain('Ctrl+B activity')
         expect(frame.transcript).not.toContain('Job ·')
@@ -285,7 +290,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         shell.write('/tasks\r')
         await vi.waitFor(async () => {
           expect((await parsedFrame(shell.output.slice(start))).overlay)
-            .toMatch(/Job · bash-1 · \d+s · completed · W114 unowned output/u)
+            .toMatch(new RegExp(`Job · ${jobId} · \\d+s · completed · W114 unowned output`, 'u'))
         }, { timeout: testCeiling(20_000) })
         shell.write('\r')
         await vi.waitFor(async () => {
@@ -470,7 +475,6 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     mkdirSync(archives)
     const archive = packWorkspacePackage(pluginManagementFixture, archives)
     const missingSessionbusRuntime = join(testDir, 'missing-sessionbus-runtime')
-    const missingSessionbusSocket = join(missingSessionbusRuntime, 'sessionbus', 'presence.sock')
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: pluginHome,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
@@ -508,6 +512,10 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const completedAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
       await shell.waitFor('idle ·', completedAt)
 
+      const groupsAt = shell.output.length
+      shell.write('/sessionbus-groups\r')
+      await shell.waitFor('sessionbus is not connected', groupsAt)
+
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
       await shell.waitFor('bundles load on the next launch; plain plugins need a patch row', addAt)
@@ -521,13 +529,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('[exit 1]', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('[exit 1]')
-      const diagnostics = [...shell.output.slice(start).matchAll(/sessionbus: ([^\r\n]*)/gu)]
-        .map(match => match[1] ?? '')
-      const connectionFailures = diagnostics.filter(line => line.includes(missingSessionbusSocket))
-      expect(connectionFailures.length).toBeGreaterThan(0)
-      expect(connectionFailures.every(line => line.startsWith('connect ENOENT '))).toBe(true)
-      // Bound retries during this 60-second case so a reconnect hot loop fails visibly.
-      expect(connectionFailures.length).toBeLessThan(20)
+      expect(shell.output.slice(start).match(/sessionbus:/gu) ?? []).toHaveLength(0)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)

@@ -41,6 +41,7 @@ import {
   relevantTerminalMode,
   type ParsedFrame,
   parsedFrame,
+  resizedFrame,
   firstFrame,
   prepareShell,
   launch,
@@ -526,8 +527,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
 
     const firstEvents = sessionEvents(first)
+    expect(sessionLog(first).header.agentPreset).toBe('standard')
     expect(firstEvents.some(event => event.type === 'agent-preset/selected'
-      && event.data?.agentPreset === 'standard')).toBe(true)
+      && event.data?.agentPreset === 'standard')).toBe(false)
     for (const name of ['agents', 'export', 'context']) {
       expect(firstEvents.some(event => event.type === 'command/run' && event.data?.name === name)).toBe(true)
     }
@@ -1896,13 +1898,33 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('Ctrl+B 1 job', jobAt)
       const jobDone = await shell.waitFor('Job completion acknowledged.', jobAt, 30_000)
       await shell.waitFor('idle ·', jobDone)
+      const job = sessionEvents(parent).find(event => event.type === 'job/registered'
+        && event.data?.label === 'sleep 0.5; printf DASHI_JOB_DONE')?.data
+      const jobId = String(job?.jobId ?? '')
+      expect(jobId).toMatch(/^bash-[0-9a-f]{16}$/u)
+      expect(job).toMatchObject({ kind: 'bash', label: 'sleep 0.5; printf DASHI_JOB_DONE' })
       const jobListAt = shell.output.length
       shell.write('/tasks\r')
       await shell.waitFor('Activity', jobListAt)
       shell.write('\u001B[B')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · bash-1 · \d+s · completed, exit code: 0 · sleep 0\.5; printf DASHI_JOB_DONE/u)
+          .toMatch(new RegExp(`› Job · ${jobId} · \\d+s · completed, exit code: 0 · sleep 0\\.5;`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 completed 80: ' + (await parsedFrame(shell.output.slice(start))).overlay.split('\n').find(line => line.includes(`› Job · ${jobId}`)) + '\n')
+      const wideAt = shell.output.length - start
+      shell.resize(200, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [{ at: wideAt, columns: 200, rows: 24 }])).overlay)
+          .toMatch(new RegExp(`› Job · ${jobId} · \\d+s · completed, exit code: 0 · sleep 0\\.5; printf DASHI_JOB_DONE`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 completed 200: ' + (await resizedFrame(shell.output.slice(start), [{ at: wideAt, columns: 200, rows: 24 }])).overlay.split('\n').find(line => line.includes(`› Job · ${jobId}`)) + '\n')
+      const narrowAt = shell.output.length - start
+      shell.resize(80, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [
+          { at: wideAt, columns: 200, rows: 24 }, { at: narrowAt, columns: 80, rows: 24 },
+        ])).overlay).toMatch(new RegExp(`› Job · ${jobId} · \\d+s · completed, exit code: 0 · sleep 0\\.5;`, 'u'))
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_DONE', jobListAt)
@@ -1964,13 +1986,33 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const launched = await shell.waitFor('Managed job launched.', start)
       await shell.waitFor('Ctrl+B 1 job', start)
       await shell.waitFor('idle ·', launched)
+      const job = sessionEvents(parent).find(event => event.type === 'job/registered'
+        && event.data?.label === 'printf DASHI_JOB_OUTPUT; sleep 30')?.data
+      const jobId = String(job?.jobId ?? '')
+      expect(jobId).toMatch(/^bash-[0-9a-f]{16}$/u)
+      expect(job).toMatchObject({ kind: 'bash', label: 'printf DASHI_JOB_OUTPUT; sleep 30' })
 
       const readAt = shell.output.length
       shell.write('/bashes\r')
       await shell.waitFor('Activity', readAt)
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/Job · bash-1 · \d+s · running · printf DASHI_JOB_OUTPUT; sleep 30/u)
+          .toMatch(new RegExp(`Job · ${jobId} · \\d+s · running · printf DASHI_JOB_OUTPUT; sleep 30`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 running 80: ' + (await parsedFrame(shell.output.slice(start))).overlay.split('\n').find(line => line.includes(`Job · ${jobId}`)) + '\n')
+      const runningWideAt = shell.output.length - start
+      shell.resize(200, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [{ at: runningWideAt, columns: 200, rows: 24 }])).overlay)
+          .toMatch(new RegExp(`Job · ${jobId} · \\d+s · running · printf DASHI_JOB_OUTPUT; sleep 30`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 running 200: ' + (await resizedFrame(shell.output.slice(start), [{ at: runningWideAt, columns: 200, rows: 24 }])).overlay.split('\n').find(line => line.includes(`Job · ${jobId}`)) + '\n')
+      const runningNarrowAt = shell.output.length - start
+      shell.resize(80, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [
+          { at: runningWideAt, columns: 200, rows: 24 }, { at: runningNarrowAt, columns: 80, rows: 24 },
+        ])).overlay).toMatch(new RegExp(`Job · ${jobId} · \\d+s · running · printf DASHI_JOB_OUTPUT; sleep 30`, 'u'))
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await shell.waitFor('DASHI_JOB_OUTPUT', readAt)
@@ -1978,17 +2020,33 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('idle ·', shell.output.length - 1)
 
       const killAt = shell.output.length
-      shell.write('/tasks kill bash-1\r')
-      await shell.waitFor('stopping bash-1', killAt)
+      shell.write(`/tasks kill ${jobId}\r`)
+      await shell.waitFor(`stopping ${jobId}`, killAt)
       shell.write('/tasks\r')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · bash-1 · \d+s · killed, signal: SIGTERM; cancelled by the user · printf /u)
+          .toMatch(new RegExp(`› Job · ${jobId} · \\d+s · killed, signal: SIGTERM; cancelled by the`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 killed 80: ' + (await parsedFrame(shell.output.slice(start))).overlay.split('\n').find(line => line.includes(`› Job · ${jobId}`)) + '\n')
+      const killedWideAt = shell.output.length - start
+      shell.resize(200, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [{ at: killedWideAt, columns: 200, rows: 24 }])).overlay)
+          .toMatch(new RegExp(`› Job · ${jobId} · \\d+s · killed, signal: SIGTERM; cancelled by the user · printf DASHI_JOB_OUTPUT; sleep 30`, 'u'))
+      }, { timeout: testCeiling(20_000) })
+      process.stdout.write('alpha.3 killed 200: ' + (await resizedFrame(shell.output.slice(start), [{ at: killedWideAt, columns: 200, rows: 24 }])).overlay.split('\n').find(line => line.includes(`› Job · ${jobId}`)) + '\n')
+      const killedNarrowAt = shell.output.length - start
+      shell.resize(80, 24)
+      await vi.waitFor(async () => {
+        expect((await resizedFrame(shell.output.slice(start), [
+          { at: runningWideAt, columns: 200, rows: 24 }, { at: runningNarrowAt, columns: 80, rows: 24 },
+          { at: killedWideAt, columns: 200, rows: 24 }, { at: killedNarrowAt, columns: 80, rows: 24 },
+        ])).overlay).toMatch(new RegExp(`› Job · ${jobId} · \\d+s · killed, signal: SIGTERM; cancelled by the`, 'u'))
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await vi.waitFor(async () => {
         const frame = (await parsedFrame(shell.output.slice(start))).overlay
-        expect(frame).toContain('Job bash-1 · killed')
+        expect(frame).toContain(`Job ${jobId} · killed`)
         expect(frame).toContain('signal: SIGTERM; cancelled by the user')
         expect(frame).toContain('DASHI_JOB_OUTPUT')
       }, { timeout: testCeiling(20_000) })

@@ -41,6 +41,27 @@ function manifest(path: string): { readonly name: string; readonly version: stri
 }
 
 describe('validated DSH patch surface', () => {
+  it('pins every app-owned DSH package to the validated floor and declares that floor in core', () => {
+    const { minimum, tested } = JSON.parse(readFileSync(
+      join(root, 'packages/dashi/validated-dsh-versions.json'), 'utf8',
+    )) as { minimum: string; tested: string[] }
+    expect(tested).toContain(minimum)
+    const app = JSON.parse(readFileSync(join(root, 'packages/dashi-app/package.json'), 'utf8')) as {
+      dependencies: Record<string, string>;
+    }
+    const owned = Object.entries(app.dependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh'))
+    expect(owned).toHaveLength(15)
+    for (const [name, version] of owned) expect(version, name).toBe(minimum)
+    const core = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')) as {
+      peerDependencies: Record<string, string>;
+    }
+    const peers = Object.entries(core.peerDependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh'))
+    expect(peers).toHaveLength(35)
+    for (const [name, range] of peers) expect(range, name).toBe(`>=${minimum}`)
+    const readme = readFileSync(join(root, 'README.md'), 'utf8')
+    for (const command of readme.matchAll(/@deepseek-ai\/dsh@([^\s`]+)/gu)) expect(command[1]).toBe(minimum)
+  })
+
   it('keeps dashi overrides and preset composition aligned with installed DSH', () => {
     const require = createRequire(import.meta.url)
     const dshManifestPath = require.resolve('@deepseek-ai/dsh/package.json')

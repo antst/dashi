@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 0.2.1
+
+- With DSH alpha.3, a provider key inherited from the environment can be replaced by a stored key, which then takes precedence.
+- Without a configured DeepSeek key, the model picker offers Add provider instead of listing DeepSeek's models.
+
 ## 0.2.0
 
 - Guide known-provider first runs through `/model` and DSH's own profile, credential and login writers. Show guidance only when DSH reports a missing key or a provider's key is not set; keep unknown readiness unknown, preserve masked entry and never replay a failed prompt (W-127).

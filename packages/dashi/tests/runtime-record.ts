@@ -29,18 +29,7 @@ export function assertActiveRuntime(
   for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@sessionbus/dsh']) {
     expect(record.active.filter(entry => entry.moduleName === name), `single ACTIVE ${name}`).toHaveLength(1)
   }
-  // Immutable published states are measured, not retroactively repaired by fixture overrides.
-  if (phase === 'published') return
-  for (const name of ['@antst/dashi-app', '@antst/dashi', '@antst/dsh-file-uploads-none']) {
-    expect(record.packages[name]?.version, name).toBe(appVersion)
-  }
-  const app = record.packages['@antst/dashi-app']
-  expect(record.fileUploadsProvider?.package.version, 'actually loaded provider vs app pin')
-    .toBe(app?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
-  for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@antst/roller', '@sessionbus/dsh']) {
-    expect(record.packages[name]?.version, name).toBe(app?.manifest.dependencies?.[name])
-  }
-  expect(record.kit.version).toBe(record.packages['@sessionbus/dsh']?.manifest.dependencies?.['@sessionbus/kit'])
+  // Historical app/provider selections stay as published; DSH must still be coherent.
   for (const name of ['@deepseek-ai/dsh', '@deepseek-ai/dsh-base']) {
     expect(record.packages[name]?.version, name).toBe(dshVersion)
   }
@@ -49,4 +38,21 @@ export function assertActiveRuntime(
       if (name.startsWith('@deepseek-ai/dsh')) expect(pkg.version, name).toBe(dshVersion)
     }
   }
+  for (const entry of record.resolution) {
+    if (entry.name.startsWith('@deepseek-ai/dsh') && ['installation', 'profile'].includes(entry.scope)) {
+      expect(entry.version, `${entry.scope} ${entry.name}`).toBe(dshVersion)
+    }
+  }
+  for (const name of ['@antst/dashi-app', '@antst/dashi']) {
+    expect(record.packages[name]?.version, name).toBe(appVersion)
+  }
+  if (phase === 'published') return
+  expect(record.packages['@antst/dsh-file-uploads-none']?.version).toBe(appVersion)
+  const app = record.packages['@antst/dashi-app']
+  expect(record.fileUploadsProvider?.package.version, 'actually loaded provider vs app pin')
+    .toBe(app?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
+  for (const name of ['@antst/dashi', '@antst/dsh-file-uploads-none', '@antst/roller', '@sessionbus/dsh']) {
+    expect(record.packages[name]?.version, name).toBe(app?.manifest.dependencies?.[name])
+  }
+  expect(record.kit.version).toBe(record.packages['@sessionbus/dsh']?.manifest.dependencies?.['@sessionbus/kit'])
 }
