@@ -11,7 +11,6 @@ import { foldCells } from '../src/transcript.js'
 import { turnWorking } from '../src/turn-working.js'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
-import { Markdown } from '@earendil-works/pi-tui'
 import { recordedEvents } from './fixtures/session-format.js'
 
 const now = 1_800_000_000_000
@@ -180,9 +179,10 @@ describe('working row layout and timer ownership', () => {
 
   it('caches the loaded settled cells, but evicts replaced keys at that same bound', async () => {
     const terminal = new Screen()
-    const markdown = vi.spyOn(Markdown.prototype, 'render')
+    let reads = 0
     const settled = (prefix: string) => Array.from({ length: 600 }, (_, index) => ({
-      key: `${prefix}-${String(index)}`, kind: 'assistant' as const, text: `${prefix} answer ${String(index)}`,
+      key: `${prefix}-${String(index)}`, kind: 'assistant' as const,
+      get text() { reads++; return `${prefix} answer ${String(index)}` },
     }))
     const first = settled('FIRST')
     let state = { ...rootState(true), cells: first, root: { cwd: '/fixture', id: 'root', model: 'recorded', status: 'idle' as const } }
@@ -190,15 +190,17 @@ describe('working row layout and timer ownership', () => {
     renderer.start()
     try {
       renderer.render(true); await terminal.flush()
-      expect(markdown).toHaveBeenCalledTimes(600)
+      reads = 0 // Each key reads text once; materialising a cache miss reads it again.
       renderer.render(false); await terminal.flush()
-      expect(markdown).toHaveBeenCalledTimes(600)
+      expect(reads).toBe(600)
       state = { ...state, cells: settled('SECOND') }
+      reads = 0
       renderer.render(false); await terminal.flush()
-      expect(markdown).toHaveBeenCalledTimes(1200)
+      expect(reads).toBe(1200)
       state = { ...state, cells: first }
+      reads = 0
       renderer.render(false); await terminal.flush()
-      expect(markdown).toHaveBeenCalledTimes(1800)
+      expect(reads).toBe(1200)
     } finally { renderer.stop(true); terminal.screen.dispose() }
   })
 

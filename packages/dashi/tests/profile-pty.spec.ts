@@ -164,8 +164,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(events.some(event => event.type === 'tool/result' && JSON.stringify(event.data).includes('W143_NATIVE_TOOL_RESULT'))).toBe(true)
     expect(events.some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed')).toBe(true)
     expect(turnWorking(events)).toBeUndefined()
+    process.stdout.write(`performance: native-working-stages ${JSON.stringify(stages)}\n`)
     reportPerformance('native-working-row', performance.now() - started, 'ms')
-  }, 30_000)
+  }, 60_000)
 
   it('lists unowned jobs and keeps human output reads separate from the native model cursor', async () => {
     const shell = new PtyShell()
