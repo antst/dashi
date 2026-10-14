@@ -276,7 +276,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       const id = sessionId(shell.output, start)
       shell.write('/dashi-unowned-job-proof\r')
+      let jobId = ''
       await vi.waitFor(async () => {
+        const receipt = sessionEvents(id).find(event => event.type === 'command/done'
+          && String(event.data?.text).startsWith('Unowned job '))
+        jobId = /^Unowned job (bash-[0-9a-f]{16})$/u.exec(String(receipt?.data?.text))?.[1] ?? ''
+        expect(jobId).not.toBe('')
         const frame = await parsedFrame(shell.output.slice(start))
         expect(frame.status).toContain('Ctrl+B activity')
         expect(frame.transcript).not.toContain('Job ·')
@@ -285,7 +290,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         shell.write('/tasks\r')
         await vi.waitFor(async () => {
           expect((await parsedFrame(shell.output.slice(start))).overlay)
-            .toMatch(/Job · bash-1 · \d+s · completed · W114 unowned output/u)
+            .toMatch(new RegExp(`Job · ${jobId} · \\d+s · completed · W114 unowned output`, 'u'))
         }, { timeout: testCeiling(20_000) })
         shell.write('\r')
         await vi.waitFor(async () => {

@@ -285,6 +285,10 @@ it(layout + ': literal README installs converge from fresh and both published ba
         await vi.waitFor(() => { expect(existsSync(runtimePath), shell.output.slice(-4000)).toBe(true) }, { timeout: 20_000 })
         const record = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
         assertActiveRuntime(record, version, target, candidate ? 'candidate' : 'published')
+        if (candidate) {
+          const dsh = record.resolution.filter(entry => entry.name.startsWith('@deepseek-ai/dsh'))
+          process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}\n`)
+        }
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
         console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
           + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])

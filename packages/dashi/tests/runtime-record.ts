@@ -49,4 +49,9 @@ export function assertActiveRuntime(
       if (name.startsWith('@deepseek-ai/dsh')) expect(pkg.version, name).toBe(dshVersion)
     }
   }
+  for (const entry of record.resolution) {
+    if (entry.name.startsWith('@deepseek-ai/dsh') && ['installation', 'profile'].includes(entry.scope)) {
+      expect(entry.version, `${entry.scope} ${entry.name}`).toBe(dshVersion)
+    }
+  }
 }
