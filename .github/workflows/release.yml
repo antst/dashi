@@ -68,6 +68,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm gate:docker
+      - name: Upload terminal lifecycle failure capture
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lifecycle-release-${{ matrix.dsh }}
+          path: .cache/lifecycle-failures/**
+          if-no-files-found: warn
 
   publish:
     needs: [versions, verify, install-layouts-linux, install-layouts-macos]

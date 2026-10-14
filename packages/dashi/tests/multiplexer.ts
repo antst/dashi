@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { accessSync, chmodSync, constants, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { accessSync, chmodSync, constants, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { testCeiling } from './test-budget.js'
 
@@ -86,11 +86,13 @@ export class MultiplexerPane {
       chmodSync(sockets, 0o700)
       this.screenDirectory = sockets
       this.env = { ...env, SCREENDIR: sockets }
-      run(this.binary, [
-        '-U', '-c', '/dev/null', '-dmS', this.name, '-L', '-Logfile', join(directory, `${this.name}.log`),
-        '/bin/bash', '--noprofile', '--norc', '-i',
-      ], this.env, cwd)
-      waitForScreen(this.binary, this.name, this.env)
+      try {
+        run(this.binary, [
+          '-U', '-c', '/dev/null', '-dmS', this.name, '-L', '-Logfile', join(directory, `${this.name}.log`),
+          '/bin/bash', '--noprofile', '--norc', '-i',
+        ], this.env, cwd)
+        waitForScreen(this.binary, this.name, this.env)
+      } catch (error) { this.close(); throw error }
     } else {
       this.env = env
       run(this.binary, [
@@ -140,8 +142,20 @@ export class MultiplexerPane {
     if (this.kind === 'tmux') {
       spawnSync(this.binary, ['-L', this.socket, 'kill-server'], { env: this.env })
     } else {
-      spawnSync(this.binary, ['-S', this.name, '-X', 'quit'], { env: this.env })
-      if (this.screenDirectory !== undefined) rmSync(this.screenDirectory, { recursive: true, force: true })
+      const directory = this.screenDirectory!
+      if (!existsSync(directory)) return
+      const hadSockets = readdirSync(directory).length > 0
+      const result = spawnSync(this.binary, ['-S', this.name, '-X', 'quit'], {
+        env: this.env, timeout: 10_000, killSignal: 'SIGKILL',
+      })
+      if (hadSockets && (result.status !== 0 || result.error !== undefined)) {
+        throw new Error(`screen stop uncertain; retained owned directory ${directory}`)
+      }
+      const deadline = Date.now() + testCeiling(10_000)
+      while (readdirSync(directory).length > 0) {
+        if (Date.now() >= deadline) throw new Error(`screen stop uncertain; retained owned directory ${directory}`)
+      }
+      rmSync(directory, { recursive: true, force: true })
     }
   }
 }

@@ -55,25 +55,31 @@ export async function startTestDaemon(): Promise<TestDaemon> {
   ], { env, stdio: 'pipe' })
   let output = ''
   let exited: { code: number | null; signal: NodeJS.Signals | null } | undefined
+  let spawnError: Error | undefined
   child.stdout.on('data', data => { output += String(data) })
   child.stderr.on('data', data => { output += String(data) })
   child.on('exit', (code, signal) => { exited = { code, signal } })
-  await waitFor(() => existsSync(socket) || exited !== undefined,
-    () => `Sessionbus daemon did not create ${socket}\n${output}`)
-  if (exited !== undefined) {
+  child.on('error', error => { spawnError = error })
+  child.on('close', (code, signal) => { exited ??= { code, signal } })
+  const close = async () => {
+    if (exited === undefined) {
+      child.kill('SIGTERM')
+      try { await waitFor(() => exited !== undefined, () => 'Sessionbus daemon did not stop') }
+      catch (error) { throw new Error(`${String(error)}; retained owned directory ${directory}`) }
+    }
     rmSync(directory, { recursive: true, force: true })
-    throw new Error(`Sessionbus daemon exited before ready: ${JSON.stringify(exited)}\n${output}`)
   }
+  try {
+    await waitFor(() => existsSync(socket) || exited !== undefined || spawnError !== undefined,
+      () => `Sessionbus daemon did not create ${socket}\n${output}`)
+    if (spawnError !== undefined || exited !== undefined) {
+      throw new Error(`Sessionbus daemon exited before ready: ${String(spawnError ?? JSON.stringify(exited))}\n${output}`)
+    }
+  } catch (error) { await close(); throw error }
   return {
     socket,
     output: () => output,
-    close: async () => {
-      if (exited === undefined) {
-        child.kill('SIGTERM')
-        await waitFor(() => exited !== undefined, () => `Sessionbus daemon did not stop\n${output}`)
-      }
-      rmSync(directory, { recursive: true, force: true })
-    },
+    close,
   }
 }
 
@@ -98,7 +104,8 @@ export async function connectTestObserver(socket: string, group: string, name: s
     deliveries.push(request)
     return { disposition: 'written' }
   }, { SESSIONBUS_SOCKET: socket })
-  await peer.ready
+  const close = async () => { peer.shutdown(); await peer.closed }
+  try { await peer.ready } catch (error) { await close(); throw error }
   return {
     deliveries,
     list: () => peer.caller.list(),
@@ -108,9 +115,6 @@ export async function connectTestObserver(socket: string, group: string, name: s
         () => `Observer did not receive ${JSON.stringify(text)}: ${JSON.stringify(deliveries)}`)
       return deliveries.find(delivery => delivery.body.includes(text)) as DeliveryRequest
     },
-    close: async () => {
-      peer.shutdown()
-      await peer.closed
-    },
+    close,
   }
 }

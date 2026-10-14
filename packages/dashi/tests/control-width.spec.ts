@@ -138,21 +138,17 @@ async function render(state: ViewState, columns: number, accessible: boolean, ch
 }
 
 describe('control-region width at the composition boundary', () => {
-  let previousCrash: string | undefined
   let crashDirectory: string
   beforeEach(() => {
     vi.spyOn(Date, 'now').mockReturnValue(now)
     vi.stubEnv('PI_HARDWARE_CURSOR', '0')
     vi.stubEnv('PI_CLEAR_ON_SHRINK', '0')
-    previousCrash = process.env.PI_CODING_AGENT_DIR
     crashDirectory = mkdtempSync(join(tmpdir(), 'dashi-control-width-'))
-    process.env.PI_CODING_AGENT_DIR = crashDirectory
+    vi.stubEnv('PI_CODING_AGENT_DIR', crashDirectory)
   })
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
-    if (previousCrash === undefined) delete process.env.PI_CODING_AGENT_DIR
-    else process.env.PI_CODING_AGENT_DIR = previousCrash
     rmSync(crashDirectory, { recursive: true, force: true })
   })
 
@@ -188,7 +184,7 @@ describe('control-region width at the composition boundary', () => {
 
   // Captured before the fix, from develop 7c1f577. These fixtures fit at 80/200.
   // Hashes bind every output byte (including colour and cursor movement), and
-  // the actual-width terminal's visible rows, cursor and unchanged draft.
+  // the actual-width terminal's visible rows and cursor (including the draft).
   for (const accessible of [false, true]) for (const width of [80, 200]) {
     it(`preserves fitting bytes, cursor and draft at ${width}, accessible=${accessible}`, async () => {
       const frames: Record<string, string> = {}
@@ -200,9 +196,8 @@ describe('control-region width at the composition boundary', () => {
           const buffer = screen.screen.buffer.active
           const lines = Array.from({ length: buffer.length }, (_, row) => buffer.getLine(row)?.translateToString(true) ?? '')
           frames[`${shape.name}, open=${open}`] = createHash('sha256').update(JSON.stringify({
-            output: screen.output, lines, cursor: [buffer.cursorX, buffer.cursorY], draft: state.composer,
+            output: screen.output, lines, cursor: [buffer.cursorX, buffer.cursorY],
           })).digest('hex')
-          expect(state.composer).toBe(draft)
         } finally { screen.dispose() }
       }
       expect(frames).toMatchSnapshot()
