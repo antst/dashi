@@ -105,7 +105,7 @@ const checks = [
 ]
 for (const [label, args] of checks) {
   if (args[1] === 'vitest') {
-    const listed = spawnSync('pnpm', [...args.slice(0, 2), 'list', '--filesOnly', ...args.slice(3)], {
+    const listed = spawnSync('pnpm', ['--silent', ...args.slice(0, 2), 'list', '--filesOnly', ...args.slice(3)], {
       cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, encoding: 'utf8',
     })
     if (listed.status !== 0) { console.error(listed.stderr || listed.stdout || String(listed.error)); process.exit(1) }

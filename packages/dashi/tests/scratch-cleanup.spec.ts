@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { startTestDaemon, connectTestObserver } from './sessionbus-harness.js'
 import { MultiplexerPane } from './multiplexer.js'
 import { pruneInstallLayout } from './install-layout-cleanup.js'
+import { testCeiling } from './test-budget.js'
 
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), probe: vi.fn(), command: vi.fn(), connect: vi.fn() }))
 vi.mock('node:child_process', async original => ({
@@ -23,7 +24,6 @@ beforeEach(() => {
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
   writeFileSync(join(root, 'daemon'), '')
   vi.stubEnv('SESSIONBUS_DAEMON_BIN', join(root, 'daemon'))
-  vi.stubEnv('CI', '')
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); Object.values(mocks).forEach(mock => mock.mockReset()) })
@@ -69,7 +69,8 @@ it.each(['exit', 'error'] as const)('failed daemon admission (%s) removes only i
 it('readiness timeout still has an owner that terminates before unlink', async () => {
   const control = daemon('never')
   let calls = 0
-  vi.spyOn(Date, 'now').mockImplementation(() => calls++ === 0 ? 0 : calls === 2 ? 20_001 : 20_002)
+  const ceiling = testCeiling(20_000)
+  vi.spyOn(Date, 'now').mockImplementation(() => calls++ === 0 ? 0 : calls === 2 ? ceiling + 1 : ceiling + 2)
   await expect(startTestDaemon()).rejects.toThrow('did not create')
   expect(control.child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM')
   expect(existsSync(control.directory())).toBe(false)
@@ -79,7 +80,7 @@ it('an uncertain daemon stop retains and names its directory', async () => {
   const control = daemon('stuck')
   const owned = await startTestDaemon()
   let clock = 0
-  vi.spyOn(Date, 'now').mockImplementation(() => { clock += 20_001; return clock })
+  vi.spyOn(Date, 'now').mockImplementation(() => { clock += testCeiling(20_000) + 1; return clock })
   await expect(owned.close()).rejects.toThrow('retained owned directory ' + control.directory())
   expect(existsSync(control.directory())).toBe(true)
 })
@@ -101,6 +102,7 @@ function screen(mode: 'ready' | 'start refused' | 'partial' | 'stuck') {
   const decoy = join(root, 'decoy-screen')
   mkdirSync(decoy); writeFileSync(join(decoy, 'socket'), 'unrelated')
   let directory = ''
+  let readinessProbes = 0
   mocks.command.mockImplementation((_binary: string, _args: string[], options: { env: NodeJS.ProcessEnv }) => {
     directory = options.env.SCREENDIR!
     onTestFinished(() => { rmSync(directory, { recursive: true, force: true }) })
@@ -116,6 +118,7 @@ function screen(mode: 'ready' | 'start refused' | 'partial' | 'stuck') {
       if (mode !== 'stuck') rmSync(join(directory, 'owned-socket'), { force: true })
       return { status: 0 }
     }
+    if (mode === 'partial' && ++readinessProbes > 8) throw new Error('partial screen readiness exceeded 8 fixture probes')
     return { status: mode === 'ready' || mode === 'stuck' ? 0 : 1, stderr: 'not ready' }
   })
   return { directory: () => directory, decoy }
@@ -123,7 +126,8 @@ function screen(mode: 'ready' | 'start refused' | 'partial' | 'stuck') {
 
 it.each(['ready', 'start refused', 'partial'] as const)('screen ownership covers %s and leaves a decoy intact', mode => {
   const control = screen(mode)
-  if (mode === 'partial') vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(10_001).mockReturnValue(10_002)
+  if (mode === 'partial') vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0)
+    .mockReturnValueOnce(testCeiling(10_000) + 1).mockReturnValue(testCeiling(10_000) + 2)
   if (mode === 'ready') {
     const pane = new MultiplexerPane('screen', root, root, {})
     pane.close(); pane.close()
@@ -137,9 +141,40 @@ it('screen stop uncertainty keeps the private socket and names it', () => {
   const control = screen('stuck')
   const pane = new MultiplexerPane('screen', root, root, {})
   let clock = 0
-  vi.spyOn(Date, 'now').mockImplementation(() => { clock += 10_001; return clock })
+  vi.spyOn(Date, 'now').mockImplementation(() => { clock += testCeiling(10_000) + 1; return clock })
   expect(() => pane.close()).toThrow('retained owned directory ' + control.directory())
   expect(existsSync(join(control.directory(), 'owned-socket'))).toBe(true)
+})
+
+it('screen close pauses between socket reads before removing its settled directory', () => {
+  const control = screen('stuck')
+  const pane = new MultiplexerPane('screen', root, root, {})
+  let clockReads = 0
+  vi.spyOn(Date, 'now').mockImplementation(() => clockReads++ < 2 ? 0 : testCeiling(10_000) + 1)
+  const pause = vi.spyOn(Atomics, 'wait').mockImplementation(() => {
+    rmSync(join(control.directory(), 'owned-socket'))
+    return 'timed-out'
+  })
+  pane.close()
+  expect(pause).toHaveBeenCalledExactlyOnceWith(expect.any(Int32Array), 0, 0, 20)
+  expect(existsSync(control.directory())).toBe(false)
+})
+
+it('screen construction preserves both the start error and an uncertain close', () => {
+  const control = screen('partial')
+  vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0)
+    .mockReturnValueOnce(testCeiling(10_000) + 1)
+  const probe = mocks.probe.getMockImplementation()!
+  mocks.probe.mockImplementation((...args) => args[1].includes('quit') ? { status: 1 } : probe(...args))
+  let failure: unknown
+  try { new MultiplexerPane('screen', root, root, {}) } catch (error) { failure = error }
+  expect(failure).toBeInstanceOf(AggregateError)
+  expect((failure as AggregateError).errors[0].message).toContain('did not become ready')
+  expect((failure as AggregateError).errors[1].message).toContain('retained owned directory ' + control.directory())
+  expect((failure as AggregateError).message).toContain('did not become ready')
+  expect((failure as AggregateError).message).toContain('retained owned directory ' + control.directory())
+  expect(existsSync(join(control.directory(), 'owned-socket'))).toBe(true)
+  expect(existsSync(join(control.decoy, 'socket'))).toBe(true)
 })
 
 it('success pruning removes large owned children only; logs, evidence, decoys and symlink targets survive', () => {

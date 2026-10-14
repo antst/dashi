@@ -11,15 +11,23 @@ function liveGroupScript(file: string, openFile: string, childPid: string, child
     const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
     const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childScript)}], { stdio: 'ignore' });
     fs.writeFileSync(${JSON.stringify(childPid)}, String(child.pid));
-    process.once('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n'); setImmediate(() => process.exit(0)) });
+    process.once('SIGTERM', () => {
+      fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n');
+      const exit = () => process.exit(0);
+      if (child.exitCode !== null || child.signalCode !== null) setImmediate(exit);
+      else child.once('close', exit);
+    });
     setInterval(() => {}, 1000)`
 }
 
 it.each(['child first', 'TERM first'])('the receipt fixture has one ordered exit: %s (simulated callback order)', order => {
-  const child = Object.assign(new EventEmitter(), { pid: 2 })
-  const leader = Object.assign(new EventEmitter(), { execPath: '/fixture/node', exit: vi.fn() })
+  const child = Object.assign(new EventEmitter(), { pid: 2, exitCode: null as number | null, signalCode: null as NodeJS.Signals | null })
   const immediate: (() => void)[] = []
   const files = new Map<string, string>()
+  const leader = Object.assign(new EventEmitter(), { execPath: '/fixture/node', exit: vi.fn(() => {
+    expect(files.get('/log')).toBe('pnpm finished; command alive\nterminated\n')
+    expect(child.exitCode !== null || child.signalCode !== null).toBe(true)
+  }) })
   const fs = { writeFileSync: (path: string, text: string) => files.set(path, text), openSync: () => 0,
     appendFileSync: (path: string, text: string) => files.set(path, files.get(path)! + text) }
   runInNewContext(liveGroupScript('/log', '/descriptor', '/pid', ''), {
@@ -27,14 +35,20 @@ it.each(['child first', 'TERM first'])('the receipt fixture has one ordered exit
     setImmediate: (callback: () => void) => immediate.push(callback), setInterval: () => 0,
   })
   if (order === 'child first') {
+    child.exitCode = 0
     child.emit('close')
     expect(leader.exit).not.toHaveBeenCalled()
     expect(files.get('/log')).toBe('pnpm finished; command alive\n')
   }
   leader.emit('SIGTERM')
-  if (order === 'TERM first') child.emit('close')
   expect(files.get('/log')).toBe('pnpm finished; command alive\nterminated\n')
   expect(leader.exit).not.toHaveBeenCalled()
+  if (order === 'TERM first') {
+    immediate.forEach(callback => callback())
+    expect(leader.exit).not.toHaveBeenCalled()
+    child.signalCode = 'SIGTERM'
+    child.emit('close')
+  }
   immediate.forEach(callback => callback())
   expect(leader.exit).toHaveBeenCalledExactlyOnceWith(0)
 })

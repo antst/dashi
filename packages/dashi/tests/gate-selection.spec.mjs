@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
@@ -18,16 +18,17 @@ function fixture(git = true) {
     expect(spawnSync('git', ['add', '.'], { cwd: root }).status).toBe(0)
   }
   const log = join(root, 'calls.jsonl')
-  const pnpm = join(root, 'pnpm')
-  writeFileSync(pnpm, `#!${process.execPath}
-    const fs = require('node:fs'); const args = process.argv.slice(2);
-    fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
-    if (args[2] === 'list') console.log(args[4] === ${JSON.stringify(renderer)} ? process.env.RENDERER_LIST : process.env.REST_LIST);
-    if (args[2] === 'run' && process.env.FAIL_PHASE === (args[3] === ${JSON.stringify(renderer)} ? 'first' : 'second')) process.exit(7);
-  `)
-  chmodSync(pnpm, 0o755)
   const run = (env = {}) => spawnSync(process.execPath, ['--input-type=module', '-e',
-    `import { spawnSync } from 'node:child_process'; const root = ${JSON.stringify(root)}; const testedVersion = 'fixture';\n${selection}`], {
+    `import { spawnSync as nativeSpawn } from 'node:child_process';
+    import { appendFileSync } from 'node:fs';
+    const spawnSync = (command, args, options) => {
+      if (command !== 'pnpm') return nativeSpawn(command, args, options);
+      appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
+      const silent = args[0] === '--silent'; if (silent) args = args.slice(1);
+      if (args[2] === 'list') return { status: 0, stdout: (!silent && process.env.PNPM_SUMMARY ? process.env.PNPM_SUMMARY + '\\n' : '') + (args[4] === ${JSON.stringify(renderer)} ? process.env.RENDERER_LIST : process.env.REST_LIST) + '\\n' };
+      return { status: args[2] === 'run' && process.env.FAIL_PHASE === (args[3] === ${JSON.stringify(renderer)} ? 'first' : 'second') ? 7 : 0 };
+    };
+    const root = ${JSON.stringify(root)}; const testedVersion = 'fixture';\n${selection}`], {
     cwd: root, encoding: 'utf8', env: { ...process.env, PATH: root + ':/usr/bin:/bin',
       RENDERER_LIST: 'renderer.spec.ts', REST_LIST: 'other [one].spec.ts', ...env },
   })
@@ -40,13 +41,23 @@ it('counts native files-only lists, checks tracked paths, and uses the same filt
   expect(result.status, result.stderr).toBe(0)
   expect(result.stdout).toContain('renderer tests: 1 files (tracked)')
   expect(result.stdout).toContain('tests: 1 files (tracked)')
-  const vitest = calls().filter(args => args[1] === 'vitest')
+  const vitest = calls().filter(args => args.includes('vitest'))
   expect(vitest).toHaveLength(4)
   for (let index = 0; index < 4; index += 2) {
-    expect(vitest[index].slice(0, 4)).toEqual(['exec', 'vitest', 'list', '--filesOnly'])
-    expect(vitest[index].slice(4)).toEqual(vitest[index + 1].slice(3))
+    expect(vitest[index].slice(0, 5)).toEqual(['--silent', 'exec', 'vitest', 'list', '--filesOnly'])
+    expect(vitest[index].slice(5)).toEqual(vitest[index + 1].slice(3))
     for (const path of excludes) expect(vitest[index]).toContain(path)
   }
+})
+
+it.each([true, false])('pnpm refresh summaries cannot become selected paths or counts (Git present: %s)', git => {
+  const { run, calls } = fixture(git)
+  const result = run({ PNPM_SUMMARY: 'Scope: all 5 workspace projects\nLockfile is up to date\nDone in 1.1s using pnpm v11.28.5' })
+  expect(result.status, result.stderr).toBe(0)
+  expect(result.stdout).toContain('renderer tests: 1 files')
+  expect(result.stdout).toContain('tests: 1 files')
+  expect(result.stdout).not.toContain('Scope:')
+  expect(calls().filter(args => args.includes('list')).every(args => args[0] === '--silent')).toBe(true)
 })
 
 it('refuses and names an untracked native selection before that phase executes', () => {

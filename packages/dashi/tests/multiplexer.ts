@@ -92,7 +92,11 @@ export class MultiplexerPane {
           '/bin/bash', '--noprofile', '--norc', '-i',
         ], this.env, cwd)
         waitForScreen(this.binary, this.name, this.env)
-      } catch (error) { this.close(); throw error }
+      } catch (error) {
+        try { this.close() }
+        catch (closeError) { throw new AggregateError([error, closeError], `${String(error)}; ${String(closeError)}`) }
+        throw error
+      }
     } else {
       this.env = env
       run(this.binary, [
@@ -154,6 +158,7 @@ export class MultiplexerPane {
       const deadline = Date.now() + testCeiling(10_000)
       while (readdirSync(directory).length > 0) {
         if (Date.now() >= deadline) throw new Error(`screen stop uncertain; retained owned directory ${directory}`)
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
       }
       rmSync(directory, { recursive: true, force: true })
     }
