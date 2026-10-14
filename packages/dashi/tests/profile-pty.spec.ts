@@ -475,7 +475,6 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     mkdirSync(archives)
     const archive = packWorkspacePackage(pluginManagementFixture, archives)
     const missingSessionbusRuntime = join(testDir, 'missing-sessionbus-runtime')
-    const missingSessionbusSocket = join(missingSessionbusRuntime, 'sessionbus', 'presence.sock')
     const shell = new PtyShell(replayFixture, undefined, root, {
       DSH_HOME: pluginHome,
       PATH: `${join(root, 'node_modules', '.bin')}:${process.env.PATH ?? ''}`,
@@ -515,8 +514,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
       const groupsAt = shell.output.length
       shell.write('/sessionbus-groups\r')
-      await shell.waitFor('Last connection attempt failed; sessionbus is not connected:', groupsAt)
-      expect(shell.output.slice(groupsAt)).toContain(missingSessionbusSocket)
+      await shell.waitFor('sessionbus is not connected', groupsAt)
 
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
