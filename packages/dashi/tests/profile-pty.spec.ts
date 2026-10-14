@@ -513,6 +513,11 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const completedAt = await shell.waitFor('DASHI_TOOL_ROUND_TRIP complete.', start)
       await shell.waitFor('idle ·', completedAt)
 
+      const groupsAt = shell.output.length
+      shell.write('/sessionbus-groups\r')
+      await shell.waitFor('Last connection attempt failed; sessionbus is not connected:', groupsAt)
+      expect(shell.output.slice(groupsAt)).toContain(missingSessionbusSocket)
+
       const addAt = shell.output.length
       shell.write(`/plugin add ${quote(archive)}\r`)
       await shell.waitFor('bundles load on the next launch; plain plugins need a patch row', addAt)
@@ -526,13 +531,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('[exit 1]', missingAt)
       expect(shell.output.slice(missingAt)).toContain('@antst/dashi-w034-package-does-not-exist')
       expect(shell.output.slice(missingAt)).toContain('[exit 1]')
-      const diagnostics = [...shell.output.slice(start).matchAll(/sessionbus: ([^\r\n]*)/gu)]
-        .map(match => match[1] ?? '')
-      const connectionFailures = diagnostics.filter(line => line.includes(missingSessionbusSocket))
-      expect(connectionFailures.length).toBeGreaterThan(0)
-      expect(connectionFailures.every(line => line.startsWith('connect ENOENT '))).toBe(true)
-      // Bound retries during this 60-second case so a reconnect hot loop fails visibly.
-      expect(connectionFailures.length).toBeLessThan(20)
+      expect(shell.output.slice(start).match(/sessionbus:/gu) ?? []).toHaveLength(0)
       const releasedAt = shell.output.length
       shell.write('\u0004\u0004')
       await shell.waitFor('\u001B[?1049l', releasedAt)
