@@ -42,6 +42,7 @@ import {
   mcpHome,
   presetHome,
   reportPerformance,
+  currentReplayFixture,
   run,
   quote,
   packWorkspacePackage,
@@ -166,6 +167,106 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     expect(turnWorking(events)).toBeUndefined()
     process.stdout.write(`performance: native-working-stages ${JSON.stringify(stages)}\n`)
     reportPerformance('native-working-row', performance.now() - started, 'ms')
+  }, 60_000)
+
+  it('restores working facts when resuming a native turn beyond the opening message window', async ({ onTestFailed }) => {
+    // Unpaced private replay: 60 real tool steps, child completion gated after an observed root switch.
+    const started = performance.now()
+    const gate = join(testDir, 'w143-deep-tools')
+    const childGate = join(testDir, 'w143-deep-child')
+    const ready = join(testDir, 'w143-deep-stream-ready')
+    const script = join(testDir, 'w143-deep.override.json')
+    const child = join(testDir, 'w143-deep-child.jsonl')
+    const text = (value: string) => [
+      { type: 'block-start', index: 0, blockType: 'text' },
+      { type: 'text-delta', index: 0, text: value },
+      { type: 'block-end', index: 0, block: { type: 'text', text: value } },
+      { type: 'finish', reason: { kind: 'stop' } },
+    ]
+    const call = (id: string) => [
+      { type: 'tool-call-delta', index: 0, id, name: 'dashi_working_hold', argumentsDelta: '{}' },
+      { type: 'block-end', index: 0, block: { type: 'tool-call', id, name: 'dashi_working_hold', arguments: '{}' } },
+      { type: 'finish', reason: { kind: 'tool-calls' } },
+    ]
+    writeFileSync(gate, 'unpaced root tools return immediately\n')
+    writeFileSync(script, JSON.stringify([
+      { kind: 'chunks', chunks: text('W143_DEEP_FIRST') },
+      ...Array.from({ length: 60 }, (_, index) => ({ kind: 'chunks', chunks: call(`deep-${String(index)}`) })),
+      { kind: 'hang', readyFile: ready },
+      { kind: 'chunks', chunks: text('W143_DEEP_NEXT') },
+    ]))
+    writeFileSync(child, currentReplayFixture([
+      { type: 'session', version: 0, id: 'dashi-working-child', parentSession: 'dashi-working-root', createdAt: 1, cwd: '/recorded', delegationDepth: 1 },
+      ...[call('deep-child'), text('W143_DEEP_CHILD_DONE')].flatMap((chunks, index) => chunks.map(chunk => ({
+        type: 'assistant/chunk', data: { turn: 1, step: index + 1, chunk },
+      }))),
+    ]))
+    const shell = new PtyShell(replayFixture, undefined, root, {
+      DSH_WORKING_PROOF: gate, DSH_WORKING_CHILD_GATE: childGate,
+      DSH_SNAPSHOT_OVERRIDE: script, DSH_SNAPSHOT_CHILD_FILES: child, DSH_REPLAY_PACE_MS: '0',
+    })
+    let start = 0, stage = 'first session header', lastRows = '(no decoded frame)'
+    const marks: [string, number][] = []
+    const wait = async (name: string, check: (frame: Awaited<ReturnType<typeof parsedFrame>>) => void) => {
+      stage = name; marks.push([name, performance.now() - started])
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(shell.output.slice(start)); lastRows = frame.text
+        try { check(frame) } catch (error) { throw new Error(`Waiting for ${name}\n${lastRows}`, { cause: error }) }
+      }, { timeout: testCeiling(20_000), interval: 20 })
+    }
+    onTestFailed(async () => {
+      try { lastRows = (await parsedFrame(shell.output.slice(start))).text } catch { /* keep last successful decode */ }
+      process.stderr.write(`W143 deep-open failure: ${stage}\nelapsed stages: ${JSON.stringify(marks)}\nlast decoded rows:\n${lastRows}\n`)
+    })
+    try {
+      start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      const first = sessionId(shell.output, start)
+      await wait('first idle frame', frame => { expect(frame.status).toContain('idle ·') })
+      shell.write('establish the deep-open root\r')
+      await wait('first turn completed', frame => { expect(frame.text).toContain('W143_DEEP_FIRST'); expect(frame.status).toContain('idle ·') })
+      const subtaskAt = shell.output.length
+      shell.write('/subtask complete the private gated task\r')
+      let childId = ''
+      await wait('native child started and held at its tool', () => {
+        childId = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
+        expect(childId).not.toBe('')
+        expect(sessionEvents(childId).some(event => event.type === 'tool/call' && event.data?.name === 'dashi_working_hold')).toBe(true)
+      })
+      const newAt = shell.output.length
+      shell.write('/new\r')
+      await wait('new idle root before child release', frame => {
+        expect(sessionId(shell.output, newAt)).not.toBe(first)
+        expect(frame.status).toContain('idle ·')
+      })
+      writeFileSync(childGate, 'release only after the new root was observed\n')
+      await wait('old root has sixty real results and a live stream', () => {
+        const events = sessionEvents(first)
+        expect(events.filter(event => event.type === 'tool/result')).toHaveLength(60)
+        expect(events.filter(event => event.type === 'assistant/message').length).toBeGreaterThan(50)
+        expect(existsSync(ready)).toBe(true)
+      })
+      shell.write(`/resume ${first}\r`)
+      await wait('resumed old root with native working age', frame => {
+        expect(frame.text).toContain(first)
+        expect(frame.text).toMatch(/[·•●] Receiving text · (?:no data [^·]+ · )?turn \d+s/u)
+      })
+      shell.write('\u001B')
+      await wait('cancelled turn has no working row', frame => {
+        expect(frame.status).toContain('idle ·')
+        expect(frame.text).not.toMatch(/^[·•●] /mu)
+      })
+      shell.write('next ordinary turn\r')
+      await wait('next ordinary turn completed without a row', frame => {
+        expect(frame.text).toContain('W143_DEEP_NEXT'); expect(frame.status).toContain('idle ·')
+        expect(frame.text).not.toMatch(/^[·•●] /mu)
+      })
+      const exitAt = shell.output.length
+      shell.write('\u0004\u0004')
+      stage = 'ordinary terminal release'
+      await shell.waitFor('\u001B[?1049l', exitAt)
+    } finally { await shell.close() }
+    process.stdout.write(`performance: native-working-deep-stages ${JSON.stringify(marks)}\n`)
+    reportPerformance('native-working-deep-open', performance.now() - started, 'ms')
   }, 60_000)
 
   it('lists unowned jobs and keeps human output reads separate from the native model cursor', async () => {

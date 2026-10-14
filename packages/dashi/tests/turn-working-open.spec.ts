@@ -17,21 +17,23 @@ const events = [
 ] as SessionEvent[]
 type Page = { records: SessionEvent[]; hasMore: boolean }
 
-async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Array<Page | Error>, waiting = false) {
+async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Array<Page | Error>, waiting = false, boundary: { start: number | null | undefined } = { start: 1 }) {
+  const openTurnStart = boundary.start
+  const cursor = Math.max(4, records.at(-1)?.seq ?? 0)
   const stream = new AssistantStreamAccumulator()
   if (!waiting) stream.push({ time: 3000, chunk: { type: 'text-delta', index: 0, text: 'already streaming' } })
-  // Public native frame shapes, fake transport only: no host, boot or network.
-  const opening = { type: 'snapshot', header: { id, cwd: '/fixture' }, cursor: 4,
+  // Native wire values omit host-only turnBoundary; transport and host services are fakes.
+  const opening = { type: 'snapshot', header: { id, cwd: '/fixture' }, cursor,
     records: records.map(event => ({ type: 'event', event })), hasMore,
-    projections: { asOfSeq: 4, values: { turnBoundary: { openTurnStartSeq: 1 } } },
-    assistantStream: { revision: 1, activeAttempt: { attemptId: 'native-attempt', startedAfterSeq: 4, turn: 1, step: 1, nextIndex: waiting ? 0 : 1, stream: stream.snapshot() } },
+    projections: { asOfSeq: cursor, values: {} },
+    ...(openTurnStart == null ? {} : { assistantStream: { revision: 1, activeAttempt: { attemptId: 'native-attempt', startedAfterSeq: 4, turn: 1, step: 1, nextIndex: waiting ? 0 : 1, stream: stream.snapshot() } } }),
   } as unknown as SessionFollowFrame
   const once = async function* (value: unknown) { yield value }
   let finishTurn!: () => void
   const completed = new Promise<void>(resolve => { finishTurn = resolve })
   const follow = async function* () {
     yield opening
-    yield { type: 'event', event: { type: 'tool/call', seq: 5, time: 4000,
+    if (openTurnStart != null) yield { type: 'event', event: { type: 'tool/call', seq: 5, time: 4000,
       data: { turn: 1, step: 1, callId: 'pending', name: 'read', arguments: '{}' } } } as unknown as SessionFollowFrame
     await completed
     yield { type: 'event', event: { type: 'turn/end', seq: 6, time: 5000,
@@ -40,7 +42,7 @@ async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Arr
   const scope = Object.assign(Promise.resolve(), { dispose: vi.fn(async () => {}) })
   const snapshotEvents = vi.fn(() => { throw new Error('deprecated read forbidden in this path') })
   const session = { id, header: { id, cwd: '/fixture' }, snapshotEvents }
-  const agent = { id, session, status: 'running', options: { provider: 'replay' }, inbox: { nextStep: [] },
+  const agent = { id, session, status: openTurnStart == null ? 'idle' : 'running', options: { provider: 'replay' }, inbox: { nextStep: [] },
     ctx: { inject: () => scope }, cancel: vi.fn(), whenIdle: vi.fn(async () => {}) }
   const page = vi.fn(async () => {
     const next = pages.shift()
@@ -51,6 +53,11 @@ async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Arr
   const ctx = {
     llm: { listConfigurableProviders: () => [] }, logger: { warn: vi.fn() },
     sessions: { flush: vi.fn(async () => {}), get: () => session },
+    sessionProjections: { stateOf: vi.fn((subject: unknown, key: string) => {
+      expect(subject).toBe(session)
+      expect(key).toBe('turnBoundary')
+      return openTurnStart === undefined ? undefined : { openTurnStartSeq: openTurnStart }
+    }) },
     sessionController: { resolveAgent: async () => ({ agent }), follow, page,
       control: () => once({ type: 'baseline', value: { projections: {} } }), list: async () => ({ items: [] }) },
     jobController: { list: () => once({ jobs: [] }) },
@@ -70,6 +77,7 @@ describe('working facts at the runtime opening boundary', () => {
     const f = await openFixture(events.slice(truncated ? 1 : 0), truncated, [{ records: [events[0]!], hasMore: false }])
     try {
       expect(f.root.bind).toHaveBeenCalledWith(f.agent)
+      expect(f.ctx.sessionProjections.stateOf).toHaveBeenCalledWith(f.agent.session, 'turnBoundary')
       expect(f.runtime.root.working).toEqual({ startedAt: 1000, phase: 'Receiving text', lastChunkAt: 3000 })
       expect(f.runtime.root.working).not.toHaveProperty('phaseStartedAt')
       expect(f.runtime.initialCells.some(cell => cell.text === 'already streaming')).toBe(true)
@@ -135,6 +143,19 @@ describe('working facts at the runtime opening boundary', () => {
       expect(f.page).toHaveBeenCalledWith({ address: { kind: 'session', sessionId: id }, throughSeq: 4, beforeSeq: 5, maxMessages: 50 }, expect.any(AbortSignal))
       expect(f.runtime.root.working).toEqual({ phase: 'Working' })
       expect(f.runtime.initialHasMore).toBe(true)
+    } finally { f.finishTurn(); await f.runtime.shutdown() }
+  })
+
+  it.each([null, undefined])('opens without a row or pages when the host has no open turn: %s', async boundary => {
+    const closed = [...events, { type: 'turn/end', seq: 5, time: 3500,
+      data: { turn: 1, reason: { kind: 'completed' } } } as SessionEvent]
+    const f = await openFixture(boundary === null ? closed : [], true, [], false, { start: boundary })
+    try {
+      expect(f.runtime.root.working).toBeUndefined()
+      expect(f.page).not.toHaveBeenCalled()
+      expect(f.root.bind).toHaveBeenCalledWith(f.agent)
+      expect(f.ctx.sessionProjections.stateOf).toHaveBeenCalledWith(f.agent.session, 'turnBoundary')
+      expect(f.snapshotEvents).not.toHaveBeenCalled()
     } finally { f.finishTurn(); await f.runtime.shutdown() }
   })
 })

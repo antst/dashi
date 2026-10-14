@@ -14,7 +14,9 @@ export function apply(ctx) {
     parameters: {},
     output: { schema: { type: 'string' }, render: (_args, value) => [{ type: 'text', text: value }] },
     execute: async (_args, exec) => {
-      while (!existsSync(workingGate)) await delay(20, undefined, { signal: exec.signal })
+      const gate = exec.agent.session.header.parentSession === undefined ? workingGate
+        : process.env.DSH_WORKING_CHILD_GATE ?? workingGate
+      while (!existsSync(gate)) await delay(20, undefined, { signal: exec.signal })
       return 'W143_NATIVE_TOOL_RESULT'
     },
     presentCall: () => ({ card: 'generic', title: 'Private working-row hold' }),

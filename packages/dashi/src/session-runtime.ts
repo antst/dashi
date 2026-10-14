@@ -359,7 +359,7 @@ export async function createSessionRuntime(
         : inheritedTurn(agent.session.snapshotEvents(), agent.session.inheritedEventCount)
       const events = eventsFromRecords(opening.records)
       let hasMore = opening.hasMore
-      const from = (opening.projections.values.turnBoundary as TurnBoundaryProjection | undefined)?.openTurnStartSeq
+      const from = (ctx.sessionProjections.stateOf(agent.session, 'turnBoundary') as TurnBoundaryProjection | undefined)?.openTurnStartSeq
       while (from != null && (events[0]?.seq ?? Infinity) > from && hasMore) {
         const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]?.seq ?? opening.cursor + 1, maxMessages: 50 }, abort.signal).catch(() => undefined)
         if (page === undefined) break
