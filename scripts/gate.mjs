@@ -90,14 +90,30 @@ if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)
 }
+const rendererPath = 'packages/dashi/tests/renderer.spec.ts'
+const testExcludes = ['**/.cache/**', '**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.omc/**', 'packages/*/lib/**']
+  .flatMap(path => ['--exclude', path])
+const tracked = spawnSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+const trackedFiles = tracked.status === 0 ? new Set(tracked.stdout.split('\0')) : undefined
+if (trackedFiles === undefined) console.log('gate: tracked-test check unavailable (Git-less workspace); native selection will run')
 const checks = [
   ['typecheck', ['run', 'typecheck']],
   ['build', ['run', 'build']],
   ['lint', ['run', 'lint']],
-  ['renderer tests', ['exec', 'vitest', 'run', 'packages/dashi/tests/renderer.spec.ts']],
-  ['tests', ['exec', 'vitest', 'run', '--exclude', 'packages/dashi/tests/renderer.spec.ts']],
+  ['renderer tests', ['exec', 'vitest', 'run', rendererPath, ...testExcludes]],
+  ['tests', ['exec', 'vitest', 'run', '--exclude', rendererPath, ...testExcludes]],
 ]
 for (const [label, args] of checks) {
+  if (args[1] === 'vitest') {
+    const listed = spawnSync('pnpm', ['--silent', ...args.slice(0, 2), 'list', '--filesOnly', ...args.slice(3)], {
+      cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, encoding: 'utf8',
+    })
+    if (listed.status !== 0) { console.error(listed.stderr || listed.stdout || String(listed.error)); process.exit(1) }
+    const files = listed.stdout.trim().split('\n').filter(Boolean)
+    const untracked = trackedFiles === undefined ? [] : files.filter(path => !trackedFiles.has(path))
+    if (untracked.length > 0) { console.error(`gate: untracked test files:\n${untracked.join('\n')}`); process.exit(1) }
+    console.log(`gate: ${label}: ${files.length} files${trackedFiles === undefined ? '' : ' (tracked)'}`)
+  }
   const result = spawnSync('pnpm', args, {
     cwd: root, env: { ...process.env, DSH_TEST_VERSION: testedVersion }, stdio: 'inherit',
   })

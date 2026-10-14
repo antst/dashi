@@ -1,8 +1,57 @@
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, it, vi } from 'vitest'
+import { EventEmitter } from 'node:events'
+import { runInNewContext } from 'node:vm'
+import { expect, it, onTestFinished, vi } from 'vitest'
 import { isExpectedInstallOutcome, readInstallDescriptors, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+
+function liveGroupScript(file: string, openFile: string, childPid: string, childScript: string): string {
+  return `const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(file)}, 'pnpm finished; command alive\\n');
+    const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
+    const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childScript)}], { stdio: 'ignore' });
+    fs.writeFileSync(${JSON.stringify(childPid)}, String(child.pid));
+    process.once('SIGTERM', () => {
+      fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n');
+      const exit = () => process.exit(0);
+      if (child.exitCode !== null || child.signalCode !== null) setImmediate(exit);
+      else child.once('close', exit);
+    });
+    setInterval(() => {}, 1000)`
+}
+
+it.each(['child first', 'TERM first'])('the receipt fixture has one ordered exit: %s (simulated callback order)', order => {
+  const child = Object.assign(new EventEmitter(), { pid: 2, exitCode: null as number | null, signalCode: null as NodeJS.Signals | null })
+  const immediate: (() => void)[] = []
+  const files = new Map<string, string>()
+  const leader = Object.assign(new EventEmitter(), { execPath: '/fixture/node', exit: vi.fn(() => {
+    expect(files.get('/log')).toBe('pnpm finished; command alive\nterminated\n')
+    expect(child.exitCode !== null || child.signalCode !== null).toBe(true)
+  }) })
+  const fs = { writeFileSync: (path: string, text: string) => files.set(path, text), openSync: () => 0,
+    appendFileSync: (path: string, text: string) => files.set(path, files.get(path)! + text) }
+  runInNewContext(liveGroupScript('/log', '/descriptor', '/pid', ''), {
+    require: (name: string) => name === 'node:fs' ? fs : { spawn: () => child }, process: leader,
+    setImmediate: (callback: () => void) => immediate.push(callback), setInterval: () => 0,
+  })
+  if (order === 'child first') {
+    child.exitCode = 0
+    child.emit('close')
+    expect(leader.exit).not.toHaveBeenCalled()
+    expect(files.get('/log')).toBe('pnpm finished; command alive\n')
+  }
+  leader.emit('SIGTERM')
+  expect(files.get('/log')).toBe('pnpm finished; command alive\nterminated\n')
+  expect(leader.exit).not.toHaveBeenCalled()
+  if (order === 'TERM first') {
+    immediate.forEach(callback => callback())
+    expect(leader.exit).not.toHaveBeenCalled()
+    child.signalCode = 'SIGTERM'
+    child.emit('close')
+  }
+  immediate.forEach(callback => callback())
+  expect(leader.exit).toHaveBeenCalledExactlyOnceWith(0)
+})
 
 it('accepts only the requested exit outcome using the literal truth table', () => {
   const expectations = [true, false, 0, 1, 7] as const
@@ -43,7 +92,20 @@ it('preserves successful and nonzero command outcomes without timeout diagnostic
 it('captures the live command group, descriptor names and operation log before termination; a late exit remains a timeout', async () => {
   const evidence = mkdtempSync(join(tmpdir(), 'dashi-install-timeout-'))
   let leader: number | undefined, child: number | undefined
-  try {
+  onTestFinished(context => {
+    let cleaned = false
+    try {
+      if (leader !== undefined) {
+        try { process.kill(-leader, 'SIGKILL') }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error }
+      }
+      cleaned = true
+    } finally {
+      if (context.task.result?.state === 'pass' && cleaned) rmSync(evidence, { recursive: true, force: true })
+      else console.error('install test evidence retained: ' + evidence)
+    }
+  })
+  {
     const nativeHome = join(evidence, 'native')
     const logs = join(nativeHome, 'profiles', 'dashi', '.plugin-manager', 'logs', 'operation-control')
     mkdirSync(logs, { recursive: true })
@@ -54,13 +116,7 @@ it('captures the live command group, descriptor names and operation log before t
     const openFile = realpathSync(join(evidence, 'open-descriptor-control'))
     const childScript = `const fs = require('node:fs'); const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
       fs.writeFileSync(${JSON.stringify(ready)}, String(fd)); setInterval(() => {}, 1000)`
-    const script = `const fs = require('node:fs'); fs.writeFileSync(${JSON.stringify(file)}, 'pnpm finished; command alive\\n');
-      const fd = fs.openSync(${JSON.stringify(openFile)}, 'r');
-      const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(childScript)}], { stdio: 'ignore' });
-      fs.writeFileSync(${JSON.stringify(childPid)}, String(child.pid));
-      child.once('close', () => { process.exit(0) });
-      process.on('SIGTERM', () => { fs.appendFileSync(${JSON.stringify(file)}, 'terminated\\n') });
-      setInterval(() => {}, 1000)`
+    const script = liveGroupScript(file, openFile, childPid, childScript)
     let capture: string | undefined
     const result = await runInstallCommand({ command: process.execPath, args: ['-e', script],
       cwd: evidence, env: process.env, timeoutMs: 1_000,
@@ -104,12 +160,6 @@ it('captures the live command group, descriptor names and operation log before t
       expect(() => { process.kill(record.pid, 0) }).toThrow()
       expect(() => { process.kill(child!, 0) }).toThrow()
     }, { timeout: 500, interval: 10 })
-  } finally {
-    if (leader !== undefined) {
-      try { process.kill(-leader, 'SIGKILL') }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') console.error('install test cleanup failed: ' + String(error)) }
-    }
-    rmSync(evidence, { recursive: true, force: true })
   }
 })
 

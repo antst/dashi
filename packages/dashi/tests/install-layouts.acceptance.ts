@@ -11,6 +11,7 @@ import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
 import { startTestDaemon } from './sessionbus-harness.js'
 import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
+import { pruneInstallLayout } from './install-layout-cleanup.js'
 
 // README commands are literal except for three declared prepublication deviations:
 // published baseline version substitution; packed-candidate spec substitution;
@@ -126,8 +127,18 @@ function packageAt(file: string): string {
   return directory
 }
 
-it(layout + ': literal README installs converge from fresh and both published baselines', async () => {
+it(layout + ': literal README installs converge from fresh and both published baselines', async ({ onTestFinished }) => {
   const started = performance.now()
+  let result: Record<string, unknown> | undefined
+  onTestFinished(context => {
+    if (context.task.result?.state !== 'pass') return
+    pruneInstallLayout(workspace)
+    writeFileSync(join(workspace, 'result.json'), JSON.stringify(result))
+    if (result?.platform !== undefined && process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+      '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + Number(result.wallSeconds).toFixed(2)
+      + 's (fresh candidate, alpha.1→candidate, alpha.2→candidate).\n')
+    console.log('install cell PASS ' + layout + '; wall ' + Number(result?.wallSeconds).toFixed(2) + 's; evidence ' + workspace)
+  })
   const daemon = await startTestDaemon()
   env.SESSIONBUS_SOCKET = daemon.socket
   env.SESSIONBUS_GROUPS = '["install-proof"]'
@@ -204,10 +215,10 @@ it(layout + ': literal README installs converge from fresh and both published ba
       for (const [index, file] of ['package.json', 'pnpm-lock.yaml'].entries()) {
         expect(readFileSync(join(profile, file)), 'refused add preserves ' + file).toEqual(before[index])
       }
-      writeFileSync(join(workspace, 'result.json'), JSON.stringify({
+      result = {
         layout, candidate: manifest.name + '@' + manifest.version, node: process.version,
         pmVersion, wallSeconds: (performance.now() - started) / 1000, passed: true,
-      }))
+      }
       return
     }
     const nativePackage = async (command: string, packageName: string): Promise<string> => {
@@ -394,12 +405,7 @@ it(layout + ': literal README installs converge from fresh and both published ba
     expect([...markerOwners].filter(([marker, owner]) => owner === layout && !consumedMarkers.has(marker))
       .map(([marker]) => marker), 'every Install marker assigned to this row is consumed').toEqual([])
     const wallSeconds = (performance.now() - started) / 1000
-    const result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds, passed: true }
-    writeFileSync(join(workspace, 'result.json'), JSON.stringify(result))
-    if (process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + wallSeconds.toFixed(2)
-      + 's (fresh candidate, alpha.1→candidate, alpha.2→candidate).\n')
-    console.log('install cell PASS ' + layout + '; wall ' + wallSeconds.toFixed(2) + 's; evidence ' + workspace)
+    result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds, passed: true }
   } finally {
     await daemon.close()
     writeFileSync(join(workspace, 'commands.log'), output)

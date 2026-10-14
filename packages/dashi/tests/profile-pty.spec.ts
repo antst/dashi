@@ -2,10 +2,11 @@ import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFile
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { Terminal as HeadlessTerminal } from '@xterm/headless'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFailed, vi } from 'vitest'
 import { MultiplexerPane, type MultiplexerKind } from './multiplexer.js'
 import { connectTestObserver, startTestDaemon } from './sessionbus-harness.js'
 import { testCeiling } from './test-budget.js'
+import { lifecycleFailure } from './lifecycle-failure.js'
 import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
 import { countAudibleBells } from './terminal-output.js'
 import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
@@ -1754,18 +1755,27 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     ['SIGINT', (shell: PtyShell) => { process.kill(shell.childPid(), 'SIGINT') }],
     ['SIGTERM', (shell: PtyShell) => { process.kill(shell.childPid(), 'SIGTERM') }],
   ])('restores the terminal after %s', async (_label, stop) => {
-    const { baseline, shell } = await prepareShell()
+    const failure = lifecycleFailure(`exit-${_label}`, onTestFailed)
     try {
+      const { baseline, shell } = await prepareShell({}, root, failure)
+      failure.mark('boot to first session header')
       await launch(shell)
       const releasedAt = shell.output.length
+      failure.mark('exit action or signal delivery')
       await stop(shell)
+      failure.mark('alternate screen leave after exit action')
       await shell.waitFor('\u001B[?1049l', releasedAt)
+      failure.mark('exit summary')
       await shell.waitFor('Resume with:', releasedAt)
-      await expectRestored(shell, baseline)
+      await expectRestored(shell, baseline, failure)
+    } catch (error) {
+      failure.capture()
+      throw error
     } finally {
-      await shell.close()
+      failure.mark('shell close')
+      await failure.current()?.close()
     }
-  }, 30_000)
+  }, testCeiling(30_000))
 
   it('expires the Ctrl+D exit arm after two seconds', async () => {
     const { baseline, shell } = await prepareShell()
@@ -1908,19 +1918,26 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, 30_000)
 
-  it('restores after stdin is already closed', async () => {
-    const { baseline, shell } = await prepareShell()
+  it('restores after stdin is already closed', async ({ onTestFailed }) => {
+    const failure = lifecycleFailure('stdin-closed', onTestFailed)
     try {
+      const { baseline, shell } = await prepareShell({}, root, failure)
       const start = shell.output.length
+      failure.mark('boot with closed stdin')
       shell.write(`${quote(dsh)} --profile dashi --fullscreen <&-\n`)
-      await expectRestored(shell, baseline)
+      await expectRestored(shell, baseline, failure)
+      failure.mark('closed stdin lifecycle assertions')
       const lifecycle = shell.output.slice(start)
       expect(lifecycle).toContain('\u001B[?2004h')
       expect(lifecycle).toContain('\u001B[?2004l')
       expect(lifecycle).toContain('\u001B[?1049h')
       expect(lifecycle).toContain('\u001B[?1049l')
+    } catch (error) {
+      failure.capture()
+      throw error
     } finally {
-      await shell.close()
+      failure.mark('shell close')
+      await failure.current()?.close()
     }
   }, testCeiling(30_000))
 
@@ -1987,23 +2004,33 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     await expectResumable(id, replayFixture, { DSH_HOME: hardeningHome }, hardeningCwd)
   }, testCeiling(60_000))
 
-  it('restores and leaves the session resumable on SIGTERM during a pending command', async () => {
-    const { baseline, shell } = await prepareShell({ DSH_HOME: hardeningHome }, hardeningCwd)
+  it('restores and leaves the session resumable on SIGTERM during a pending command', async ({ onTestFailed }) => {
+    const failure = lifecycleFailure('pending-command', onTestFailed)
     let id = ''
     try {
+      const { baseline, shell } = await prepareShell({ DSH_HOME: hardeningHome }, hardeningCwd, failure)
+      failure.mark('boot to first session header')
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
+      failure.mark('pending command running')
       shell.write('/dashi-slow-fixture\r')
       const runningAt = await shell.waitFor('running /dashi-slow-fixture', start)
+      failure.mark('SIGTERM delivery')
       process.kill(shell.childPid(), 'SIGTERM')
+      failure.mark('alternate screen leave after SIGTERM')
       await shell.waitFor('\u001B[?1049l', runningAt)
+      failure.mark('exit summary')
       await shell.waitFor('Resume with:', runningAt)
-      await expectRestored(shell, baseline)
+      await expectRestored(shell, baseline, failure)
+    } catch (error) {
+      failure.capture()
+      throw error
     } finally {
-      await shell.close()
+      failure.mark('shell close')
+      await failure.current()?.close()
     }
-    await expectResumable(id, replayFixture, { DSH_HOME: hardeningHome }, hardeningCwd)
-  }, 60_000)
+    await expectResumable(id, replayFixture, { DSH_HOME: hardeningHome }, hardeningCwd, failure)
+  }, testCeiling(60_000))
 
   it.each([false, true])('restores after native SIGTERM with a held-flush fault armed=%s', async armed => {
     const evidence = join(root, '.cache', 'w137-forced-exit', `${process.pid}-${Date.now()}-${armed}`)
@@ -2087,33 +2114,47 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
   }, testCeiling(30_000))
 
-  it('contains a throwing presenter across resize and keeps the session resumable', async () => {
+  it('contains a throwing presenter across resize and keeps the session resumable', async ({ onTestFailed }) => {
+    const failure = lifecycleFailure('presenter-resize', onTestFailed)
+    failure.mark('presenter fixture preparation')
     const snapshot = presenterFailureSnapshot()
-    const { baseline, shell } = await prepareShell({
-      DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: snapshot,
-    }, hardeningCwd)
     let id = ''
     try {
+      const { baseline, shell } = await prepareShell({
+        DSH_HOME: hardeningHome, DSH_SNAPSHOT_FILE: snapshot,
+      }, hardeningCwd, failure)
+      failure.mark('boot to first session header')
       const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
       id = sessionId(shell.output, start)
+      failure.mark('presenter failure tool')
       shell.write('resize the broken presenter\r')
       await shell.waitFor('dashi_presenter_failure', start)
+      failure.mark('narrow resize and recovery')
       shell.resize(48, 12)
       await shell.waitFor('Presenter recovery complete.', start)
+      failure.mark('wide resize and expanded result')
       shell.resize(100, 30)
       shell.write('\u000F')
       await shell.waitFor('DASHI_PRESENTER_RESULT', start)
+      failure.mark('presenter terminal failure assertion')
       expect(shell.output.slice(start)).not.toContain('dashi: terminal failure')
       const releasedAt = shell.output.length
+      failure.mark('ordinary presenter exit')
       shell.write('\u0004\u0004')
+      failure.mark('presenter alternate screen leave')
       await shell.waitFor('\u001B[?1049l', releasedAt)
-      await expectRestored(shell, baseline)
+      await expectRestored(shell, baseline, failure)
+    } catch (error) {
+      failure.capture()
+      throw error
     } finally {
-      await shell.close()
+      failure.mark('shell close')
+      await failure.current()?.close()
     }
+    failure.mark('durable presenter result assertion')
     expect(sessionEvents(id, hardeningHome).some(event => event.type === 'tool/result')).toBe(true)
-    await expectResumable(id, snapshot, { DSH_HOME: hardeningHome }, hardeningCwd)
-  }, 60_000)
+    await expectResumable(id, snapshot, { DSH_HOME: hardeningHome }, hardeningCwd, failure)
+  }, testCeiling(60_000))
 
   it('streams a recorded tool turn and resumes its native session by exact UUID', async () => {
     const { baseline, shell } = await prepareShell()

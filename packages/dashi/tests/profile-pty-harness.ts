@@ -231,9 +231,18 @@ export async function resizedFrame(
   return parseFrame(terminal)
 }
 
-export async function prepareShell(extraEnv: NodeJS.ProcessEnv = {}, cwd = root): Promise<{ baseline: string; shell: PtyShell }> {
+export interface LifecycleObservation {
+  own(shell: PtyShell): void
+  mark(stage: string): void
+  capture(): void
+}
+
+export async function prepareShell(extraEnv: NodeJS.ProcessEnv = {}, cwd = root, observation?: LifecycleObservation): Promise<{ baseline: string; shell: PtyShell }> {
+  observation?.mark('shell construction')
   const shell = new PtyShell(replayFixture, undefined, cwd, extraEnv)
+  observation?.own(shell)
   const start = shell.output.length
+  observation?.mark('baseline stty')
   shell.write("printf '__MODE_BEFORE__\\n'; stty -a | tr '\\n' ' '; printf '\\n'\n")
   return { baseline: await waitForTerminalMode(shell, '__MODE_BEFORE__', start), shell }
 }
@@ -296,17 +305,27 @@ export async function expectResumable(
   snapshot = replayFixture,
   extraEnv: NodeJS.ProcessEnv = {},
   cwd = root,
+  observation?: LifecycleObservation,
 ): Promise<void> {
+  observation?.mark('resume shell construction')
   const shell = new PtyShell(snapshot, undefined, cwd, extraEnv)
+  observation?.own(shell)
   try {
+    observation?.mark('resume boot to idle')
     const start = await launch(shell,
       `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen --resume ${quote(id)}`,
       'idle ·')
+    observation?.mark('resume id assertion')
     expect(shell.output.slice(start)).toContain(id)
     const releasedAt = shell.output.length
     shell.write('\u0004\u0004')
+    observation?.mark('resume alternate screen leave')
     await shell.waitFor('\u001B[?1049l', releasedAt)
+  } catch (error) {
+    observation?.capture()
+    throw error
   } finally {
+    observation?.mark('resume shell close')
     await shell.close()
   }
 }
@@ -594,11 +613,14 @@ export function generateLargeSession(
   return { events: seq, toolCells }
 }
 
-export async function expectRestored(shell: PtyShell, baseline: string): Promise<void> {
+export async function expectRestored(shell: PtyShell, baseline: string, observation?: LifecycleObservation): Promise<void> {
   const start = shell.output.length
+  observation?.mark('restored stty')
   shell.write("printf '__MODE_AFTER__\\n'; stty -a | tr '\\n' ' '; printf '\\n__SHELL_OK__\\n'\n")
   const restored = await waitForTerminalMode(shell, '__MODE_AFTER__', start)
+  observation?.mark('restored shell marker')
   await shell.waitFor('__SHELL_OK__', start)
+  observation?.mark('four terminal flags assertion')
   expect(relevantTerminalMode(restored)).toBe(relevantTerminalMode(baseline))
 }
 
