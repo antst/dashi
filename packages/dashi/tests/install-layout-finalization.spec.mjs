@@ -10,7 +10,7 @@ const hook = source.slice(source.indexOf('  onTestFinished(context => {'), sourc
 function fixture(result, prune = pruneInstallLayout) {
   const workspace = mkdtempSync(join(tmpdir(), 'dashi-layout-finalize-'))
   onTestFinished(() => { rmSync(workspace, { recursive: true, force: true }) })
-  for (const directory of ['tools', 'user', 'native-fresh']) {
+  for (const directory of ['tools', 'user', 'native-fresh', 'native-0.2.0', 'project-0.2.0', 'unowned-evidence']) {
     mkdirSync(join(workspace, directory)); writeFileSync(join(workspace, directory, 'marker'), '')
   }
   writeFileSync(join(workspace, 'commands.log'), 'retained commands')
@@ -29,7 +29,7 @@ function fixture(result, prune = pruneInstallLayout) {
 it.each(['fail', 'skip', undefined])('native task state %s retains the whole workspace and writes no PASS', state => {
   const control = fixture({ passed: true, wallSeconds: 1 })
   control.finish(state)
-  for (const directory of ['tools', 'user', 'native-fresh']) expect(existsSync(join(control.workspace, directory, 'marker'))).toBe(true)
+  for (const directory of ['tools', 'user', 'native-fresh', 'native-0.2.0', 'project-0.2.0']) expect(existsSync(join(control.workspace, directory, 'marker'))).toBe(true)
   expect(existsSync(join(control.workspace, 'result.json'))).toBe(false)
   expect(control.log).not.toHaveBeenCalled()
 })
@@ -44,6 +44,9 @@ it.each([
   })
   control.finish('pass')
   expect(existsSync(join(control.workspace, 'tools'))).toBe(false)
+  expect(existsSync(join(control.workspace, 'native-0.2.0'))).toBe(false)
+  expect(existsSync(join(control.workspace, 'project-0.2.0'))).toBe(false)
+  expect(existsSync(join(control.workspace, 'unowned-evidence', 'marker'))).toBe(true)
   expect(readFileSync(join(control.workspace, 'commands.log'), 'utf8')).toBe('retained commands')
   expect(JSON.parse(readFileSync(join(control.workspace, 'result.json'), 'utf8'))).toEqual(result)
   expect(control.log).toHaveBeenCalledTimes(1)
