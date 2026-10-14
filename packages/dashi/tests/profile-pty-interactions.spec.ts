@@ -527,8 +527,9 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
 
     const firstEvents = sessionEvents(first)
+    expect(sessionLog(first).header.agentPreset).toBe('standard')
     expect(firstEvents.some(event => event.type === 'agent-preset/selected'
-      && event.data?.agentPreset === 'standard')).toBe(true)
+      && event.data?.agentPreset === 'standard')).toBe(false)
     for (const name of ['agents', 'export', 'context']) {
       expect(firstEvents.some(event => event.type === 'command/run' && event.data?.name === name)).toBe(true)
     }

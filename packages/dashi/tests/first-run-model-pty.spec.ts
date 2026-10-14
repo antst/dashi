@@ -352,7 +352,7 @@ describe.sequential('known-provider first run, real native writers and authentic
     } finally { await observer.close(); await close(shell, home, id) }
   }, testCeiling(30_000))
 
-  it('cancels provider selection and refuses an inherited read-only reference without accepting a key', async () => {
+  it('cancels provider selection and replacement of an inherited credential without changing its fallback', async () => {
     const { home, shell, id } = await boot('read-only', undefined, { DEEPSEEK_API_KEY: endpoint.key() })
     try {
       shell.write('/model add\r')
@@ -362,7 +362,9 @@ describe.sequential('known-provider first run, real native writers and authentic
       expect(readFileSync(join(home, 'profiles/dashi/cordis.patch.yml'), 'utf8')).not.toContain('deepseek:')
       await leavePicker(shell)
       shell.write('/model credential deepseek-official\r')
-      await commandDone(home, id, 'DEEPSEEK_API_KEY is read-only in this DSH launch')
+      await shell.waitFor('Replace credential')
+      await selectRow(shell, 'Cancel')
+      await commandDone(home, id, 'credential replacement cancelled')
       expect(shell.output).not.toContain('Enter the credential')
       expect(credentialDigest(home)).toBe('absent')
       await leavePicker(shell)
@@ -465,7 +467,7 @@ describe.sequential('known-provider first run, real native writers and authentic
       endpoint.releaseLogin()
       await commandDone(home, id, 'signed in to W127 delayed login')
       shell.write('\u001B[B')
-      await vi.waitFor(async () => { expect(await screen(shell)).toContain('› 2 DeepSeek') }, { timeout: testCeiling(20_000) })
+      await vi.waitFor(async () => { expect(await screen(shell)).toContain('› 2 Add provider') }, { timeout: testCeiling(20_000) })
       expect((await screen(shell)).split('\n').at(-1)?.trim().startsWith('model ·')).toBe(true)
       expect(await screen(shell)).toContain(currentId)
     } catch (error) {

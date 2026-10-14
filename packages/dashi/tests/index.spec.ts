@@ -20,6 +20,7 @@ vi.mock('../src/application.js', () => ({ createTerminalShell: vi.fn(() => shell
 vi.mock('../src/session-runtime.js', () => ({ createSessionRuntime: vi.fn(async () => runtime) }))
 
 import { apply } from '../src/index.js'
+import { createTerminalShell } from '../src/application.js'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -69,6 +70,39 @@ describe('dashi profile plugin', () => {
     await ctx.fiber.dispose()
     expect(shell.dispose).toHaveBeenCalledOnce()
     expect(runtime.shutdown).toHaveBeenCalledOnce()
+  })
+
+  it('releases the shell and prints the resume summary when native shutdown rejects', async () => {
+    let announce = (): void => {}
+    const ctx = new Context()
+    provideCmdline(ctx, {
+      args: ['--inline'], exit: vi.fn(),
+      ready: { onReady(listener) { announce = listener; return () => {} } },
+    })
+    const effects = vi.spyOn(ctx, 'effect')
+    const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const previousErrors = process.stdout.listeners('error') as ((error: Error) => void)[]
+    const error = new Error('native flush failed')
+    try {
+      apply(ctx)
+      announce()
+      await vi.waitFor(() => { expect(shell.start).toHaveBeenCalledOnce() })
+      runtime.shutdown.mockRejectedValueOnce(error)
+      shell.dispose.mockImplementationOnce(async () => {
+        vi.mocked(createTerminalShell).mock.calls.at(-1)?.[0].onReleased?.()
+      })
+      const index = effects.mock.calls.findIndex(([, label]) => label === 'dashi.profile-boot')
+      expect(index).toBeGreaterThanOrEqual(0)
+      await expect(effects.mock.results[index]?.value()).rejects.toBe(error)
+      expect(runtime.shutdown).toHaveBeenCalledOnce()
+      expect(shell.dispose).toHaveBeenCalledOnce()
+      expect(stdout).toHaveBeenCalledWith(`${runtime.summary}\n`)
+    } finally {
+      for (const listener of process.stdout.listeners('error') as ((error: Error) => void)[]) {
+        if (!previousErrors.includes(listener)) process.stdout.off('error', listener)
+      }
+      await ctx.fiber.dispose()
+    }
   })
 
   it.each([

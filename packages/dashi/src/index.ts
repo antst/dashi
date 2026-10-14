@@ -264,8 +264,11 @@ export function apply(ctx: Context): void {
     announce()
     changed()
     await boot
-    await runtime?.shutdown()
-    await shell?.dispose()
+    try {
+      await runtime?.shutdown()
+    } finally {
+      await shell?.dispose()
+    }
     process.stdout.off('error', stdoutError)
   }, 'dashi.profile-boot')
   exitOnStdinEnd(ctx, 'dashi.stdin')

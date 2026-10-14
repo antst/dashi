@@ -32,11 +32,11 @@ vi.mock('node:child_process', async importOriginal => {
   } }
 })
 
-let root, payloads, lock, events, registry
+let root, payloads, lock, events, registry, externalNames
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'dashi-release-'))
   uploads.calls.length = 0; uploads.failAt = undefined; uploads.annotation = ''; uploads.pack = undefined
-  events = []; registry = new Map()
+  events = []; registry = new Map(); externalNames = []
 })
 afterEach(() => { vi.unstubAllGlobals(); rmSync(root, { recursive: true, force: true }) })
 
@@ -64,7 +64,15 @@ function fixture() {
   }
   payloads = readReleaseArchives(archives, root)
   lock = '\npackages:\n'
-  for (const [name, version] of [['@sessionbus/dsh', '0.1.1'], ['@antst/roller', '0.1.4'], ['@earendil-works/pi-tui', '0.84.4']]) {
+  const own = new Set(payloads.map(payload => payload.manifest.name))
+  const exact = new Map()
+  for (const payload of payloads) for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+    for (const [name, version] of Object.entries(payload.manifest[field] ?? {})) {
+      if (!own.has(name) && /^\d+\.\d+\.\d+(?:[-+][\da-z.+-]+)?$/iu.test(version)) exact.set(name, version)
+    }
+  }
+  externalNames = [...exact.keys()]
+  for (const [name, version] of exact) {
     const integrity = 'sha512-' + createHash('sha512').update(name + version).digest('base64')
     lock += `  '${name}@${version}':\n    resolution: {integrity: ${integrity}}\n\n`
     registry.set(name, { name, versions: { [version]: { name, version, dist: { integrity } } } })
@@ -291,7 +299,7 @@ it('stops a validly named but mismatched tag hash before any registry read or up
 it('checks every own version and exact external dependency before uploading anything', async () => {
   fixture()
   expect(await preflightRegistry(payloads, lock)).toEqual([false, false, false, false])
-  expect(events).toEqual([...payloads.map(payload => payload.manifest.name), '@earendil-works/pi-tui', '@sessionbus/dsh', '@antst/roller'])
+  expect(events).toEqual([...payloads.map(payload => payload.manifest.name), ...externalNames])
   expect(uploads.calls).toEqual([])
   registry.get('@antst/roller').versions = {}
   await expect(publishRelease(payloads, lock)).rejects.toThrow('exact dependency is not published')
