@@ -1,9 +1,18 @@
 # Changelog
 
-## Unreleased — 0.2.1
+## 0.2.1
 
-- With DSH alpha.3, a provider key inherited from the environment can be replaced by a stored key, which then takes precedence.
-- Without a configured DeepSeek key, the model picker offers Add provider instead of listing DeepSeek's models.
+- Restore the terminal when DSH ends the process before dashi's cleanup has finished, for example when a termination signal reaches it twice (W-138).
+- Remove the always-on job and subagent rows. Find background activity through the running counts and Ctrl+B or `/tasks`; labels, elapsed time and progress are no longer always visible. Sanitise collapsed context heads and activity-list rows into one row, keep job identity and state before the command, and separate the conversation from the status area. A background settlement appears in the conversation when the model takes its notice (W-139).
+- Show a pulsing working row while a turn is open, with native model/tool/retry phases, observed elapsed time and a no-data age when a live stream goes quiet. Accessible mode uses a fixed marker and the same words; resumed requests without an observed start have no invented request age (W-143).
+- Keep every control row within the terminal width, including narrow search and overlay panels. Cut rows end with an ellipsis in full-screen mode as well as inline mode (W-147).
+- Require DSH **0.2.1-alpha.3**, with every app-owned DSH dependency pinned to that exact version. A DSH alpha.2 CLI refuses this dashi. To upgrade, repeat the README's DSH installation command first, then its dashi installation command (W-148).
+- Pin Sessionbus **0.1.4**: peer-mode connection failures stay off the terminal; `/sessionbus-groups` reports the last connection failure (W-148).
+- Print `Resume with:` and dispose the terminal even when runtime shutdown rejects while a command is pending (W-148).
+- With DSH alpha.3, a provider key inherited from the environment can be replaced by a stored key, which then takes precedence (W-148).
+- Without a configured DeepSeek key, the model picker offers Add provider instead of listing DeepSeek's models (W-148).
+- DSH alpha.3 refuses existing profile configuration keys `models` under `dsh-llm-deepseek-account`, and `persona` or `toolFilter` under `dsh-tool-subagent`. Review profile patches before upgrading (W-148).
+- Test infrastructure: diagnose terminal-test failures before the outer timeout, check the gate's selected tests against tracked files where Git is available, and clean owned test scratch on success (W-137).
 
 ## 0.2.0
 

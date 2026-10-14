@@ -48,17 +48,16 @@ function fixture() {
     const directory = join(root, 'packages', unit.directory.split('/').at(-1))
     const packageDirectory = join(root, 'container', unit.manifest.name.replaceAll('/', '-'), 'package')
     mkdirSync(directory, { recursive: true }); mkdirSync(packageDirectory, { recursive: true })
-    const manifest = { name: unit.manifest.name, version: '0.2.0', main: 'index.js' }
+    const manifest = { name: unit.manifest.name, version: unit.manifest.version, main: 'index.js' }
     for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
       if (!unit.manifest[field]) continue
       manifest[field] = Object.fromEntries(Object.entries(unit.manifest[field]).map(([name, range]) => [name,
-        name === '@sessionbus/dsh' ? '0.1.1' : name === '@earendil-works/pi-tui' ? '0.84.4'
-          : range.startsWith('workspace:') ? '0.2.0' : range]))
+        range.startsWith('workspace:') ? manifest.version : range]))
     }
     writeFileSync(join(directory, 'package.json'), JSON.stringify(manifest))
     writeFileSync(join(packageDirectory, 'package.json'), JSON.stringify(manifest))
     writeFileSync(join(packageDirectory, 'index.js'), 'export {}\n')
-    const filename = manifest.name.replace(/^@/u, '').replace('/', '-') + '-0.2.0.tgz'
+    const filename = manifest.name.replace(/^@/u, '').replace('/', '-') + '-' + manifest.version + '.tgz'
     const result = spawnSync('tar', ['-czf', join(archives, filename), '-C', join(packageDirectory, '..'), 'package'])
     expect(result.status).toBe(0)
   }
@@ -176,7 +175,7 @@ async function packFixture(build, nativeManager = false) {
   const { packRelease } = await import(pathToFileURL(join(root, 'scripts', 'pack-release.mjs')).href)
   uploads.pack = { calls: [], build, nativeManager }
   const nativeProcess = process
-  // Toolchain admission is not under test here; native packing is measured separately.
+  // pnpm admission is tested below; Node/platform refusals are hand-checked. Native packing is measured separately.
   vi.stubGlobal('process', { ...nativeProcess, platform: 'linux', arch: 'x64', versions: { ...nativeProcess.versions, node: '22.23.3' } })
   try { return packRelease(directory) } finally { vi.stubGlobal('process', nativeProcess) }
 }
@@ -237,7 +236,7 @@ it('rejects a changed packed identity or missing entry', () => {
   const archives = fixture()
   const payload = payloads[2]
   const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
-  for (const change of [{ version: '0.2.1' },
+  for (const change of [{ version: '0.2.2' },
     { main: 'absent.js' }, { types: 'absent.d.ts' }, { bin: { dashi: 'absent.js' } }, { dsh: { bundle: { patch: 'absent.yml' } } }]) {
     writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify({ ...payload.manifest, ...change }))
     expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
@@ -249,11 +248,11 @@ it('rejects an inexact sibling without changing dependency keys or their order',
   const archives = fixture()
   const payload = payloads[2]
   const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
-  const changed = { ...payload.manifest, dependencies: { ...payload.manifest.dependencies, '@antst/dashi': '^0.2.0' } }
+  const changed = { ...payload.manifest, dependencies: { ...payload.manifest.dependencies, '@antst/dashi': '^' + payload.manifest.version } }
   expect(Object.keys(changed.dependencies)).toEqual(Object.keys(payload.manifest.dependencies))
   writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify(changed))
   expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)
-  expect(() => readReleaseArchives(archives, root)).toThrow('sibling @antst/dashi must be exact 0.2.0')
+  expect(() => readReleaseArchives(archives, root)).toThrow('sibling @antst/dashi must be exact ' + payload.manifest.version)
 })
 
 it('rejects changed dependency key order even when every dependency value is unchanged', () => {
@@ -291,7 +290,7 @@ it('stops a validly named but mismatched tag hash before any registry read or up
   const directory = fixture()
   uploads.annotation = payloads.map(payload => payload.sha256 + '  ' + payload.filename).join('\n')
     .replace(payloads[0].sha256, '0'.repeat(64))
-  await expect(checkReleasePayloads('v0.2.0', directory)).rejects.toThrow('hash mismatch')
+  await expect(checkReleasePayloads('v' + payloads[0].manifest.version, directory)).rejects.toThrow('hash mismatch')
   expect(events).toEqual([])
   expect(uploads.calls).toEqual([])
 })
@@ -310,7 +309,8 @@ it('rejects a missing frozen-lock integrity or unequal exact dependency before a
   fixture()
   await expect(publishRelease(payloads, '')).rejects.toThrow('no SHA512 integrity')
   expect(events).toEqual([])
-  registry.get('@sessionbus/dsh').versions['0.1.1'].dist.integrity = 'unequal control'
+  const pluginVersion = payloads[2].manifest.dependencies['@sessionbus/dsh']
+  registry.get('@sessionbus/dsh').versions[pluginVersion].dist.integrity = 'unequal control'
   await expect(publishRelease(payloads, lock)).rejects.toThrow('integrity differs')
   expect(uploads.calls).toEqual([])
 })
@@ -331,7 +331,7 @@ it('never reads HTTP, authentication, network or malformed metadata errors as ab
 it('rejects an existing unequal payload before the first upload', async () => {
   fixture()
   const payload = payloads[3]
-  registry.get(payload.manifest.name).versions['0.2.0'] = { name: payload.manifest.name, version: '0.2.0', dist: { integrity: 'different' } }
+  registry.get(payload.manifest.name).versions[payload.manifest.version] = { name: payload.manifest.name, version: payload.manifest.version, dist: { integrity: 'different' } }
   await expect(publishRelease(payloads, lock)).rejects.toThrow('integrity differs')
   expect(uploads.calls).toEqual([])
 })
@@ -340,7 +340,7 @@ it('skips only equal published bytes, continues in dependency order, and stops o
   const parentRetrySetting = process.env.pnpm_config_fetch_retries
   fixture()
   const first = payloads[0]
-  registry.get(first.manifest.name).versions['0.2.0'] = { name: first.manifest.name, version: '0.2.0', dist: { integrity: first.integrity } }
+  registry.get(first.manifest.name).versions[first.manifest.version] = { name: first.manifest.name, version: first.manifest.version, dist: { integrity: first.integrity } }
   uploads.failAt = 2
   await expect(publishRelease(payloads, lock)).rejects.toThrow('registry outcome may be uncertain')
   expect(uploads.calls.map(call => call.args[1])).toEqual(payloads.slice(1, 3).map(payload => payload.archive))
@@ -348,8 +348,8 @@ it('skips only equal published bytes, continues in dependency order, and stops o
   for (const call of uploads.calls) expect(call.options.env?.pnpm_config_fetch_retries).toBe('0')
   expect(process.env.pnpm_config_fetch_retries).toBe(parentRetrySetting)
   uploads.calls.length = 0; uploads.failAt = undefined
-  for (const payload of payloads) registry.get(payload.manifest.name).versions['0.2.0'] = {
-    name: payload.manifest.name, version: '0.2.0', dist: { integrity: payload.integrity },
+  for (const payload of payloads) registry.get(payload.manifest.name).versions[payload.manifest.version] = {
+    name: payload.manifest.name, version: payload.manifest.version, dist: { integrity: payload.integrity },
   }
   await publishRelease(payloads, lock)
   expect(uploads.calls).toEqual([])
