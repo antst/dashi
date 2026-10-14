@@ -85,14 +85,16 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     writeFileSync(patch, readFileSync(replayPatch, 'utf8').replace('            name: Replay',
       '            name: Replay\n            retryPolicy:\n              mode: normal\n              maxRetries: 1\n              retryableCodes: [TIMEOUT]\n              backoff: {initialDelayMs: 1000, maxDelayMs: 1000, jitterRatio: 0}'))
     const shell = new PtyShell(replayFixture, undefined, root, {
-      // Two 500 ms pulse periods plus 250 ms for publication/polling before the first chunk.
-      DSH_WORKING_PROOF: gate, DSH_REPLAY_PACE_MS: '1250',
+      // Phase pacing; the real pulse proof covers the whole open turn, not its first-chunk window.
+      DSH_WORKING_PROOF: gate, DSH_REPLAY_PACE_MS: '750',
       DSH_SNAPSHOT_OVERRIDE: join(root, 'packages/dashi/tests/fixtures/working-row.override.json'),
     })
     let stage = 'first session header'
     const stages: [string, number][] = [[stage, performance.now() - started]]
     let lastRows = '(no decoded frame yet)'
     let start = 0
+    const row = (text: string) => text.split('\n').find(line => /^[·•●] /u.test(line))
+    const shapes = new Set<string>()
     onTestFailed(async () => {
       const elapsed = performance.now() - started
       const failedStage = stage
@@ -107,6 +109,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await vi.waitFor(async () => {
         const frame = await parsedFrame(shell.output.slice(start))
         lastRows = frame.text
+        const line = row(frame.text)
+        if (line !== undefined) shapes.add(line[0]!)
         try { check(frame) }
         catch (error) { throw new Error(`Waiting for ${name}\nlast decoded rows:\n${lastRows}`, { cause: error }) }
       }, { timeout: testCeiling(20_000), ...(interval === undefined ? {} : { interval }) })
@@ -117,16 +121,12 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       id = sessionId(shell.output, start)
       await wait('first idle frame', frame => { expect(frame.status).toContain('idle ·') })
       shell.write('W143 exercise working facts\r')
-      const row = (text: string) => text.split('\n').find(line => /^[·•●] /u.test(line))
       await wait('Retry wait', frame => {
         expect(row(frame.text)).toMatch(/Retry wait · \d+s · turn \d+s · retry 1/u)
       })
-      const shapes = new Set<string>()
-      await wait('Waiting for model with two pulse shapes', frame => {
+      await wait('Waiting for model', frame => {
         const line = row(frame.text)
         expect(line).toMatch(/Waiting for model · \d+s · turn \d+s · retry 1/u)
-        shapes.add(line![0]!)
-        expect(shapes.size).toBeGreaterThanOrEqual(2)
       }, 20)
       for (const phase of ['Reasoning', 'Receiving text', 'Tool request']) await wait(phase, frame => {
         expect(row(frame.text)).toContain(phase)
@@ -140,6 +140,8 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         expect(frame.status).toContain('idle ·')
         expect(row(frame.text)).toBeUndefined()
       })
+      mark('two pulse shapes observed while the native turn was open')
+      expect(shapes.size).toBeGreaterThanOrEqual(2)
       const exitAt = shell.output.length
       shell.write('\u0004\u0004')
       mark('alternate screen released after ordinary exit')
