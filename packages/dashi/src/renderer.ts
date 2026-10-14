@@ -498,7 +498,7 @@ export function createRenderer(options: RendererOptions): Renderer {
         ...(persistentStatus === undefined ? [] : [line(`${DIM}${plain(persistentStatus)}${RESET}`, width)]),
         ...editor.render(width),
       ]
-      const control = decision !== undefined
+      const control = (decision !== undefined
         ? [...(working === undefined ? [] : ['', ...workingRow]), ...decisionPanel(decision, width, panelRows)]
         : state.search !== undefined
           ? [
@@ -521,7 +521,7 @@ export function createRenderer(options: RendererOptions): Renderer {
             ...(state.overlay.kind === 'list' && state.overlay.purpose === 'completion'
               ? [...attachmentRows, ...composer()]
               : []),
-          ]
+          ]).map(value => line(value, width))
       const fixedRows = header.length + control.length + 2
       const filtered = state.cells
         .filter(cell => !(state.toolMode === 'hidden' && (cell.tool !== undefined || cell.kind === 'tool')))
