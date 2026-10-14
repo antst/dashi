@@ -1,6 +1,6 @@
 {
   "name": "@antst/dashi-app",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Installable DeepSeek Harness profile bundle for dashi",
   "publishConfig": {
     "access": "public"
@@ -31,8 +31,8 @@
   },
   "dependencies": {
     "@sessionbus/dsh": "0.1.4",
-    "@antst/dashi": "workspace:*",
-    "@antst/dsh-file-uploads-none": "workspace:*",
+    "@antst/dashi": "workspace:0.2.1",
+    "@antst/dsh-file-uploads-none": "workspace:0.2.1",
     "@antst/roller": "0.1.4",
     "@deepseek-ai/dsh-api-session-controller": "0.2.1-alpha.3",
     "@deepseek-ai/dsh-file-reference-local": "0.2.1-alpha.3",

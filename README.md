@@ -18,8 +18,8 @@ With npm:
 <!-- install:G-npm -->
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.1-alpha.3
-npm install -g @antst/dashi-launcher@0.2.0
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+npm install -g @antst/dashi-launcher@0.2.1
+dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 dashi
 ```
 
@@ -28,7 +28,7 @@ With pnpm 10 or pnpm 12:
 <!-- install:G-pnpm10-packages install:G-pnpm11-packages install:G-pnpm12-packages -->
 ```sh
 pnpm add -g @deepseek-ai/dsh@0.2.1-alpha.3
-pnpm add -g @antst/dashi-launcher@0.2.0
+pnpm add -g @antst/dashi-launcher@0.2.1
 ```
 
 For pnpm 11, apply the [global-store remedy](#dsh-installed-globally-with-pnpm-11)
@@ -36,7 +36,7 @@ below before starting DSH. Then:
 
 <!-- install:G-pnpm10 install:G-pnpm11 install:G-pnpm12 -->
 ```sh
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 dashi
 ```
 
@@ -44,9 +44,9 @@ With npx, without a permanent CLI installation:
 
 <!-- install:G-npx -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.1-alpha.3 plugin --profile dashi add @antst/dashi-app@0.2.0
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.0 dashi --version
-npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.0 dashi
+npx --yes @deepseek-ai/dsh@0.2.1-alpha.3 plugin --profile dashi add @antst/dashi-app@0.2.1
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.1 dashi --version
+npx --yes --package=@deepseek-ai/dsh@0.2.1-alpha.3 --package=@antst/dashi-launcher@0.2.1 dashi
 ```
 
 To start the installed profile directly, first check the CLI installation:
@@ -91,8 +91,8 @@ From your project directory, with npm:
 
 <!-- install:P-npm -->
 ```sh
-npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.0
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+npm install --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.1
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 npm exec -- dashi
 ```
 
@@ -100,8 +100,8 @@ With pnpm 10, install as written:
 
 <!-- install:P-pnpm10 install:P-pnpm11 install:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.0
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+pnpm add --save-exact @deepseek-ai/dsh@0.2.1-alpha.3 @antst/dashi-launcher@0.2.1
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 pnpm exec dashi
 ```
 
@@ -171,8 +171,8 @@ For global npm:
 
 <!-- upgrade:G-npm -->
 ```sh
-npm install -g @antst/dashi-launcher@0.2.0
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+npm install -g @antst/dashi-launcher@0.2.1
+dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 dashi
 ```
 
@@ -180,8 +180,8 @@ For global pnpm:
 
 <!-- upgrade:G-pnpm10 upgrade:G-pnpm11 upgrade:G-pnpm12 -->
 ```sh
-pnpm add -g @antst/dashi-launcher@0.2.0
-dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+pnpm add -g @antst/dashi-launcher@0.2.1
+dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 dashi
 ```
 
@@ -189,8 +189,8 @@ For a project using npm:
 
 <!-- upgrade:P-npm -->
 ```sh
-npm install --save-exact @antst/dashi-launcher@0.2.0
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+npm install --save-exact @antst/dashi-launcher@0.2.1
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 npm exec -- dashi
 ```
 
@@ -198,8 +198,8 @@ For a project using pnpm:
 
 <!-- upgrade:P-pnpm10 upgrade:P-pnpm11 upgrade:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @antst/dashi-launcher@0.2.0
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.0
+pnpm add --save-exact @antst/dashi-launcher@0.2.1
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.1
 pnpm exec dashi
 ```
 
