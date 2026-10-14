@@ -381,8 +381,8 @@ importers:
         specifier: 0.2.1-alpha.3
         version: 0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)(@deepseek-ai/dsh-session-persistence@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)(@deepseek-ai/dsh-brand@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2))(@deepseek-ai/dsh-session@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)(@deepseek-ai/dsh-scope@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)))(@deepseek-ai/dsh-timeout@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)))(@deepseek-ai/dsh-session@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)(@deepseek-ai/dsh-scope@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)))(@deepseek-ai/dsh-storage-domain@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)(@deepseek-ai/dsh-storage@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2)))(@deepseek-ai/dsh-storage@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2))(@deepseek-ai/dsh-typert-protocol@0.2.1-alpha.3(@deepseek-ai/cordis@4.0.5-alpha.2))
       '@sessionbus/dsh':
-        specifier: 0.1.1
-        version: 0.1.1(92135dec0303534fc1e71a61ce4da9ea)
+        specifier: 0.1.4
+        version: 0.1.4(92135dec0303534fc1e71a61ce4da9ea)
 
   packages/dashi-launcher: {}
 
@@ -3679,8 +3679,8 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@sessionbus/dsh@0.1.1':
-    resolution: {integrity: sha512-5cPs1dJ6epHmMV4m7PLXHMvOVL8No/9nFLfhzqBfo0TWY9HoVeiyBxi0GXmEkjaiduMz9jjzhUO3Z1IZuZ5cUQ==}
+  '@sessionbus/dsh@0.1.4':
+    resolution: {integrity: sha512-BWzt5L+JcioWXxFyzsrT3U4+KF9rXmTMdttW3VHvYPS4AXZFXqS9uGbzysS49mkZmJxt1fcnBHkCGfhaSxJqFA==}
     hasBin: true
     peerDependencies:
       '@deepseek-ai/cordis': '>=4.0.5-alpha.1'
@@ -9204,7 +9204,7 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@sessionbus/dsh@0.1.1(92135dec0303534fc1e71a61ce4da9ea)':
+  '@sessionbus/dsh@0.1.4(92135dec0303534fc1e71a61ce4da9ea)':
     dependencies:
       '@deepseek-ai/cordis': 4.0.5-alpha.2(@deepseek-ai/cordis-plugin-include@1.0.10-alpha.2)(@deepseek-ai/cordis-plugin-loader@1.0.6-alpha.2)
       '@deepseek-ai/cordis-plugin-include': 1.0.10-alpha.2(@deepseek-ai/cordis-plugin-loader@1.0.6-alpha.2)(@deepseek-ai/cordis@4.0.5-alpha.2)

@@ -177,7 +177,7 @@ it('screen construction preserves both the start error and an uncertain close', 
   expect(existsSync(join(control.decoy, 'socket'))).toBe(true)
 })
 
-it('success pruning removes large owned children only; logs, evidence, decoys and symlink targets survive', () => {
+it('success pruning removes large owned children only; logs, evidence, decoys and symlink targets survive', async () => {
   const large = ['user', 'project', 'tools', 'npm-global', 'pnpm-global', 'global-bin', 'candidate', 'npm-cache',
     'native-fresh', 'project-fresh', 'native-0.2.0-alpha.1', 'project-0.2.0-alpha.1', 'native-0.2.0-alpha.2', 'project-0.2.0-alpha.2']
   for (const name of [...large, 'install-failure-control', 'unowned']) {
@@ -186,7 +186,7 @@ it('success pruning removes large owned children only; logs, evidence, decoys an
   const files = ['commands.log', 'runtime.json', 'pty.log', 'session.jsonl', 'hashes.json', 'build-control.json', 'result.json']
   files.forEach(name => writeFileSync(join(root, name), name))
   symlinkSync(join(root, 'unowned'), join(root, 'native-link'), 'dir')
-  pruneInstallLayout(root)
+  await pruneInstallLayout(root)
   expect(readdirSync(root).sort()).toEqual([...files, 'daemon', 'install-failure-control', 'native-link', 'unowned'].sort())
   expect(existsSync(join(root, 'unowned', 'marker'))).toBe(true)
 })

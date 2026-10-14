@@ -12,6 +12,7 @@ import { currentRecordedJsonl, recordedSession } from './fixtures/session-format
 import { startTestDaemon } from './sessionbus-harness.js'
 import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
 import { pruneInstallLayout } from './install-layout-cleanup.js'
+import { testCeiling } from './test-budget.js'
 
 // README commands are literal except for declared fixture/prepublication deviations:
 // historical app/CLI versions and profile-only DSH holds reconstruct the released state;
@@ -130,18 +131,27 @@ function packageAt(file: string): string {
   return directory
 }
 
-it(layout + ': README installs converge from fresh, reconstructed historical states and a broken install', async ({ onTestFinished }) => {
+it(layout + ': README installs converge from fresh, reconstructed historical states and a broken install', async ({ onTestFinished, onTestFailed }) => {
   const started = performance.now()
   let result: Record<string, unknown> | undefined
-  onTestFinished(context => {
+  onTestFailed(({ task }) => {
+    writeFileSync(join(workspace, 'result.json'), JSON.stringify({ ...result, passed: false,
+      reason: task.result?.errors?.map(error => error.message).join('\n') ?? 'native task failed' }))
+  })
+  onTestFinished(async context => {
     if (context.task.result?.state !== 'pass') return
-    pruneInstallLayout(workspace)
-    writeFileSync(join(workspace, 'result.json'), JSON.stringify(result))
+    const pruneStarted = performance.now()
+    await pruneInstallLayout(workspace)
+    // A timed-out hook can finish later; the native failure still owns the result.
+    if (context.task.result.state !== 'pass') return
+    if (performance.now() - pruneStarted >= testCeiling(60_000)) throw new Error('Owned prune exceeded its hook ceiling')
+    writeFileSync(join(workspace, 'result.json'), JSON.stringify({ ...result, passed: true }))
     if (result?.platform !== undefined && process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + Number(result.wallSeconds).toFixed(2)
       + 's (fresh candidate, reconstructed alpha.1/alpha.2/0.2.0→candidate).\n')
     console.log('install cell PASS ' + layout + '; wall ' + Number(result?.wallSeconds).toFixed(2) + 's; evidence ' + workspace)
-  })
+    console.log('install prune: ' + (performance.now() - pruneStarted).toFixed(2) + 'ms')
+  }, testCeiling(60_000)) // CI: 180s, almost twice the measured 91s; strict: 60s vs 18.5-29s.
   const daemon = await startTestDaemon()
   env.SESSIONBUS_SOCKET = daemon.socket
   env.SESSIONBUS_GROUPS = '["install-proof"]'
@@ -240,7 +250,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
       }
       result = {
         layout, candidate: manifest.name + '@' + manifest.version, node: process.version,
-        pmVersion, wallSeconds: (performance.now() - started) / 1000, passed: true,
+        pmVersion, wallSeconds: (performance.now() - started) / 1000,
       }
       return
     }
@@ -313,7 +323,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         const record = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
         assertActiveRuntime(record, dshVersion, target, candidate ? 'candidate' : 'published')
         const dsh = record.resolution.filter(entry => entry.name.startsWith('@deepseek-ai/dsh'))
-        process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}\n`)
+        process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}; plugin=${record.packages['@sessionbus/dsh']?.version}\n`)
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
         console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
           + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
@@ -447,9 +457,11 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
               expect(broken.output, broken.output.slice(-4000)).toContain('is incompatible with dsh ' + version)
               expect(broken.output).toContain('@deepseek-ai/dsh-session-stats@' + historicalVersion)
             }, { timeout: 20_000 })
+            // Observe the rest of the ordinary boot window, not only the first refusal line.
+            await new Promise(resolveSettled => { setTimeout(resolveSettled, 20_000) })
             expect(broken.output).not.toContain('idle ·')
           } finally {
-            writeFileSync(join(workspace, 'broken-today.log'), broken.output)
+            writeFileSync(join(workspace, 'pty-broken-today.log'), broken.output)
             await broken.close()
           }
         }
@@ -466,7 +478,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     expect([...markerOwners].filter(([marker, owner]) => owner === layout && !consumedMarkers.has(marker))
       .map(([marker]) => marker), 'every Install marker assigned to this row is consumed').toEqual([])
     const wallSeconds = (performance.now() - started) / 1000
-    result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds, passed: true }
+    result = { layout, platform: process.platform + '-' + process.arch, node: process.version, pmVersion, wallSeconds }
   } finally {
     await daemon.close()
     writeFileSync(join(workspace, 'commands.log'), output)
