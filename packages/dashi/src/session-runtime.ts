@@ -1,7 +1,7 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { basename } from 'node:path'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { Agent, TurnBoundaryProjection } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type { JobListFrame } from '@deepseek-ai/dsh-api-job-controller'
 import type {} from '@deepseek-ai/dsh-attachment'
@@ -80,6 +80,7 @@ import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
 import { addModelProvider, credentialOptions, missingCredentialNotice, setModelCredential } from './model-setup.js'
+import { turnWorking, type TurnWorking, type WorkingStream } from './turn-working.js'
 import type { TuiRoot } from './tui-root.js'
 
 export interface RootLaunchOptions {
@@ -135,6 +136,7 @@ interface Binding {
   readonly jobIterator: AsyncIterator<JobListFrame>
   readonly presenter: ToolPresenter
   streamCells: readonly TerminalCell[]
+  workingStream: WorkingStream | undefined
   repo: string
   commandScope?: Fiber
   readonly cursor: number
@@ -306,6 +308,12 @@ export async function createSessionRuntime(
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
 
+  const workingFor = (events: readonly SessionEvent[], stream?: WorkingStream, fallback?: TurnWorking) => {
+    let from = events.length - 1
+    while (from > 0 && events[from]?.type !== 'turn/start') from--
+    return turnWorking(events.slice(Math.max(0, from)), stream) ?? fallback
+  }
+
   const prepare = async (sessionId: SessionId, name?: string): Promise<Binding> => {
     const abort = new AbortController()
     try {
@@ -349,6 +357,20 @@ export async function createSessionRuntime(
       const initialContextPercent = contextPercent(controlOpening.value.projections[sessionId]?.values.contextPressure)
       const parentTurn = agent.session.header.parentSession === undefined ? undefined
         : inheritedTurn(agent.session.snapshotEvents(), agent.session.inheritedEventCount)
+      const events = eventsFromRecords(opening.records)
+      let hasMore = opening.hasMore
+      const from = (ctx.sessionProjections.stateOf(agent.session, 'turnBoundary') as TurnBoundaryProjection | undefined)?.openTurnStartSeq
+      while (from != null && (events[0]?.seq ?? Infinity) > from && hasMore) {
+        const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]?.seq ?? opening.cursor + 1, maxMessages: 50 }, abort.signal).catch(() => undefined)
+        if (page === undefined) break
+        const older = eventsFromRecords(page.records)
+        if (older.length === 0 || older.at(-1)!.seq >= (events[0]?.seq ?? Infinity)) break
+        events.unshift(...older); hasMore = page.hasMore
+      }
+      const active = opening.assistantStream?.activeAttempt
+      const workingStream = active === undefined ? undefined : { attemptId: String(active.attemptId), turn: active.turn, step: active.step, startedAfterSeq: active.startedAfterSeq,
+        lastChunk: expandAssistantStream(active.stream as never).at(-1) }
+      const working = workingFor(events, workingStream, from == null ? undefined : { phase: 'Working' })
       return {
         abort,
         agent,
@@ -356,14 +378,16 @@ export async function createSessionRuntime(
         controlIterator,
         cursor: opening.cursor,
         disposers,
-        events: eventsFromRecords(opening.records),
-        hasMore: opening.hasMore,
+        events,
+        hasMore,
         iterator,
         jobIterator,
         presenter: createToolPresenter(tool => ctx.tools.get(tool, agent)),
         presentationTimer: undefined,
         streamCells: openingStream(opening.assistantStream),
+        workingStream,
         root: {
+          ...(working === undefined ? {} : { working }),
           ...(initialContextPercent === undefined ? {} : { contextPercent: initialContextPercent }),
           cwd: opening.header.cwd ?? options.cwd,
           id: String(sessionId),
@@ -475,9 +499,12 @@ export async function createSessionRuntime(
 
   const publish = (bound: Binding): void => {
     bound.timer = undefined
+    const working = workingFor(bound.events, bound.workingStream, bound.root.working)
+    const { working: _working, ...root } = bound.root
+    bound.root = { ...root, ...(working === undefined ? {} : { working }) }
     dispatch({
       type: 'transcript-changed', cells: transcriptCells(bound),
-      hasMore: bound.hasMore, rootId: bound.root.id,
+      hasMore: bound.hasMore, rootId: bound.root.id, working: working ?? null,
     })
   }
   const schedule = (bound: Binding): void => {
@@ -506,6 +533,12 @@ export async function createSessionRuntime(
   }
   const consume = (bound: Binding, frame: Exclude<SessionFollowFrame, { type: 'snapshot' }>): void => {
     if (frame.type === 'assistant-stream') {
+      if (frame.frame.type === 'start') bound.workingStream = {
+        attemptId: String(frame.frame.attemptId), turn: frame.frame.turn, step: frame.frame.step, startedAfterSeq: frame.frame.startedAfterSeq, observedAt: Date.now(),
+      }
+      else if (frame.frame.type === 'chunk' && bound.workingStream?.attemptId === frame.frame.attemptId) bound.workingStream = {
+        ...bound.workingStream, lastChunk: { time: frame.frame.time, chunk: frame.frame.chunk as StreamChunk },
+      }
       if (frame.frame.type !== 'chunk') {
         bound.streamCells = []
         schedule(bound)
@@ -524,6 +557,8 @@ export async function createSessionRuntime(
     bound.events.push(event)
     if (event.type === 'assistant/message' || event.type === 'assistant/attempt') bound.streamCells = []
     if (event.type === 'turn/end') {
+      const { working: _working, ...root } = bound.root
+      bound.root = root
       void refreshRepo(bound)
       const startedAt = turnStartTime(bound.events, event.data.turn)
       if (startedAt !== undefined) {

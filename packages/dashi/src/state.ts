@@ -1,4 +1,5 @@
 import { FLAG_HELP, VERSION_LINE } from './help.js'
+import type { TurnWorking } from './turn-working.js'
 export interface RootView {
   readonly contextPercent?: number
   readonly cwd: string
@@ -13,6 +14,7 @@ export interface RootView {
   readonly status: 'idle' | 'running'
   readonly subagents?: readonly SubagentView[]
   readonly title?: string
+  readonly working?: TurnWorking
 }
 
 export interface JobView {
@@ -275,6 +277,7 @@ export type UiAction =
     readonly jobs?: readonly JobView[]
     readonly rootId: string
     readonly subagents?: readonly SubagentView[]
+    readonly working?: TurnWorking | null
     readonly type: 'root-presentation'
   }
   | { readonly type: 'root-permission'; readonly preset: string; readonly rootId: string }
@@ -293,7 +296,7 @@ export type UiAction =
   | { readonly type: 'toggle-send-mode' }
   | { readonly type: 'toggle-tool-mode' }
   | { readonly durationMs: number; readonly rootId: string; readonly type: 'turn-ended' }
-  | { readonly type: 'transcript-changed'; readonly cells: readonly TerminalCell[]; readonly hasMore?: boolean; readonly rootId?: string }
+  | { readonly type: 'transcript-changed'; readonly cells: readonly TerminalCell[]; readonly hasMore?: boolean; readonly rootId?: string; readonly working?: TurnWorking | null }
   | { readonly selection: number | 'code'; readonly type: 'copy-assistant' }
 
 export type UiEffect =
@@ -907,16 +910,18 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
       }
     case 'root-presentation': {
       if (state.root?.id !== action.rootId) return [state, []]
-      const { contextPercent: _contextPercent, ...root } = state.root
+      const { contextPercent: _contextPercent, working: _working, ...root } = state.root
       const contextPercent = action.contextPercent === null
         ? undefined
         : action.contextPercent ?? state.root.contextPercent
+      const working = action.working === null ? undefined : action.working ?? state.root.working
       return [{ ...state, root: {
         ...root,
         ...(action.jobs === undefined && state.root.jobs === undefined ? {} : { jobs: action.jobs ?? state.root.jobs }),
         ...(action.subagents === undefined && state.root.subagents === undefined
           ? {} : { subagents: action.subagents ?? state.root.subagents }),
         ...(contextPercent === undefined ? {} : { contextPercent }),
+        ...(working === undefined ? {} : { working }),
       } }, redraw()]
     }
     case 'root-status':
@@ -940,10 +945,15 @@ export function reduce(state: ViewState, action: UiAction): readonly [ViewState,
       }, redraw()]
     case 'transcript-changed': {
       if (action.rootId !== undefined && state.root?.id !== action.rootId) return [state, []]
+      let root = state.root
+      if (root !== undefined && action.working !== undefined) {
+        const { working: _working, ...rest } = root
+        root = { ...rest, ...(action.working === null ? {} : { working: action.working }) }
+      }
       const added = Math.max(0, action.cells.length - state.cells.length)
       const search = refreshSearch(state.search, action.cells)
       return [{
-        ...state, cells: action.cells,
+        ...state, cells: action.cells, ...(root === undefined ? {} : { root }),
         ...(action.hasMore === undefined ? {} : { historyHasMore: action.hasMore }),
         ...(search === undefined ? {} : { search }),
         ...(state.scrollOffset === 0 ? { newOutput: 0 } : {

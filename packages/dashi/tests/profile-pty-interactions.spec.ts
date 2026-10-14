@@ -1983,7 +1983,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/tasks\r')
       await vi.waitFor(async () => {
         expect((await parsedFrame(shell.output.slice(start))).overlay)
-          .toMatch(/› Job · bash-1 · \d+s · killed, signal: SIGTERM; cancelled by the user · printf/u)
+          .toMatch(/› Job · bash-1 · \d+s · killed, signal: SIGTERM; cancelled by the user · printf /u)
       }, { timeout: testCeiling(20_000) })
       shell.write('\r')
       await vi.waitFor(async () => {
