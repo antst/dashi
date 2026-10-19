@@ -243,8 +243,8 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
       await prepareCandidate()
       // Only this refusal control needs a consistent pre-add lock for byte-identity assertions.
       await sh(cliPrefix + ' plugin --profile dashi install --no-frozen-lockfile')
-      console.log('resolved pi-ai below-floor: ' + resolvedPiAiVersion(
-        join(globalPrefix, 'lib/node_modules/@deepseek-ai/dsh/package.json')) + ' (CLI 0.2.0-rc.2)')
+      process.stdout.write('resolved pi-ai below-floor: ' + resolvedPiAiVersion(
+        join(globalPrefix, 'lib/node_modules/@deepseek-ai/dsh/package.json')) + ' (CLI 0.2.0-rc.2)\n')
       const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
       const before = ['package.json', 'pnpm-lock.yaml'].map(file => readFileSync(join(profile, file)))
       const manifest = JSON.parse(execFileSync('tar', ['-xOf', artifacts['@antst/dashi']!, 'package/package.json'], { encoding: 'utf8' })) as { name: string; version: string }
@@ -332,7 +332,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}; plugin=${record.packages['@sessionbus/dsh']?.version}\n`)
         const piAi = record.resolution.find(entry => entry.name === '@earendil-works/pi-ai' && entry.scope === 'installation')
         expect(piAi, 'native CLI resolution includes pi-ai').toBeDefined()
-        console.log(`resolved pi-ai ${label}: ${piAi!.version} (native ${piAi!.scope}; CLI ${dshVersion})`)
+        process.stdout.write(`resolved pi-ai ${label}: ${piAi!.version} (native ${piAi!.scope}; CLI ${dshVersion})\n`)
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
         console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
           + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
