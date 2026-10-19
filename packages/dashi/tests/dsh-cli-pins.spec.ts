@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -6,7 +6,7 @@ import { resolvedPiAiVersion } from '../../../scripts/dsh-cli-pins.mjs'
 
 describe('resolved pi-ai diagnostic', () => {
   it('reads the selected CLI adapter importer, not a hoisted decoy, without pinning its version', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dashi-cli-pi-ai-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'dashi-cli-pi-ai-')))
     try {
       const base = join(root, 'node_modules/@deepseek-ai/dsh-base')
       const adapter = join(base, 'node_modules/@deepseek-ai/dsh-llm-pi-ai')
@@ -32,7 +32,7 @@ describe('resolved pi-ai diagnostic', () => {
   })
 
   it('fails instead of inventing a version when the adapter has no pi-ai', () => {
-    const root = mkdtempSync(join(tmpdir(), 'dashi-cli-pi-ai-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'dashi-cli-pi-ai-')))
     try {
       const base = join(root, 'node_modules/@deepseek-ai/dsh-base')
       const adapter = join(base, 'node_modules/@deepseek-ai/dsh-llm-pi-ai')
