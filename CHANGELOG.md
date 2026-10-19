@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.2
 
-- Require DSH **0.2.1-rc.2**, with exact app-owned DSH dependencies and its stable Cordis companions. Repeat the README's DSH install command before updating dashi. DSH's changed model instructions mean upgrading costs one KV-cache re-prefill for resumed sessions (W-151).
+- Require DSH **0.2.1-rc.2**, with exact app-owned DSH dependencies and its stable Cordis companions. To upgrade, repeat the README's DSH install command first, then its dashi-app command (W-151, W-152).
+- After moving to DSH rc.2, a resumed session's first request re-reads its whole context once because DSH's own prompt and tool text changed (W-151).
 - Pin Sessionbus **0.1.5**, which removes the unconditional session-controller requirement from peer-only profiles and preserves its model-facing tool and skill text (W-151).
 
 ## 0.2.1
@@ -16,7 +17,7 @@
 - Print `Resume with:` and dispose the terminal even when runtime shutdown rejects while a command is pending (W-148).
 - With DSH alpha.3, a provider key inherited from the environment can be replaced by a stored key, which then takes precedence (W-148).
 - Without a configured DeepSeek key, the model picker offers Add provider instead of listing DeepSeek's models (W-148).
-- DSH alpha.3 refuses existing profile configuration keys `models` under `dsh-llm-deepseek-account`, and `persona` or `toolFilter` under `dsh-tool-subagent`. Review profile patches before upgrading (W-148).
+- DSH alpha.3 refuses existing profile configuration keys `models` under `@deepseek-ai/dsh-llm-deepseek-account`, and `persona` or `toolFilter` under `@deepseek-ai/dsh-tool-subagent`. Review profile patches before upgrading (W-148).
 - Test infrastructure: diagnose terminal-test failures before the outer timeout, check the gate's selected tests against tracked files where Git is available, and clean owned test scratch on success (W-137).
 
 ## 0.2.0

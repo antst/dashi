@@ -236,7 +236,7 @@ it('rejects a changed packed identity or missing entry', () => {
   const archives = fixture()
   const payload = payloads[2]
   const directory = join(root, 'container', payload.manifest.name.replaceAll('/', '-'))
-  for (const change of [{ version: '0.2.2' },
+  for (const change of [{ version: payload.manifest.version + '-mismatch' },
     { main: 'absent.js' }, { types: 'absent.d.ts' }, { bin: { dashi: 'absent.js' } }, { dsh: { bundle: { patch: 'absent.yml' } } }]) {
     writeFileSync(join(directory, 'package', 'package.json'), JSON.stringify({ ...payload.manifest, ...change }))
     expect(spawnSync('tar', ['-czf', payload.archive, '-C', directory, 'package']).status).toBe(0)

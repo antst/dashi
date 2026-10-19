@@ -321,10 +321,10 @@ importers:
   packages/dashi-app:
     dependencies:
       '@antst/dashi':
-        specifier: workspace:0.2.1
+        specifier: workspace:*
         version: link:../dashi
       '@antst/dsh-file-uploads-none':
-        specifier: workspace:0.2.1
+        specifier: workspace:*
         version: link:../file-uploads-none
       '@antst/roller':
         specifier: 0.1.4

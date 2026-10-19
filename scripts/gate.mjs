@@ -86,7 +86,9 @@ if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must
 const cliPins = deriveCliPins(cliManifest.dependencies)
 try { assertPinnedGraph(lockfile, cliPins) } catch (error) { failures.push(`pnpm-lock.yaml: ${String(error)}`) }
 console.log(`gate: CLI companion pins ${JSON.stringify(cliPins)}`)
-console.log(`gate: resolved pi-ai ${resolvedPiAiVersion(cliManifestPath)} (CLI ${cliManifest.version})`)
+try {
+  console.log(`gate: resolved pi-ai ${resolvedPiAiVersion(cliManifestPath)} (CLI ${cliManifest.version})`)
+} catch (error) { failures.push(`resolved pi-ai: ${String(error)}`) }
 if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)
