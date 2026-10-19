@@ -13,6 +13,7 @@ import { startTestDaemon } from './sessionbus-harness.js'
 import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
 import { pruneInstallLayout } from './install-layout-cleanup.js'
 import { testCeiling } from './test-budget.js'
+import { resolvedPiAiVersion } from '../../../scripts/dsh-cli-pins.mjs'
 
 // README commands are literal except for declared fixture/prepublication deviations:
 // historical app/CLI versions and profile-only DSH holds reconstruct the released state;
@@ -47,8 +48,10 @@ for (const fence of installSection.matchAll(/```sh\n([\s\S]*?)\n```/gu)) {
 const version = /@deepseek-ai\/dsh@(\S+)/u.exec(fences['install:G-npm']?.join('\n') ?? '')?.[1]
 if (!version) throw new Error('README global install does not declare an exact DSH version')
 const current = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')).version as string
-// All three published baselines documented this exact CLI version.
-const historicalVersion = '0.2.1-alpha.2'
+const historicalVersions: Readonly<Record<string, string>> = {
+  '0.2.0-alpha.1': '0.2.1-alpha.2', '0.2.0-alpha.2': '0.2.1-alpha.2',
+  '0.2.0': '0.2.1-alpha.2', '0.2.1': '0.2.1-alpha.3',
+}
 const nativeBindingError = 'No usable native binding found for node-addon-require-builtin-' + process.platform + '-' + process.arch
 const workspace = mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), 'dashi-' + layout + '-'))
 const home = join(workspace, 'user')
@@ -148,7 +151,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     writeFileSync(join(workspace, 'result.json'), JSON.stringify({ ...result, passed: true }))
     if (result?.platform !== undefined && process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + Number(result.wallSeconds).toFixed(2)
-      + 's (fresh candidate, reconstructed alpha.1/alpha.2/0.2.0→candidate).\n')
+      + 's (fresh candidate, reconstructed alpha.1/alpha.2/0.2.0/0.2.1→candidate).\n')
     console.log('install cell PASS ' + layout + '; wall ' + Number(result?.wallSeconds).toFixed(2) + 's; evidence ' + workspace)
     console.log('install prune: ' + (performance.now() - pruneStarted).toFixed(2) + 'ms')
   }, testCeiling(60_000)) // CI: 180s, almost twice the measured 91s; strict: 60s vs 18.5-29s.
@@ -215,22 +218,23 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     }
     const appManifest = JSON.parse(readFileSync(join(root, 'packages/dashi-app/package.json'), 'utf8'))
     const coreManifest = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8'))
-    const historicalHolds = '\n# Reconstructed historical DSH state (test only)\noverrides:\n'
+    const historicalHolds = (dshVersion: string): string => '\n# Reconstructed historical DSH state (test only)\noverrides:\n'
       + [...new Set([...Object.keys(appManifest.dependencies), ...Object.keys(coreManifest.peerDependencies)])]
         .filter(name => name.startsWith('@deepseek-ai/dsh')).sort()
-        .map(name => `  '${name}': '${historicalVersion}'\n`).join('')
-    const holdHistoricalProfile = async (): Promise<void> => {
+        .map(name => `  '${name}': '${dshVersion}'\n`).join('')
+    const holdHistoricalProfile = async (dshVersion: string): Promise<void> => {
       await sh(cliPrefix + ' plugin --profile dashi install')
       const file = join(env.DSH_HOME as string, 'profiles', 'dashi', 'pnpm-workspace.yaml')
       const before = readFileSync(file, 'utf8')
       expect(before).not.toMatch(/^overrides:/mu)
-      writeFileSync(file, before + historicalHolds)
+      writeFileSync(file, before + historicalHolds(dshVersion))
     }
-    const removeHistoricalHolds = (): void => {
+    const removeHistoricalHolds = (dshVersion: string): void => {
       const file = join(env.DSH_HOME as string, 'profiles', 'dashi', 'pnpm-workspace.yaml')
       const before = readFileSync(file, 'utf8')
-      expect(before.endsWith(historicalHolds), 'only test-owned historical holds are removed').toBe(true)
-      writeFileSync(file, before.slice(0, -historicalHolds.length))
+      const holds = historicalHolds(dshVersion)
+      expect(before.endsWith(holds), 'only test-owned historical holds are removed').toBe(true)
+      writeFileSync(file, before.slice(0, -holds.length))
     }
     if (layout === 'below-floor') {
       const lines = commands('install:G-npm', current, true)
@@ -239,6 +243,8 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
       await prepareCandidate()
       // Only this refusal control needs a consistent pre-add lock for byte-identity assertions.
       await sh(cliPrefix + ' plugin --profile dashi install --no-frozen-lockfile')
+      console.log('resolved pi-ai below-floor: ' + resolvedPiAiVersion(
+        join(globalPrefix, 'lib/node_modules/@deepseek-ai/dsh/package.json')) + ' (CLI 0.2.0-rc.2)')
       const profile = join(env.DSH_HOME as string, 'profiles', 'dashi')
       const before = ['package.json', 'pnpm-lock.yaml'].map(file => readFileSync(join(profile, file)))
       const manifest = JSON.parse(execFileSync('tar', ['-xOf', artifacts['@antst/dashi']!, 'package/package.json'], { encoding: 'utf8' })) as { name: string; version: string }
@@ -296,7 +302,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     }
     const snapshot = join(workspace, 'recorded.jsonl')
     writeFileSync(snapshot, currentRecordedJsonl(join(root, 'packages/dashi/tests/fixtures/replay-session.jsonl')))
-    // A standalone observer must not inherit the candidate package's alpha.3 admission floor.
+    // A standalone observer must not inherit the candidate package's admission floor.
     const observerPath = join(workspace, 'runtime-observer.mjs')
     writeFileSync(observerPath, readFileSync(join(root, 'packages/dashi/tests/fixtures/runtime-observer.mjs')))
     const observer = pathToFileURL(observerPath).href
@@ -324,6 +330,9 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         assertActiveRuntime(record, dshVersion, target, candidate ? 'candidate' : 'published')
         const dsh = record.resolution.filter(entry => entry.name.startsWith('@deepseek-ai/dsh'))
         process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}; plugin=${record.packages['@sessionbus/dsh']?.version}\n`)
+        const piAi = record.resolution.find(entry => entry.name === '@earendil-works/pi-ai' && entry.scope === 'installation')
+        expect(piAi, 'native CLI resolution includes pi-ai').toBeDefined()
+        console.log(`resolved pi-ai ${label}: ${piAi!.version} (native ${piAi!.scope}; CLI ${dshVersion})`)
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
         console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
           + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
@@ -366,21 +375,21 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     const execute = async (lines: string[], candidate = false, dshVersion = version): Promise<string> => {
       const launch = lines.at(-1)!
       for (const command of lines.slice(0, -1)) {
-        if (!candidate && dshVersion === historicalVersion && command.includes(' plugin --profile dashi add ')) await holdHistoricalProfile()
+        if (!candidate && dshVersion !== version && command.includes(' plugin --profile dashi add ')) await holdHistoricalProfile(dshVersion)
         if (candidate && command.includes(' plugin --profile dashi add ')) await prepareCandidate()
         const result = await sh(command)
         if (command.endsWith('dashi --version')) expect(result.trim()).toBe(dshVersion)
       }
       return launch
     }
-    for (const baseline of ['fresh', '0.2.0-alpha.1', '0.2.0-alpha.2', '0.2.0']) {
+    for (const baseline of ['fresh', ...Object.keys(historicalVersions)]) {
       // Only published-to-candidate upgrades reuse a project; baselines start empty.
       project = join(workspace, 'project-' + baseline)
       mkdirSync(project)
       writeFileSync(join(project, 'package.json'), '{"private":true}\n')
       env.DSH_HOME = join(workspace, 'native-' + baseline)
       const target = baseline === 'fresh' ? current : baseline
-      const dshVersion = baseline === 'fresh' ? version : historicalVersion
+      const dshVersion = baseline === 'fresh' ? version : historicalVersions[baseline]!
       if (layout === 'G-npx') cliPrefix = 'npx --yes @deepseek-ai/dsh@' + dshVersion
       console.log('install stage ' + baseline + ': ' + (baseline === 'fresh' ? 'fresh candidate' : 'reconstructed historical state; CLI/DSH ' + dshVersion))
       if (layout?.startsWith('G-pnpm')) {
@@ -447,15 +456,15 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         // README: repeat the chosen DSH installation command before updating the profile.
         if (layout === 'G-npx') cliPrefix = 'npx --yes @deepseek-ai/dsh@' + version
         else await sh(commands(layout?.startsWith('G-pnpm') ? installMarker + '-packages' : installMarker, current, true)[0]!)
-        if (process.platform === 'linux' && layout === 'G-pnpm11' && baseline === '0.2.0') {
+        if (process.platform === 'linux' && layout === 'G-pnpm11' && baseline === '0.2.1') {
           // Today's old-app/new-CLI state, deterministic even after the release-age window passes.
-          console.log('install stage broken-today: published 0.2.0 profile on alpha.2 beside CLI alpha.3')
+          console.log('install stage broken-today: published 0.2.1 profile on ' + dshVersion + ' beside CLI ' + version)
           const broken = new TestPtyShell(project, { ...env, DSH_SNAPSHOT_FILE: snapshot })
           try {
             broken.write('dashi\n')
             await vi.waitFor(() => {
               expect(broken.output, broken.output.slice(-4000)).toContain('is incompatible with dsh ' + version)
-              expect(broken.output).toContain('@deepseek-ai/dsh-session-stats@' + historicalVersion)
+              expect(broken.output).toContain('@deepseek-ai/dsh-session-stats@' + dshVersion)
             }, { timeout: 20_000 })
             // Observe the rest of the ordinary boot window, not only the first refusal line.
             await new Promise(resolveSettled => { setTimeout(resolveSettled, 20_000) })
@@ -465,7 +474,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
             await broken.close()
           }
         }
-        removeHistoricalHolds()
+        removeHistoricalHolds(dshVersion)
         // Move only the test model to the new CLI's version; its patch is not recomposed.
         await prepareProfile(version, false)
         const upgraded = await execute(commands(upgradeMarker, current, true), true)

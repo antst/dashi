@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { extname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { assertPinnedGraph, deriveCliPins } from './dsh-cli-pins.mjs'
+import { assertPinnedGraph, deriveCliPins, resolvedPiAiVersion } from './dsh-cli-pins.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const dshPolicy = JSON.parse(await readFile(
@@ -86,6 +86,7 @@ if (cliManifest.version !== testedVersion) failures.push(`installed DSH CLI must
 const cliPins = deriveCliPins(cliManifest.dependencies)
 try { assertPinnedGraph(lockfile, cliPins) } catch (error) { failures.push(`pnpm-lock.yaml: ${String(error)}`) }
 console.log(`gate: CLI companion pins ${JSON.stringify(cliPins)}`)
+console.log(`gate: resolved pi-ai ${resolvedPiAiVersion(cliManifestPath)} (CLI ${cliManifest.version})`)
 if (failures.length > 0) {
   console.error(failures.join('\n'))
   process.exit(1)

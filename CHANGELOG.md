@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Require DSH **0.2.1-rc.2**, with exact app-owned DSH dependencies and its stable Cordis companions. Repeat the README's DSH install command before updating dashi. DSH's changed model instructions mean upgrading costs one KV-cache re-prefill for resumed sessions (W-151).
+- Pin Sessionbus **0.1.5**, which removes the unconditional session-controller requirement from peer-only profiles and preserves its model-facing tool and skill text (W-151).
+
 ## 0.2.1
 
 - Restore the terminal when DSH ends the process before dashi's cleanup has finished, for example when a termination signal reaches it twice (W-138).
