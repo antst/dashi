@@ -9,6 +9,26 @@ const selection = source.slice(source.indexOf('const rendererPath ='), source.in
 const renderer = 'packages/dashi/tests/renderer.spec.ts'
 const excludes = ['**/.cache/**', '**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.omc/**', 'packages/*/lib/**']
 
+it('prints earlier graph failures even when the pi-ai diagnostic throws', () => {
+  const preflight = source.slice(source.indexOf('const failures = []'), source.indexOf('const rendererPath ='))
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const testedVersion = 'fixture';
+    const readFile = async path => path.pathname.endsWith('pnpm-workspace.yaml')
+      ? "\\ncatalog:\\n  '@deepseek-ai/dsh': wrong\\n"
+      : path.pathname.endsWith('pnpm-lock.yaml')
+        ? "\\npackages:\\n  '@deepseek-ai/dsh@fixture':\\n"
+        : JSON.stringify({ version: testedVersion, dependencies: {} });
+    const fileURLToPath = value => value;
+    const createRequire = () => ({ resolve: () => new URL('file:///fixture/package.json') });
+    const deriveCliPins = () => ({});
+    const assertPinnedGraph = () => {};
+    const resolvedPiAiVersion = () => { throw new Error('provider missing'); };
+    ${preflight}`], { encoding: 'utf8' })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('pnpm-workspace.yaml: @deepseek-ai/dsh must be fixture')
+  expect(result.stderr).toContain('resolved pi-ai: Error: provider missing')
+})
+
 function fixture(git = true) {
   const root = mkdtempSync(join(tmpdir(), 'dashi-gate-selection-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })

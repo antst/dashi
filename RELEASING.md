@@ -13,7 +13,7 @@ path in both command blocks. Keep that path for a new shell or a reboot.
 From the repository root:
 
 ```sh
-release_directory=/absolute/path/in/durable-storage/dashi-0.2.1
+release_directory=/absolute/path/in/durable-storage/dashi-0.2.2
 mkdir "$release_directory"
 pnpm install --frozen-lockfile
 node scripts/pack-release.mjs "$release_directory/archives" > "$release_directory/hashes.txt"
@@ -28,14 +28,14 @@ that run and with the archives accepted in the required host proof packets.
 
 ## Create and push the tag once
 
-For 0.2.1, the annotation contains these archive names, each preceded by its
+For 0.2.2, the annotation contains these archive names, each preceded by its
 actual SHA256 from `$release_directory/hashes.txt`:
 
 ```text
-<sha256>  antst-dsh-file-uploads-none-0.2.1.tgz
-<sha256>  antst-dashi-0.2.1.tgz
-<sha256>  antst-dashi-app-0.2.1.tgz
-<sha256>  antst-dashi-launcher-0.2.1.tgz
+<sha256>  antst-dsh-file-uploads-none-0.2.2.tgz
+<sha256>  antst-dashi-0.2.2.tgz
+<sha256>  antst-dashi-app-0.2.2.tgz
+<sha256>  antst-dashi-launcher-0.2.2.tgz
 ```
 
 Each line starts at column 0: exactly 64 lowercase hexadecimal characters,
@@ -49,10 +49,10 @@ the same plain `MAJOR.MINOR.PATCH`, without prerelease or build metadata.
 At the proven `main` commit, for this release:
 
 ```sh
-release_directory=/absolute/path/in/durable-storage/dashi-0.2.1
-git tag -a v0.2.1 -F "$release_directory/hashes.txt"
-node scripts/check-release-payloads.mjs v0.2.1 "$release_directory/archives"
-git push origin v0.2.1
+release_directory=/absolute/path/in/durable-storage/dashi-0.2.2
+git tag -a v0.2.2 -F "$release_directory/hashes.txt"
+node scripts/check-release-payloads.mjs v0.2.2 "$release_directory/archives"
+git push origin v0.2.2
 ```
 
 The local payload check reads the public npm registry and needs network access.
