@@ -26,12 +26,13 @@ export function apply(ctx) {
     description: 'Read native schedule history or create a one-shot deletion barrier.',
     handler: async ({ agent, rawInput }) => {
       if (rawInput.trim() === 'barrier') {
-        return { kind: 'success', text: JSON.stringify(await ctx.schedule.create(agent.id, {
-          after_seconds: 60, title: 'W114 deletion barrier', prompt: 'W114 deletion barrier',
-        })) }
+        return { kind: 'success', text: JSON.stringify(await ctx.schedule.create({
+          timing: { kind: 'after', after_seconds: 60 }, title: 'W114 deletion barrier', prompt: 'W114 deletion barrier',
+          target: { kind: 'session', sessionId: agent.id },
+        }, agent.id)) }
       }
       return { kind: 'success', text: JSON.stringify({
-        history: await ctx.schedule.history({ sessionId: agent.id, id: rawInput.trim(), limit: 10 }),
+        history: await ctx.schedule.history({ id: rawInput.trim(), limit: 10 }),
         catalog: await ctx.schedule.catalog(),
       }) }
     },

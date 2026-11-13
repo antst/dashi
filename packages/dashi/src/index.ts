@@ -18,7 +18,7 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'llm', 'loader', 'permissionPresets', 'subagents',
-  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
+  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'schedule', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
 ]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
@@ -195,6 +195,7 @@ export function apply(ctx: Context): void {
           request: decision => shell?.requestDecision(decision)
             ?? Promise.reject(new Error('dashi terminal is not ready')),
         },
+        () => shell?.diagnostics() ?? { count: 0, lines: [] },
       )
       const sendPrompt = (): void => {
         if (parsed.prompt !== undefined) shell?.dispatch({ type: 'composer-changed', text: parsed.prompt })
@@ -254,22 +255,27 @@ export function apply(ctx: Context): void {
         sendPrompt()
       }
     })().catch(async (error: unknown) => {
-      process.stderr.write(`dashi: startup failed: ${error instanceof Error ? error.message : String(error)}\n`)
-      await runtime?.shutdown()
-      await shell?.dispose()
-      exit(error instanceof LaunchArgumentError ? 2 : 1)
+      try {
+        await runtime?.shutdown()
+      } finally {
+        try { await shell?.dispose() }
+        finally {
+          process.stderr.write(`dashi: startup failed: ${error instanceof Error ? error.message : String(error)}\n`)
+          exit(error instanceof LaunchArgumentError ? 2 : 1)
+        }
+      }
     })
   })
   ctx.effect(() => async () => {
     announce()
     changed()
-    await boot
     try {
+      await boot
       await runtime?.shutdown()
     } finally {
-      await shell?.dispose()
+      try { await shell?.dispose() }
+      finally { process.stdout.off('error', stdoutError) }
     }
-    process.stdout.off('error', stdoutError)
   }, 'dashi.profile-boot')
   exitOnStdinEnd(ctx, 'dashi.stdin')
 }

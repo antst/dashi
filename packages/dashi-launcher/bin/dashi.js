@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 
+const [major, minor] = process.versions.node.split('.').map(Number)
+if (major < 24 || major === 24 && minor < 9) {
+  process.stderr.write(`dashi: Node >=24.9.0 is required (running ${process.versions.node})\n`)
+  process.exit(1)
+}
+
 const args = []
 const groups = []
 for (let index = 2; index < process.argv.length; index++) {

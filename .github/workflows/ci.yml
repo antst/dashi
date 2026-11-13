@@ -20,6 +20,13 @@ jobs:
     with:
       os: ubuntu-latest
 
+  install-layouts-linux-current:
+    uses: ./.github/workflows/install-layouts.yml
+    with:
+      os: ubuntu-latest
+      # Advance deliberately with a new released major, never a prerelease alias.
+      node: '26'
+
   # Keep timing-sensitive PTY gates away from our installation load (W-124).
   install-layouts-macos:
     needs: macos-gate
@@ -38,13 +45,14 @@ jobs:
 
   gate:
     needs: versions
-    name: DSH ${{ matrix.dsh }}
+    name: DSH ${{ matrix.dsh }} / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         dsh: ${{ fromJSON(needs.versions.outputs.tested) }}
+        node: ['24.9.0', '26']
     env:
       DSH_TEST_VERSION: ${{ matrix.dsh }}
     steps:
@@ -52,20 +60,22 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
-      - run: pnpm gate:docker
+      - name: Record resolved Node version
+        run: node --version
+      - run: DSH_GATE_NODE="$(node -p process.versions.node)" pnpm gate:docker
       - name: Upload terminal lifecycle failure capture
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: lifecycle-linux-${{ matrix.dsh }}
+          name: lifecycle-linux-${{ matrix.dsh }}-${{ matrix.node }}
           path: .cache/lifecycle-failures/**
           if-no-files-found: warn
       # Release hashes are produced only under the supported pack conditions (D-052).
       - uses: actions/setup-node@v7
         with:
-          node-version: 22.23.3
+          node-version: 24.9.0
       - name: Print release archive hashes
         run: |
           stat -c 'generated output owner: %n uid=%u gid=%g' packages/file-uploads-none/lib packages/dashi/lib
@@ -84,7 +94,7 @@ jobs:
           NODE
 
   preview:
-    needs: [gate, install-layouts-linux]
+    needs: [gate, install-layouts-linux, install-layouts-linux-current]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
@@ -92,7 +102,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24.9.0
       - name: Publish preview
         run: pnpx pkg-pr-new publish ./packages/file-uploads-none ./packages/dashi ./packages/dashi-app ./packages/dashi-launcher --pnpm --compact
 
@@ -104,7 +114,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24.9.0
           cache: pnpm
       - name: Install terminal test dependencies
         run: brew install tmux screen

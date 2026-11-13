@@ -17,7 +17,10 @@ const runtime = vi.hoisted(() => ({
   summary: 'Resume with: fixture',
 }))
 vi.mock('../src/application.js', () => ({ createTerminalShell: vi.fn(() => shell) }))
-vi.mock('../src/session-runtime.js', () => ({ createSessionRuntime: vi.fn(async () => runtime) }))
+vi.mock('../src/session-runtime.js', async original => ({
+  ...await original<typeof import('../src/session-runtime.js')>(),
+  createSessionRuntime: vi.fn(async () => runtime),
+}))
 
 import { apply } from '../src/index.js'
 import { createTerminalShell } from '../src/application.js'
@@ -32,6 +35,26 @@ afterEach(() => {
 })
 
 describe('dashi profile plugin', () => {
+  it('releases a partially acquired terminal before printing a startup failure', async () => {
+    let announce = (): void => {}
+    const order: string[] = [], exits: number[] = []
+    const ctx = new Context()
+    provideCmdline(ctx, {
+      args: ['--inline'], exit: code => { exits.push(code) },
+      ready: { onReady(listener) { announce = listener; return () => {} } },
+    })
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => { order.push('diagnostic'); return true })
+    shell.start.mockImplementationOnce(() => { throw new Error('partial terminal startup') })
+    shell.dispose.mockImplementationOnce(async () => { order.push('release') })
+    try {
+      apply(ctx)
+      announce()
+      await vi.waitFor(() => { expect(exits).toEqual([1]) })
+      expect(order).toEqual(['release', 'diagnostic'])
+      expect(process.stderr.write).toHaveBeenCalledWith('dashi: startup failed: partial terminal startup\n')
+    } finally { await ctx.fiber.dispose() }
+  })
+
   it.each([
     [['--help'], 'Usage: dashi [options] [prompt]', '--permission PRESET'],
     [['-h'], 'Usage: dashi [options] [prompt]', '--permission PRESET'],

@@ -62,6 +62,7 @@ import {
   expectResumable,
   findSessionFile,
   sessionEvents,
+  subagentCatalog,
   sessionLog,
   listedSessions,
   replayText,
@@ -227,12 +228,23 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await wait('first turn completed', frame => { expect(frame.text).toContain('W143_DEEP_FIRST'); expect(frame.status).toContain('idle ·') })
       const subtaskAt = shell.output.length
       shell.write('/subtask complete the private gated task\r')
-      let childId = ''
+      let childId = '', childName = ''
       await wait('native child started and held at its tool', () => {
-        childId = /subtask ([0-9a-f-]{36}) started/u.exec(shell.output.slice(subtaskAt))?.[1] ?? ''
+        const entry = subagentCatalog(first).find(row => row.version === 3)
+        expect(entry?.version).toBe(3)
+        childId = String(entry?.childId ?? '')
+        childName = entry?.version === 3 ? entry.name : ''
         expect(childId).not.toBe('')
+        expect(childName).not.toBe('')
+        expect(shell.output.slice(subtaskAt)).toContain(`subtask ${childName} started`)
         expect(sessionEvents(childId).some(event => event.type === 'tool/call' && event.data?.name === 'dashi_working_hold')).toBe(true)
       })
+      shell.write('/tasks\r')
+      await wait('same native name and creation text in the child catalog view', frame => {
+        expect(frame.overlay).toContain(`${childName} · complete the private gated task`)
+      })
+      shell.write('\u001B')
+      await wait('catalog closed before the new root', frame => { expect(frame.status).toContain('idle ·') })
       const newAt = shell.output.length
       shell.write('/new\r')
       await wait('new idle root before child release', frame => {
@@ -340,7 +352,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       const defaults = await proof(first, 1)
       expect(defaults).toMatchObject({
         preset: 'standard', scopedShadowsHost: true,
-        settings: { enabled: false, allowedModels: [] }, selectionParameters: [], listModels: false, policy: [],
+        settings: { enabled: false, allowedModels: [] }, selectionParameters: ['provider', 'model', 'reasoning_effort'], listModels: true, policy: [],
       })
       expect(defaults.rows).toEqual([
         '@deepseek-ai/dsh-tool-ask-user', '@deepseek-ai/dsh-tool-present',
@@ -349,7 +361,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/dashi-preset-proof enable\r')
       expect(await proof(first, 2)).toMatchObject({
         scopedShadowsHost: true, settings: { enabled: true, allowedModels: [{ provider: 'deepseek-official', model: 'deepseek-flash' }] },
-        selectionParameters: [], listModels: false, policy: [],
+        selectionParameters: ['provider', 'model', 'reasoning_effort'], listModels: true, policy: [],
       })
       expect(readFileSync(join(presetHome, 'profiles', 'dashi', 'cordis.patch.yml'), 'utf8'))
         .toContain('deepseek-flash')
@@ -1329,7 +1341,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       })
       const runtime = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
       assertActiveRuntime(runtime, testedDshVersion, workspaceVersion)
-      expect(runtime.packages['@antst/roller']?.version).toBe('0.1.4')
+      expect(runtime.packages['@antst/roller']?.version).toBe('0.2.0')
       for (const pkg of Object.values(runtime.packages)) expect(pkg.dir).not.toContain(root)
       shell.write('clean install daily flow\r')
       await shell.waitFor('Approval · bash', start)
@@ -1822,6 +1834,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
   it('resumes an idle session with an open trailing turn', async () => {
     const cwd = join(testDir, `open-turn-${String(Date.now())}`)
     mkdirSync(cwd)
+    const before = new Set(listedSessions(cwd).map(row => row.sessionId))
     const parent = 'session-00000000-0000-0000-0000-000000000690'
     const seed = new PtyShell(replayFixture, undefined, cwd)
     try {
@@ -1888,9 +1901,13 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
 
     const rows = listedSessions(cwd)
-    const child = rows.map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
-      .find(item => item.log.header.parentSession === parent)
+    const children = rows.filter(row => !before.has(row.sessionId) && row.sessionId !== parent)
+      .map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+    expect(children).toHaveLength(1)
+    const child = children[0]
     expect(child, JSON.stringify(rows)).toBeDefined()
+    expect(child?.log.header.parentSession).toBeUndefined()
+    expect(child?.log.header.isSeeded).toBe(true)
     const humanMessages = child?.log.events.filter(event => event.type === 'user/message'
       && (event.data?.source as { kind?: string } | undefined)?.kind === 'user') ?? []
     expect(JSON.stringify(humanMessages)).not.toContain('open prompt')

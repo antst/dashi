@@ -178,9 +178,9 @@ it('screen construction preserves both the start error and an uncertain close', 
 })
 
 it('success pruning removes large owned children only; logs, evidence, decoys and symlink targets survive', async () => {
-  const large = ['user', 'project', 'tools', 'npm-global', 'pnpm-global', 'global-bin', 'candidate', 'npm-cache',
+  const large = ['user', 'project', 'tools', 'npm-global', 'pnpm-global', 'global-bin', 'candidate', 'npm-cache', 'pnpm-store', 'pnpm-cache',
     'native-fresh', 'project-fresh', 'native-0.2.0-alpha.1', 'project-0.2.0-alpha.1', 'native-0.2.0-alpha.2', 'project-0.2.0-alpha.2',
-    'native-0.2.1', 'project-0.2.1']
+    'native-0.2.1', 'project-0.2.1', 'native-0.2.2', 'project-0.2.2']
   for (const name of [...large, 'install-failure-control', 'unowned', 'native-0.2.1-alpha.3']) {
     mkdirSync(join(root, name)); writeFileSync(join(root, name, 'marker'), name)
   }

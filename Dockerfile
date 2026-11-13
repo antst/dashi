@@ -1,4 +1,5 @@
-FROM node:22-bookworm-slim
+ARG NODE_VERSION=24.9.0
+FROM node:${NODE_VERSION}-bookworm-slim
 
 ENV COREPACK_HOME=/tmp/corepack LANG=C.UTF-8 LC_ALL=C.UTF-8
 

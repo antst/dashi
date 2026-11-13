@@ -6,7 +6,9 @@ host proofs using the four archives below before pushing a tag.
 
 ## Obtain the four archives and hash lines
 
-Use Linux x64, Node **22.23.3**, and the workspace's pinned pnpm. Do not pack
+Use Linux x64, Node **24.9.0**, and the workspace's pinned pnpm. This exact
+patch is the supported Node floor and the canonical pack toolchain (W-156).
+Do not pack
 with another Node version or package manager. Choose a new, durable directory
 outside the working tree; replace the example path below with its absolute
 path in both command blocks. Keep that path for a new shell or a reboot.

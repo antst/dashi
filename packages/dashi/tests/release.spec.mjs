@@ -176,7 +176,7 @@ async function packFixture(build, nativeManager = false) {
   uploads.pack = { calls: [], build, nativeManager }
   const nativeProcess = process
   // pnpm admission is tested below; Node/platform refusals are hand-checked. Native packing is measured separately.
-  vi.stubGlobal('process', { ...nativeProcess, platform: 'linux', arch: 'x64', versions: { ...nativeProcess.versions, node: '22.23.3' } })
+  vi.stubGlobal('process', { ...nativeProcess, platform: 'linux', arch: 'x64', versions: { ...nativeProcess.versions, node: '24.9.0' } })
   try { return packRelease(directory) } finally { vi.stubGlobal('process', nativeProcess) }
 }
 
@@ -281,9 +281,10 @@ it('requires four canonical, unique, expected filenames in the annotation', () =
 
 it('reads lock integrity only from the exact package record, not a snapshot or adjacent version', () => {
   fixture()
-  expect(lockIntegrity(lock, '@antst/roller', '0.1.4')).toBe(registry.get('@antst/roller').versions['0.1.4'].dist.integrity)
-  expect(() => lockIntegrity(lock, '@antst/roller', '0.1.3')).toThrow()
-  expect(() => lockIntegrity('\nsnapshots:\n' + lock, '@antst/roller', '0.1.4')).toThrow()
+  const version = payloads[2].manifest.dependencies['@antst/roller']
+  expect(lockIntegrity(lock, '@antst/roller', version)).toBe(registry.get('@antst/roller').versions[version].dist.integrity)
+  expect(() => lockIntegrity(lock, '@antst/roller', '0.0.0-adjacent')).toThrow()
+  expect(() => lockIntegrity('\nsnapshots:\n' + lock, '@antst/roller', version)).toThrow()
 })
 
 it('stops a validly named but mismatched tag hash before any registry read or upload', async () => {

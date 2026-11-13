@@ -23,6 +23,47 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 }
 
 describe('TerminalGuard', () => {
+  it('captures every console level only during ownership and keeps a bounded, inspectable tail', async () => {
+    const levels = ['log', 'info', 'warn', 'error', 'debug'] as const
+    const originals = levels.map(level => console[level])
+    const guard = createTerminalGuard(session([]))
+    try {
+      expect(guard.diagnostics()).toEqual({ count: 0, lines: [] })
+      guard.start()
+      for (const level of levels) console[level]('%s %d\nsecond', level, 7)
+      expect(guard.diagnostics()).toEqual({ count: 10, lines: levels.flatMap(level => [`[${level}] ${level} 7`, `[${level}] second`]) })
+      await guard.withCookedTerminal(async () => {
+        expect(levels.map(level => console[level])).toEqual(originals)
+      })
+      for (let index = 0; index < 201; index++) console.log('line %d', index)
+      console.error('x'.repeat(8_000))
+      const captured = guard.diagnostics()
+      expect(captured.count).toBe(212)
+      expect(captured.lines).toHaveLength(200)
+      expect(captured.lines[0]).toBe('[log] line 2')
+      expect(captured.lines.at(-1)).toBe(`[error] ${'x'.repeat(4_096 - '[error] '.length - '… [line truncated]'.length)}… [line truncated]`)
+      expect(captured.lines.every(line => line.length <= 4_096)).toBe(true)
+      await guard.dispose()
+      expect(levels.map(level => console[level])).toEqual(originals)
+    } finally {
+      await guard.dispose()
+    }
+  })
+
+  it('restores the console even when terminal stopping fails at exit', async () => {
+    const originals = [console.log, console.info, console.warn, console.error, console.debug]
+    const before = process.listeners('exit')
+    const guard = createTerminalGuard({ ...session([]), stop() { console.warn('stop diagnostic'); throw new Error('stop failed') } })
+    try {
+      guard.start()
+      ownedExitListener(before)()
+      expect([console.log, console.info, console.warn, console.error, console.debug]).toEqual(originals)
+      expect(guard.diagnostics()).toEqual({ count: 1, lines: ['[warn] stop diagnostic'] })
+    } finally {
+      await guard.dispose()
+    }
+  })
+
   it('starts and disposes once in release order', async () => {
     const log: string[] = []
     const guard = createTerminalGuard(session(log))

@@ -49,6 +49,7 @@ export interface TerminalShellOptions {
 }
 
 export interface TerminalShell {
+  diagnostics(): ReturnType<TerminalGuard['diagnostics']>
   cancelDecision(id: string): void
   dispatch(action: UiAction): void
   dispose(): Promise<void>
@@ -269,6 +270,7 @@ export function createTerminalShell(options: TerminalShellOptions): TerminalShel
   }
 
   return {
+    diagnostics: () => guard.diagnostics(),
     cancelDecision(id) {
       dispatch({ type: 'decision-withdrawn', id })
     },

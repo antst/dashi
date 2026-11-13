@@ -43,8 +43,8 @@ export function readReleaseArchives(directory, root = releaseRoot) {
 }
 
 export function packRelease(directory) {
-  if (process.platform !== 'linux' || process.arch !== 'x64' || process.versions.node !== '22.23.3') {
-    throw new Error('Release archives require Linux x64 and Node 22.23.3')
+  if (process.platform !== 'linux' || process.arch !== 'x64' || process.versions.node !== '24.9.0') {
+    throw new Error('Release archives require Linux x64 and Node 24.9.0')
   }
   const manager = JSON.parse(readFileSync(resolve(releaseRoot, 'package.json'), 'utf8')).packageManager
   const actual = run('pnpm', ['--version'], { cwd: releaseRoot }).trim()

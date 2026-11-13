@@ -64,3 +64,10 @@ export class TestPtyShell {
     if (result === -1) this.process.kill('SIGKILL')
   }
 }
+
+/** Installation launches must declare where the observer writes, including a refusal control. */
+export class RuntimePtyShell extends TestPtyShell {
+  constructor(cwd: string, env: NodeJS.ProcessEnv, runtimeRecord: string | { expectRefusal: true, path: string }) {
+    super(cwd, { ...env, DASHI_RUNTIME_RECORD: typeof runtimeRecord === 'string' ? runtimeRecord : runtimeRecord.path })
+  }
+}

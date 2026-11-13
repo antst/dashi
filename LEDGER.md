@@ -7700,6 +7700,39 @@ move to the published Sessionbus 0.5.16, with the checksums read from
 that release. The cross-dashi launcher and app leg, moved here from
 W-155, runs against the plugin's reviewed candidate archive.
 
+Builder note: W-153's console noise remains a DSH gap in the published
+0.2.2-rc.3 shared model-listing helper: successful loads call console.error
+and failed loads call console.warn (dsh-llm-deepseek lib/index.js:2730-2736);
+the API-key adapter also reports catalog problems through console.warn
+(dsh-llm-deepseek-api-key lib/index.js:91). The prepared TerminalGuard
+implementation captures log/info/warn/error/debug only while dashi owns the
+terminal, restores the originals on release, and exposes the lifetime count
+and last 200 lines through /status (4096 characters per stored line, explicit
+truncation). This does not fix DSH, capture child/direct stream writes or
+persist a log. The loopback PTY controls are prepared, not yet run.
+
+Builder note: since 0.2.2-alpha.2 DSH deliberately records no fork source
+relationship (published dsh-session 0.2.2-rc.3 README:32;
+lib/types/types.d.ts:71-81). Consequently files from before an ordinary fork
+cannot be restored from inside it. SessionController's public fork request accepts
+only sessionId, atSeq and allowMigration (dsh-api-session-controller
+lib/types/types.d.ts:302-308), not meta or parentSession. Per ruling 489cf71e,
+rewind-both now prepares the existing source-journal restore before the fork,
+using the same numeric boundary as code-only; a refused restore prevents the
+fork and a later fork failure is labelled as files restored, conversation not
+rewound. No lineage map, undocumented argument or fabricated header is added.
+The native source-journal and failure controls are prepared, not yet run.
+
+Builder note: the cross-dashi native Sessionbus and rewind receipts passed
+on the reviewed plugin/roller 0.2.0 bytes, subsequently published unchanged.
+The final published-input Node 24.9.0 full gate passed 620/620; the later
+observer-copy/runtime-record contract controls passed separately (12/12 and
+typecheck). P-pnpm10 resumed the published 0.2.2/rc.2 schedule owner on rc.3,
+listed and stopped the old row without migration, then exited normally.
+Three canonical Linux x64 Node 24.9.0 pack sets are byte-identical. The
+composer-200k controls measured 2.92/3.01/4.36 ms p95 against the extra 20 ms
+acceptance; the unchanged 25 ms bound remains. Hosted gates are pending.
+
 ## Backlog
 
 ### B-003 Remaining doable parity rows — status: backlog
@@ -7830,6 +7863,13 @@ document on every frame (dist/tui-main-screen.js:227-235, 319-343,
 553; dist/tui.js:850-858). A named pi-tui gap; an upstream report only
 on the owner's word. Not measured: a recorded session of the size the
 owner runs, and the other costs listed above.
+
+Builder note (W-156): full-screen collapsed/expanded cards reuse the loaded
+cell array before the existing viewport slice, removing the redundant full
+filtered-array allocation. This does not close B-009: hidden-mode visible-rank
+scrolling, the pending-command footer's whole-cell search (renderer.ts:166-171),
+and pi-tui's inline whole-document passes remain open O(N) costs. No new
+cache, index, state or changed scrollback contract is introduced.
 
 ## Upstream reports
 

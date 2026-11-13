@@ -177,7 +177,7 @@ function activityText(activity: Activity, now: number): string {
   }
   const subagent = activity.value
   const elapsed = subagentElapsed(subagent, now)
-  return plain(`Subagent · ${subagent.state}${elapsed === undefined ? '' : ` · ${duration(elapsed)}`} · ${subagent.label}${subagent.summary === undefined ? '' : ` · ${subagent.summary}`}`)
+  return plain(`Subagent · ${subagent.state}${elapsed === undefined ? '' : ` · ${duration(elapsed)}`} · ${subagent.name === undefined ? '' : `${subagent.name} · `}${subagent.label}${subagent.summary === undefined ? '' : ` · ${subagent.summary}`}`)
 }
 
 function plain(text: string, preserveNewlines = false): string {
@@ -360,7 +360,8 @@ export function createRenderer(options: RendererOptions): Renderer {
       const detail = selected.kind === 'job'
         ? [selected.value.id, `kind: ${selected.value.kind}`, `state: ${selected.value.status}`,
             ...(selected.value.detail === undefined ? [] : [selected.value.detail])]
-        : [selected.value.id, `mode: ${selected.value.mode}`, `state: ${selected.value.state}`,
+        : [...(selected.value.name === undefined ? [] : [`${selected.value.name} · ${selected.value.label}`]),
+            selected.value.id, `mode: ${selected.value.mode}`, `state: ${selected.value.state}`,
             ...(selected.value.tokens === undefined ? [] : [`tokens: ${String(selected.value.tokens)}`]),
             ...(selected.value.summary === undefined ? [] : [selected.value.summary])]
       result.push('', ...detail.flatMap(value => wrapTextWithAnsi(`${DIM}${plain(value)}${RESET}`, width)))
@@ -523,8 +524,9 @@ export function createRenderer(options: RendererOptions): Renderer {
               : []),
           ]).map(value => line(value, width))
       const fixedRows = header.length + control.length + 2
-      const filtered = state.cells
-        .filter(cell => !(state.toolMode === 'hidden' && (cell.tool !== undefined || cell.kind === 'tool')))
+      const filtered = state.toolMode === 'hidden'
+        ? state.cells.filter(cell => !(state.toolMode === 'hidden' && (cell.tool !== undefined || cell.kind === 'tool')))
+        : state.cells
       const available = Math.max(0, rows - fixedRows)
       const end = Math.max(0, filtered.length - Math.min(state.scrollOffset, Math.max(0, filtered.length - 1)))
       const start = Math.max(0, end - available - OVERSCAN_CELLS)

@@ -350,6 +350,11 @@ export function sessionEvents(id: string, sessionHome = home): Array<{ type: str
     .map(line => JSON.parse(line) as { type: string; data?: Record<string, unknown> })
 }
 
+export function subagentCatalog(id: string): Array<import('@deepseek-ai/dsh-session').SessionEvent<'subagent/catalog'>['data']> {
+  return sessionEvents(id).filter(event => event.type === 'subagent/catalog')
+    .map(event => event.data as import('@deepseek-ai/dsh-session').SessionEvent<'subagent/catalog'>['data'])
+}
+
 export function sessionLog(id: string, sessionHome = home): {
   header: Record<string, unknown>
   events: Array<{ type: string; seq: number; data?: Record<string, unknown> }>

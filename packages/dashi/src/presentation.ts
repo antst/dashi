@@ -52,10 +52,10 @@ export async function subagentViews(
 ): Promise<readonly SubagentView[]> {
   const subagents = ctx.get('subagents')
   if (subagents === undefined) throw new Error('DSH subagent catalog service is unavailable')
-  const [catalog, listed] = await Promise.all([
-    subagents.listChildren(parentId, signal),
-    ctx.sessionController.list({}, signal),
-  ])
+  using observation = await ctx.sessionQuery.observeSession(parentId, { signal })
+  const catalog = observation.projections?.values.subagentCatalog
+  if (catalog === undefined) throw new Error('DSH subagent catalog projection is unavailable')
+  const listed = await ctx.sessionController.list({}, signal)
   const summaries = new Map(listed.items.map(summary => [String(summary.sessionId), summary]))
   return catalog.map((entry): SubagentView => {
     const summary = entry.mode === 'external' ? undefined : summaries.get(String(entry.id))
@@ -64,6 +64,7 @@ export async function subagentViews(
     const tokens = tokenTotal(summary)
     return {
       id: String(entry.id), label: entry.label ?? String(entry.id), mode: entry.mode,
+      ...('name' in entry && entry.name !== undefined ? { name: entry.name } : {}),
       state: summary === undefined ? 'unknown' : summary.running ? 'running' : 'inactive',
       ...(timing === undefined ? {} : {
         elapsedMs: timing.settledMs,
