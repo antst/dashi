@@ -1121,6 +1121,56 @@ there is answered by a patch release (D-051). The launcher names
 the `dashi` profile itself, so before the tag it runs only against
 the private home: a stated limit of every such proof.
 
+### D-054 (2026-10-13) No side environments: a candidate is proven as a normal install
+Owner, 2026-10-13, after the pre-tag proof of plugin 0.1.3 had stopped
+four times on the proof profile and the private homes that D-053
+prescribed (W-144): "every time when you follow this fucked up idea to
+use some temporary separate something for deployment for testing, we
+hit a shit"; he named a disposable host that exists "to test as normal
+installs". Minutes later, of the dsh host: "you can do proper setup on
+this host", "this host is dedicated to DSH development", "and no
+propduction DSH runs here", "so, do as it fits". The same evening, on
+a home-project update that would re-resolve dependencies under his
+Gemini CLI: "update and don't care about gemini". Rulings: (1) No side
+environment stands in for a deployment on any host: no private HOME,
+private DSH home, private pnpm store, private daemon or proof profile
+under another name. Hosted CI is a different thing and stays. (2) An
+unpublished candidate is proven as a normal install: the host's own
+profiles under their own names, upgraded in place by the README's
+commands in the user's real environment, with acceptance on that
+host's permanent daemon. The dsh host is a development host and the
+first place for it; the disposable host when a change carries risk or
+needs a second machine, each write there announced first to the other
+team that uses it. (3) After the publish every proven profile is
+re-added from the registry, so that no profile keeps an archive
+reference. (4) Unchanged: the owner's running processes are never
+signalled, killed or restarted, and keep their loaded code until he
+restarts them; the daemon's configuration is not changed; no value
+from a settings, patch or credential file is printed. (5) A
+home-project update goes ahead when the package manager re-resolves
+dependencies of his Gemini CLI; a version change of a DSH, dashi,
+roller or plugin package beyond the one being updated is still a stop.
+(6) D-053 (1) and (2) are superseded. Applied the same day to plugin
+0.1.3 (W-144), and since then to every pre-tag proof (W-146, W-149,
+W-150, W-152).
+
+### D-055 (2026-11-12) Every bus feature in every product
+Owner, 2026-11-12, after being offered options for the Sessionbus kit
+that would have held file transfers back or made them optional:
+"file-transfer is mot opt in. and i never asked to have it only for
+codex (wgich is like not having at all). all pridyct must support it
+all. do you really liss idea of universal bus?" The same day: "do not
+overcompkicate stuff. i am cetsin, we can have transfer allowed by
+defaukt in all prodycts. as harbess permisdions do mot cover wgat mcp
+is doing", and "so, be easier :)". Rulings: (1) every feature of the
+published Sessionbus kit is supported by the plugin and by dashi, for
+interactive peers and for lanes; no hold, opt-out or single-product
+option is offered. (2) File transfers run with the kit's default
+filesystem executor as the operating-system user, in every mode; DSH's
+permission modes do not govern them, and the release notes say so as a
+fact. No permission layer, per-path prompt or policy is built until
+the owner asks for one. Applied in W-154.
+
 ## Work items
 
 ### W-001 Repo scaffold — status: accepted 2026-09-02 (aa1b01f, merged to main)
@@ -5993,6 +6043,20 @@ Next: the registry re-add on the two proof profiles, then, on the
 owner's instruction of the same day, his own installations on every
 host except the one he named as not to be touched.
 
+Correction 2026-10-14, from the W-137 analysis: the amendment above
+counts nine red install rows in the early episode; the final logs show
+ten, each `Command exceeded 180000 ms`: six in run 38341374014, three
+in 38341610428 and one in 38343266678 (macOS P-pnpm10, 04:06:20Z). A
+second episode came on 2026-10-13 in run 38461373615, at the
+ledger-only commit 54b752f: three `npm install -g` fetches of DSH
+0.2.1-alpha.2 over 180 seconds (Linux P-npm, Linux G-npm, macOS
+G-npm). Thirteen acquisition-timeout rows over the two episodes, none
+of them a product failure, none re-run. Owner 2026-10-15, asked:
+delete both leftover proof profiles. The roller-proof profile on the
+dsh host (W-118) was deleted after a backup; the dashi-proof-up
+profile on the mac host was moved out of the profiles directory,
+because the lane there refused to remove it.
+
 ### W-132 dashi: `dsh plugin add` did not return on the macOS G-pnpm11 row — status: open (owner dsh-exec, cause first)
 On 2026-10-12 the row install-layouts-macos / G-pnpm11 failed once
 (run 38213993300, attempt 4, job 114712113037) on PR #304, which
@@ -6410,6 +6474,59 @@ builder's own statement it overwrote, on those runs, the raw
 capture a committed fixture had been made from. Part 6: the gate
 runs tracked tests only, and says how many files it ran.
 
+Added 2026-10-14, part 7, from a disk incident. At 00:01Z the dsh
+host's root filesystem (128 GB, holding /, /tmp and /home) had 19 MB
+free. Our own scratch had filled it over weeks: per-gate dependency
+trees of both builders, reviewer work trees kept since W-124 for the
+next delta, old review directories, nearly all older than 2026-10-13;
+nobody had been told to clean up between items. Every gate, install
+and native run stopped until there was room again (29.8 GB free at
+00:35Z, after the reviewer had removed 8 GB of its own trees); then
+each builder removed its own old directories (about 32 GB from the
+plugin side, 17 GB from dashi's; 81 GB free at 02:21Z). Two failures
+of that hour were disk effects, not findings. Leak sources named in
+dashi: input.spec.ts leaves six directories per suite and
+clipboard-image.spec.ts three; install-layouts.acceptance.ts keeps
+each whole global or project workspace, about 1 GB, even on a pass;
+the Sessionbus harness's failure paths skip its cleanup. The plugin's
+leak sources went to its next change. Part 7: tests remove what they
+create. Left alone: 4.5 GB in 4,513 `dsh*` directories that are DSH's
+own spill and subprocess output (dsh-spill-local lib/index.js:35, 498,
+530; dsh-subprocess-local output.js:10-30 keeps completed spill
+files), with no liveness lease by which a dead directory could be told
+from a live one. A DSH gap: removable only while no DSH process runs,
+which is the owner's call; an upstream report on his word.
+
+Ruled 2026-10-14 after the builder's analysis: parts 2, 3, 5, 6 and 7
+in one pull request, part 4 (the serial mac attempt) later on its own.
+Parts 2 and 3: the W-123 convention, on outer declarations only; one
+failure-only capture helper of at most 100 lines (the first snapshot
+wins; process rows of its own children, no arguments or environment;
+nothing on the passing path), uploaded from both gates and from the
+release workflow's verify job. Part 5: the fixture's leader alone owns
+its receipt and its exit. Part 6 changed: no list of tracked files
+carried in the environment; explicit excludes of the ignored
+directories, the gate prints how many files it runs (the renderer file
+and the rest), and where Git is present untracked spec files are
+refused by name; a copy without Git says that the check was not
+possible. Part 7 as above, the large install-layout children pruned on
+a pass only. The release run keeps the 180-second acquisition bound
+with no automatic retry; a red acquisition row skips the publish, so
+no npm upload and no GitHub release follow.
+
+PR #328 at b6c6893, no product source (the capture helper 62 lines):
+not yet. Its hosted run 38559625910 was red on both gates from three
+defects of the new tests, each reproduced by the reviewer, and a
+fourth in the gate's file list, which took pnpm's own summary lines as
+test files. Accepted 2026-10-14 at 3360c4b and merged: squash
+5ed3a46b90e3af148012be3b7bed0e27e6114ad3 on develop. Both hosted gates
+green; ten install rows of run 38566548869 red, recorded and not
+overridden: DSH 0.2.1-alpha.3 was published as the run started
+(W-148). Notes that ride: after a full gate DSH leaves
+`dsh-subprocess-*` and `dsh-spill-*` directories in TMPDIR; the input
+and clipboard cleanups have no control. Status 2026-10-14: parts 1 to
+3 and 5 to 7 done; part 4 open.
+
 ### W-138 dashi: a forced exit leaves the terminal on the alternate screen — status: open (owner dsh-exec, then a plain 0.2.1)
 From W-137 part 1. When DSH ends the process itself, dashi's
 terminal guard never runs: teardown is still waiting for the agent
@@ -6491,6 +6608,8 @@ leaves the alternate screen in 4 of 4 such runs, the fix restores
 it in 4 of 4. Release note: "Restore the terminal when DSH ends the
 process before dashi's cleanup has finished, for example when a
 termination signal reaches it twice." Ships in 0.2.1.
+
+Status 2026-10-14: released in dashi 0.2.1 (W-149).
 
 ### W-139 dashi: the live activity rows flood the screen — status: open (owner dsh-exec, analysis first; ships in 0.2.1 with W-138)
 From the owner, 2026-10-13, on long-running sessions with dozens of
@@ -6690,6 +6809,8 @@ job's line leads with its id and its status, exit code included;
 where DSH's notice cannot be read unambiguously the line shows
 DSH's own summary."
 
+Status 2026-10-14: released in dashi 0.2.1 (W-149).
+
 ### W-140 dashi: what waits for the model, and who sent it — status: open (owner dsh-exec, analysis exists, after 0.2.1)
 From W-139. Two things a user cannot see today. A message that DSH
 has put into the agent's inbox (a job or subagent notice, a message
@@ -6764,6 +6885,56 @@ appearing and on its going with the turn's end. Carried from W-139
 as this pull request's first test line: the blank above a panel on
 an empty inline transcript (renderer.ts:521). Title `W-143: show
 that a turn is working`, branch from develop after W-139 merges.
+
+Reviews and rulings, 2026-10-13 and 2026-10-14. PR #326 opened at
+6462870 (turn-working.ts 84 new lines); the first local gate, at
+fd5d3a4, had failed the streaming case at 51.8 frames a second against
+a ceiling of 30, two redraws per publication, corrected to one. First
+review, at 6462870 and ee365ba: not yet. The row was right in a clean
+terminal: one timer, silent when idle, gone at the end of the turn, on
+a cancel, an error or a root change. One more push, ruled: a stalled
+stream reads as stalled (`<phase> · no data <N>s · turn <elapsed>`
+after three seconds without a chunk on the current live stream); a
+pulse tick must not cost a document render that grows with the
+session; no new call of the deprecated Session.snapshotEvents on the
+publish path; three smaller points and controls for seven behavioural
+survivors. On the tick the builder stopped with numbers, and the
+architect withdrew his target that 6,000 loaded cells cost no more
+than 500: pi-tui's inline renderer passes over the whole document on
+every frame (B-009). Ruled instead: the line cache's limit follows the
+loaded cell count, a one-line change, and the pulse is 500 ms in both
+modes (one second in accessible mode, 80 ms while a command is
+pending); DESIGN states the row's inline cost, about 5% of a core at
+6,000 cells and 1.5% at 2,000.
+
+Then the hosted run 38481153320 at f0409b0 was red on the Linux gate
+only: a fixture defect, a 750 ms window against a 500 ms pulse that
+could make the two-shape assertion impossible, corrected in the test.
+At dd83ead the reviewer found one block: the open path read the
+running turn's start from a projection value that DSH never fills
+(dsh-agent-loop lib/index.js:1365-1412; dsh-session-projection
+lib/index.js:248, 304), so on a real profile /resume into a long open
+turn showed no row, and the unit fixtures used a snapshot shape DSH
+does not send. Ruled: read it through
+ctx.sessionProjections.stateOf(session, 'turnBoundary'), fixtures in
+the native shape, a control that no open turn gives no row, and one
+native case for the reopened long turn.
+
+Accepted 2026-10-14 at b02ec53 and merged: squash
+7c1f5771a236c263307fd47bf27a255e4f156f5b on develop, tree identical to
+the reviewed head. Five review rounds by one independent reviewer, the
+last at this head; hosted run 38502338412, 23 of 23 on the first
+attempt. Whole item against develop 54b752f: turn-working.ts +79,
+session-runtime.ts +39 -4, state.ts +13 -3, renderer.ts +24 -8, all
+within the ceilings. Final shape: one disposable row above the status
+line while the root's native turn is open; the pulse on the renderer's
+one timer; the words from native facts only; `no data <N>s` after
+three seconds of silence on the current live stream; the open turn's
+start from the host projection, paged back to, with a plain `Working`
+when paging fails. In the reviewer's run on the real profile the
+reopened long turn read `Receiving text · turn 53s` at once. Carried:
+an unneeded cast at session-runtime.ts:362 and five reviewer notes on
+test coverage. Released in dashi 0.2.1 (W-149).
 
 ### W-144 sessionbus plugin: a delivered message waits when the recipient's turn fails — status: open (owner codex-roller)
 Owner 2026-10-13: long-running dashi sessions on one host showed
@@ -6876,6 +7047,45 @@ home; the permanent daemon cannot start a lane on a profile under
 another name, so the lane round trip runs on a private released
 daemon, a stated limit.
 
+The pre-tag proof, 2026-10-13. As first designed under D-053 it used a
+profile under another name in the real DSH home and private homes, and
+it stopped four times: on a dead daemon pid carried from an older
+packet (ruled: a daemon's identity is measured at the start of a run),
+on two checker errors, and terminally on ERR_PNPM_UNEXPECTED_STORE,
+because the proof profile had been installed under a private HOME
+bound to a pnpm store inside a stopped packet. The owner's ruling of
+the same hour is D-054. The design was withdrawn, the proof profile
+removed, and the proof redone as a normal install on the dsh host: the
+real sessionbus and web profiles upgraded from 0.1.2 to the candidate
+archive by the README's commands; nine installed files equal to the
+archive; a second exec a no-op; describe 0.1.3; a managed lane round
+trip and a peer round trip through the builder's own web instance, all
+on the permanent daemon; the daemon and the owner's web process
+unchanged. Verified with stated limits by an independent verifier: the
+seals, archive 4fd87eed...cca622, only README.md and the version line
+differing from 0.1.2, the installed bytes, the captures in order,
+nothing left running. Limits: the lane's child launcher was the home
+copy of 0.1.2, byte-identical to 0.1.3's; the installs named the
+archive path where the README names the registry. Carried to the next
+plugin change: the README links docs/HOST-INSTALL.md, which the
+package does not contain (also in 0.1.2). Decided by the architect: no
+mac leg before the tag of a release whose code is byte-identical to
+0.1.2.
+
+Released 2026-10-13 as @sessionbus/dsh 0.1.3: annotated tag v0.1.3 at
+37d1e97 with the D-052 hash line, release run 38468922089 green,
+published to latest at about 21:17Z with provenance; the archive
+packed again from the registry by the architect equals
+4fd87eed...cca622, plugin.cjs unchanged. The same night the dsh host's
+home project and its sessionbus and web profiles were re-added from
+the registry: describe 0.1.3, a lane round trip. The home update
+re-resolved a peer context under the owner's Gemini CLI (an MCP SDK
+peer from zod 4.5.4 to 3.25.76, no version change); the architect
+first kept the home entry at 0.1.2 and withdrew that on the owner's
+"update and don't care about gemini" (D-054). The owner's web process
+was not restarted. The other hosts moved with the dashi 0.2.1 fleet
+update (W-149).
+
 ### W-145 fleet and dashi: a local model silent for more than five minutes — status: open (architect; the owner's choice between two routes pending)
 Owner 2026-10-13, pointing at DSH discussion 3157: for every dashi
 configuration with the local model, "put this timeout to 30 min".
@@ -6920,6 +7130,575 @@ measured; or a dashi-side change that lifts the two limits for the
 process, which is a mechanism dashi would own and is not built
 without his word. Also his: fewer retries for the local provider,
 and whether these measurements go to discussion 3157.
+
+Added 2026-10-15. The thirty-minute values reached the remaining
+profiles with the 0.2.1 fleet update: the dsh host's web profile once
+the owner had stopped his web process there, then four more hosts,
+each patch backed up first. Owner the same day, declining a question
+about the two routes: "I added keepalive on LLM serving host", the
+first route, on his side; nothing was built in dashi. Not measured
+since: whether his server sends its headers at once and a keep-alive
+line within the 300 seconds of the body timeout; the headers timeout
+is not helped by them. On 2026-11-08 the owner moved his local models
+to a new server, configured on every fleet profile as the provider
+`local`; the script that wrote its rows copies the two timeout values
+from the old provider row; on his word the old row was then removed
+everywhere.
+
+### W-146 sessionbus plugin: never write to the terminal of an interactive host — status: accepted 2026-10-14 (owner codex-roller; PR #73 squash-merged; released as 0.1.4)
+Found 2026-10-13 in the W-143 review. With no daemon socket the plugin
+writes `sessionbus: connect ENOENT …/presence.sock` to stderr every
+two seconds: it reports every socket attempt (plugin.cjs:442) and the
+kit reconnects every 2000 ms. In dashi's inline mode each line scrolls
+the terminal by one and the next pulse rewrites the wrong row: one
+turn of about a minute left 24 working rows behind. It blocked dashi
+0.2.1. Ruled: in peer mode diagnostics go to ctx.logger only, the same
+socket diagnostic once per outage; lane mode's stderr and the
+reconnect unchanged; `/sessionbus-groups` without arguments adds one
+line, not connected and the last error, from state the plugin already
+holds (an active bus call for it was rejected). PR #73 opened at
+5667c2f; fatal startup failures keep one stderr line and an ERROR
+record, a ceiling of 43 changed lines granted for that. Review: accept
+with notes; in real runs 0.1.3 wrote a line every two seconds and the
+head none, with one ERROR record per outage. One correction commit
+ruled, with one ruling changed: when stderr is not a terminal (a
+service journal, a pipe, a file) the connection diagnostic is also
+written there, once per outage, so that an operator keeps the journal
+line; a terminal gets nothing. The README names DSH's gap: nothing
+presents the logger. Final rule: stderr.isTTY alone decides for
+non-fatal peer output; fatal paths keep their line; logger records in
+both cases; 44 runtime lines.
+
+Accepted 2026-10-14 at 9764a5b and merged: sessionbus/sessionbus-dsh
+main c47c60a100373920e11dd23c4756401e9f6656fe, tree identical to the
+reviewed head; hosted run 38489232688 green on the first attempt; the
+bot's exact-head review without actionable comments. Three review
+notes carried to the next plugin change. Normal-install proof on the
+dsh host (D-054): the sessionbus and web profiles from 0.1.3 to the
+candidate 5d44d6fd...e7aa; describe 0.1.4; a lane; a peer round trip
+on the real socket; with an absent socket zero plugin bytes on a PTY
+in 15 seconds and exactly one line to a file. Verified with stated
+limits: the terminal's zero rests on an in-process hook of
+process.stderr.write and its control, not on an external capture of
+the PTY; lane stderr was checked in the code diff only. Released
+2026-10-14 as @sessionbus/dsh 0.1.4: tag v0.1.4 at c47c60a with the
+D-052 line, release run 38494156553, published at about 01:14Z; the
+dsh host re-added from the registry the same night. A host started
+from a terminal, for example a web process in tmux, gets no lines at
+all from 0.1.4; only /sessionbus-groups shows a connection failure.
+dashi pins 0.1.4 from W-148.
+
+### W-147 dashi: a control row wider than the terminal ends dashi — status: accepted 2026-10-14 (owner dsh-exec; PR #327 squash-merged; released in 0.2.1)
+Found 2026-10-13 in the W-143 review, on develop too: opening search
+below about 46 columns ends dashi with `terminal failure`. Before
+0.2.1, analysis first. PR #327 at 6fa6ae5 on develop 7c1f577:
+renderer.ts two changed lines, the control rows passed through the
+existing line(value, width) bound where they are composed, plus a
+width sweep (control-width.spec.ts) and a byte snapshot. Review:
+accept with notes. On develop the defect was wider than search at
+narrow widths: over 37 panels at 32 to 80 columns dashi ended 72
+times, at 80 columns too in accessible mode (history search, a
+727-column heading carrying the selected item), as `dashi: terminal
+failure` from its own render and, 3 times of the 72, as `dsh: fatal
+uncaught exception` from a scheduled render. The head never ended; of
+15,360 frame pairs every frame that fitted is byte-identical. In full
+screen pi-tui had sliced a wide row at the width without a mark; those
+rows now end in `…`, in 1,166 of 7,680 full-screen frames, exactly the
+frames that end dashi inline on develop. Accepted 2026-10-14 and
+merged: squash ce68b8fdad78bce620b75d28aedc39e96c32bbbc on develop,
+tree identical to the reviewed head. Two test notes carried into
+W-137. Released in dashi 0.2.1, whose release note names the
+full-screen ellipsis.
+
+### W-148 dashi on DSH 0.2.1-alpha.3 with exact DSH pins — status: accepted 2026-10-14 (owner dsh-exec; PR #329 squash-merged; released in 0.2.1)
+Opened 2026-10-14. DSH 0.2.1-alpha.3 was published at 12:35Z, and
+released dashi 0.2.0 broke for new users within the hour:
+@antst/dashi-app 0.2.0 declares 15 DSH packages at `>=0.2.1-alpha.2`,
+so a README install beside an alpha.2 CLI resolved them to alpha.3,
+whose exact peers DSH refuses (`dsh-session-stats@0.2.1-alpha.3 is
+incompatible with dsh 0.2.1-alpha.2`); on npm, npx and pnpm 10
+layouts, on both systems, the user saw these refusals and no dashi
+session at all. pnpm 11 and 12 passed only through their one-day
+minimum release age. Coherent alpha.2 installs kept working until a
+package operation changed their resolution. Found by ten red install
+rows of the W-137 run. Ruled first, as part of 0.2.1: alpha.3 pins in
+the workspace, the 15 DSH dependencies of dashi-app exact, the
+README's commands exact, the CLI companion and launcher pins matched,
+install-layout targets at alpha.3. Owner the same day: "DSH is
+peramently in alpha/rc cycle, it is a given style". From here every
+DSH dependency we publish is exact, so that a new DSH prerelease can
+no longer break a released dashi.
+
+The builder's analysis: all 292 DSH packages exist at alpha.3, and 127
+DSH packages changed their lib code; what dashi uses of the agent
+loop, turnBoundary, stateOf, the command line, app exit, headless mode
+and the forced exit is byte-identical; pi-tui is still 0.84.4. Job ids
+are now the kind plus 16 hex digits (dsh-jobs-local
+lib/index.js:420-423), so native oracles use the observed id, and at
+80 columns a killed job's Ctrl+B row is 82 columns wide before its
+label, so its reason is cut and its command lost (whole at 200);
+whether dashi shows a shorter id is carried. Two DSH behaviour changes
+surfaced by dashi's tests: the managed credential store now wins over
+an inherited environment key, which is offered for replacement where
+alpha.2 refused; and the DeepSeek API-key provider lists no catalog
+models without a configured credential, so /model offers Add provider
+instead of DeepSeek's models. Three configuration keys are refused at
+boot from alpha.3: `models` of dsh-llm-deepseek-account
+(lib/index.js:308) and `persona` and `toolFilter` of dsh-tool-subagent
+(:355); the pi-ai provider schema, with the timeouts of W-145, is
+unchanged. One shipped fix: on alpha.3 a SIGTERM during a pending
+command made the native flush reject in dashi's dispose with
+SessionHandleClosedError, the effect teardown stopped, the shell was
+never disposed and no `Resume with:` summary was printed; the teardown
+now disposes the shell in a finally around the runtime shutdown
+(index.ts, seven lines; the error still propagates).
+
+PR #329 at 81a7b22: 17 files, the 15 DSH dependencies of dashi-app
+exact at alpha.3, the core's peer minima at alpha.3, provider and
+launcher unchanged. Review: accept with notes. In all 19 hosted rows
+every candidate stage resolved 292 DSH packages at alpha.3; the eight
+red rows were the published-baseline stage only, whose open ranges
+pnpm 11 and 12 still resolved to alpha.2. Ruled test-only: the
+historical baselines reconstructed, held to their own DSH in the
+baseline project only, released 0.2.0 added as a baseline, and one row
+that repairs today's broken state by the new README. Two delta rounds
+blocked once each. At 365cdcc the prune hook ran 91 s against its 60 s
+bound and wrote PASS before cleanup; the same run's macOS deep-open
+case filled with 23 `sessionbus: connect ENOENT` lines from the
+still-pinned plugin 0.1.1, W-146's defect inside our own test, so
+dashi-app pins @sessionbus/dsh 0.1.4 exactly from this item. At
+19e5fcd a sentinel matched a socket path that the terminal wraps on
+macOS; replaced by the phrase `sessionbus is not connected`. Accepted
+2026-10-14 at 3102b99 and merged: squash
+071c1a6b079f96d7ad4f2dda970cae51c79e7abe on develop, tree identical;
+hosted run 38607805572, 23 of 23. Notes that ride: a DSH alpha.2 user
+who updates only dashi sees DSH's refusal worded "update the plugin"
+and then a CLI that hangs (passed on); job rows at 80 columns lose
+their command. Carried, a DSH gap: a profile whose UI plugin rows are
+refused keeps running with no UI instead of exiting with an error
+(dsh-app-boot alpha.2 :3991-4000, :4165-4178); upstream on the owner's
+word. Released in dashi 0.2.1.
+
+### W-149 dashi 0.2.1: release preparation, host proof and fleet — status: accepted 2026-10-14 (owner dsh-exec; PR #330 squash-merged; released as 0.2.1)
+Opened 2026-10-14 after W-148. Part A, the release preparation: the
+four packages and the root at 0.2.1, the app's sibling pins, CHANGELOG
+`## 0.2.1` with W-138, W-139, W-143, W-147 and W-148, DSH alpha.3
+required with exact pins and the upgrade order, plugin 0.1.4, the
+Resume-with fix, the full-screen ellipsis and the three refused
+configuration keys. PR #330 at b3a1545, no product source: accept with
+notes; the four archive hashes reproduced equal to the builder's and
+to the hosted run's, differing from W-148's archives only in versions;
+hosted 23 of 23, with 82 current stages resolving 292 DSH packages at
+alpha.3, dashi 0.2.1 and plugin 0.1.4. Merged 2026-10-14: squash
+8519f31d74b333e2f3b99c5bf396b73fa649404c, develop and main
+fast-forwarded to it. No pre-tag mac proof: the nine hosted macOS
+install rows are the evidence, and the mac host takes the registry
+release with the fleet.
+
+Part B, the proof under D-054, was the dsh host's own move to DSH
+alpha.3: a keys-only check of every profile patch for the refused keys
+(none had them), the home project's 26 DSH declarations to exact
+alpha.3 in one command, each populated profile through `dsh plugin
+--profile X update --no-save --depth Infinity '@deepseek-ai/dsh*'`,
+the dashi profile to the candidate archives. It stopped twice on six
+transitive DSH records that stayed at alpha.2 through the home add and
+then through a targeted `pnpm update`: pnpm keeps auto-installed peer
+providers where they are. Ruled, with no third round: one `pnpm add
+--save-exact` of exactly those six; the home then declares 32 DSH
+packages and all 292 resolve at alpha.3. Only a home project with
+explicit DSH declarations meets this; a fresh README install does not.
+Acceptance: every profile's --dump-config; a launch with the permanent
+daemon (roster row, product dashi); a launch with no daemon, with zero
+plugin bytes and the not-connected phrase; a real turn; a SIGTERM
+during /model add printing `Resume with:`, exit 0, terminal modes
+restored. The owner's web process kept its alpha.2 code. Verified with
+limits by an independent verifier on the live host: the logger count
+was not observed; three profiles' locks keep a second schemastery
+copy, of which the native boot loads one; two home declarations below
+what alpha.3 requires were moved with the launcher after the publish.
+
+Released 2026-10-14 as dashi 0.2.1: annotated tag v0.2.1 at 8519f31
+with the four D-052 lines (provider b0ea41ce..., core 9778cf9c..., app
+7702fd28..., launcher 7aa5fcc7...), release run 38632037329, 22 of 22;
+published to latest at about 20:46Z with provenance. The architect's
+registry check on 2026-10-15: integrity equal to the proven archives;
+the app's dependencies dashi and provider 0.2.1, @sessionbus/dsh
+0.1.4, roller 0.1.4 and 15 DSH packages exact at alpha.3. The dsh host
+was re-added from the registry the same morning, with no file
+reference left; on the owner's word its home project was pruned once
+he had stopped his web process (2,001 package directories to 1,013, no
+alpha.2 DSH left). Deprecating 0.2.0 on npm was left to the owner and
+is not recorded as done.
+
+Fleet 2026-10-15, on the owner's "so, try to do fleet upgrade": DSH
+0.2.1-alpha.3, dashi 0.2.1 and plugin 0.1.4 on eight hosts, among them
+the host the owner otherwise keeps out of updates, on his word for
+this round, and two hosts shared with another team, in windows that
+team granted. A guarded fleet script of about 580 lines stopped on
+every host it was applied to and left two hosts half-upgraded; plain
+README steps, one command per step with its exit code read, finished
+all of them within about an hour: on pnpm homes one more exact add of
+the DSH names still at the old version (39 on one host), every
+profile's --dump-config and `dashi --help` as the check, the
+thirty-minute rows where missing (W-145), a prune only while no DSH
+process ran, pnpm 12 with `--config.strict-dep-builds=false` per
+invocation. Another team's probe profile and a leftover proof profile
+were not touched. In the evening the owner found that the round had
+put the plugin only into dashi on six hosts: "did you install SB
+plugin only for dashi and completely ignored other profiles?" His
+answer to the question that followed: the plugin in every profile on
+every host. Done at once for the web profiles; the others needed
+W-150.
+
+### W-150 sessionbus plugin: peer mode without the session controller — status: accepted 2026-10-15 (owner codex-roller; PR #74 squash-merged; released as 0.1.5)
+Opened 2026-10-15 from the owner's answer under W-149. Plugin 0.1.4's
+peer mode requires sessionController, which the acp, headless and sdk
+bundles do not have, so the plugin would stay pending there and never
+join the bus. Ruled: peer mode without the controller; lanes keep it
+and check for it at readiness, failing once. The builder found a
+lifecycle race present in 0.1.4 as well: a controller replaced during
+a held import gave two workers; fixed by a per-activation flag cleared
+by the effect's cleanup, two lines, with failing-first controls. PR
+#74 at 097d02e, plugin.cjs +34 -5. Review: accept with notes. Against
+real Cordis, 0.1.5 passes 10 of 10 cases and published 0.1.4 passes 4
+(the controller-free peer, the missing-lane case and the four
+replacement-during-import cases fail); the model-facing bytes (the raw
+tool, the skill object, the skill text) are identical to 0.1.4 for
+dsh, dashi and sessionbus-dsh; install.mjs is unchanged and appends
+two owned rows to the stock acp, headless and sdk patches. Limit:
+traffic is proven at run time for headless only, acp and sdk at
+install and composition level. The hosted run's one red row, the
+Ubuntu pnpm 12 global install with no diagnostic and a local pass in
+43 s, was rerun once on the architect's word and passed. Accepted and
+merged 2026-10-15: sessionbus/sessionbus-dsh main
+b0a0ca3da360cef5df2079ac401d6db5ed3bae90, tree identical to the
+reviewed head.
+
+Proof on the dsh host (D-054): home, sessionbus and web from 0.1.4 to
+the candidate 7a0475d9...f396, headless given its two installer rows;
+the headless root on the bus as product dsh; one managed lane. The
+first headless one-shot stopped on MISSING_CREDENTIAL, because the
+headless bundle disables credentials; rerun once with an
+invocation-only credentials overlay, a stated condition. Verified by
+an independent verifier. Released 2026-10-15 as @sessionbus/dsh 0.1.5:
+tag v0.1.5 at b0a0ca3, release run 38807939673, published at about
+21:17Z, the registry archive byte-identical to the proven one. Fleet
+the same night on the owner's "#1 and #2 everywhere", the cache cost
+accepted: 0.1.5 in the sessionbus, web, headless, acp and sdk profiles
+of the eight hosts where they exist, some of them new; dashi kept
+0.1.4 through dashi-app 0.2.1 until W-151 pinned 0.1.5. A plugin added
+to a profile changes its tool set and costs each resumed session one
+full re-prefill; that most likely explains a cache miss the owner saw
+on the mac host that day. A plain restart, resume, groups change or
+rename kept the request prefix byte-identical in a measurement on the
+dsh host.
+
+### W-151 dashi on DSH 0.2.1-rc.2 — status: accepted 2026-10-19 (owner dsh-exec; PR #331 squash-merged; released in 0.2.2)
+Opened 2026-10-19. DSH had published 0.2.1-alpha.4, alpha.5, rc.1 and
+rc.2 between 2026-10-15 and 2026-10-17 while dashi and the fleet
+stayed on alpha.3; found four days late, during the install of a new
+host. Rule since then: the published DSH versions are checked at the
+start of every working session. The builder's analysis: no dashi API
+change needed; 26 packages dashi relies on most (the agent loop,
+session, projections, jobs, commands, credentials, the pi-ai provider
+adapter) byte-identical; no new refused configuration key; DSH's own
+prompt prefix changes (read-tool and subagent guidance, the PTC
+run_code schema, Office skills, Agent Teams), so every resumed session
+re-prefills once on the upgrade; the cordis family moves to stable
+versions with byte-identical code; pi-ai's open range may resolve
+1.3.0; plugin 0.1.5 and roller 0.1.4 admitted by DSH's validator.
+Ruled: exact rc.2 pins, dashi-app pins plugin 0.1.5, the gate logs the
+pi-ai version actually resolved, and the release note states the
+re-prefill. PR #331 at c60433f: accept with notes, no block; hosted
+run 39301531094, 23 of 23; 298 DSH lock records, all rc.2; pi-ai 1.3.0
+logged. Merged 2026-10-19: squash
+813e019ad6cbdd6a8c0a7ef81f41f6def279b3c1 on develop, tree identical.
+Until the release, develop's README paired DSH rc.2 with published
+dashi-app 0.2.1, whose exact alpha.3 pins DSH refuses (the reviewer's
+first note; the same as after W-148). Carried to the next change: five
+small gate and test notes (an unguarded version read can hide the
+gate's failure list, scripts/gate.mjs:89), the CHANGELOG's scoped
+names, the app's siblings back to `workspace:*`. Owner, asked:
+"Release, then fleet" (W-152).
+
+### W-152 dashi 0.2.2: release, host proof and fleet — status: accepted 2026-10-20 (owner dsh-exec; PR #332 squash-merged; released as 0.2.2)
+Opened 2026-10-19 on the owner's "Release, then fleet", which accepts
+one re-prefill per resumed session. Part A, PR #332: versions 0.2.2,
+the siblings at `workspace:*`, the README at 0.2.2, the CHANGELOG with
+the re-prefill sentence and scoped names, the carried notes. The first
+head was blocked on macOS by a test that expected a temporary path
+where Node reports the real one (/var against /private/var), fixed
+with the four hashes unchanged. The next run failed on macOS in
+G-pnpm10 (the pnpm 10 EINVAL race of W-130) and in G-npx, whose test
+alone takes 524 to 639 s on hosted macOS against a 600-second budget.
+A sizing defect, which had also hit the develop push run 39305950095
+after the W-151 merge, a run nobody had read (it also carried a Linux
+ERR_PNPM_NO_MATCHING_VERSION from registry propagation). Ruled: one
+more commit, the install-layout test timeout at 900 seconds and the
+job timeout at 30 minutes. Accepted at df0eb52 after an independent
+review and two deltas; hosted run 39350073351, 23 of 23 (macOS G-npx
+526 s, P-npm 449 s). Merged 2026-10-20: develop and main
+231381bc320bb99dcfd59d20ac180d57e29ecd80, tree identical. Rule since
+then: the develop push run after every merge is read.
+
+Part B, the dsh host's move to DSH rc.2 under D-054: the home and six
+profiles on rc.2, the dashi profile on the candidate archives, plugin
+0.1.5 in all six profiles, the profile patches unchanged, a real turn
+with one tool call in a launch with the daemon; two false guard stops
+ruled. Verified with limits, method limits only. Released as dashi
+0.2.2: annotated tag v0.2.2 at 231381b with the four D-052 lines
+(provider e0163c65..., core 039ebbe8..., app 8e7822ec..., launcher
+70d6c3e7...), release run 39356886996, 22 of 22, published at about
+02:28Z on 2026-10-20; the registry was slow to show the core and the
+app. The architect's registry check on 2026-10-25: the integrity of
+all four equal to the proven archives, provenance, the app's
+dependencies exact.
+
+Fleet. DSH 0.2.1-rc.3 was published on 2026-10-23 under the dist-tag
+next, and the fleet was held so that the hosts would re-prefill once;
+when W-153 parked on a DSH gap the owner ruled on 2026-10-25: the
+fleet now on DSH rc.2, dashi 0.2.2 and plugin 0.1.5, the host he
+otherwise excludes included. Completed 2026-10-26 on ten hosts, two of
+them new: every fleet profile's --dump-config exits 0 with an empty
+stderr and one Sessionbus row, `dashi --help` reads `dashi 0.2.2 on
+DSH 0.2.1-rc.2`, patch hashes unchanged, no owner process signalled;
+the dsh host converted from the candidate archives to the registry.
+The fleet brief's guards again produced false stops; the README's
+commands, with DSH's own --dump-config as the oracle, did the work. On
+the two new hosts the npm home projects also declared @sessionbus/dsh
+and kept 63 DSH alpha.3 peers after the home add (npm ls invalid);
+there the home declaration was removed and the lane binary linked from
+the sessionbus profile, on the owner's approval. Another team's probe
+profile on a shared host got one targeted update (75 lock records, no
+DSH version moved), an error of the fleet sheet; since then a fleet
+sheet names the fleet profiles and leaves every other profile alone.
+
+### W-153 dashi on DSH 0.2.1-rc.3: DSH's model listing writes into the terminal — status: superseded 2026-11-13 by W-156 (owner dsh-exec; parked on a DSH gap)
+Opened 2026-10-25 for DSH 0.2.1-rc.3, published 2026-10-23. Analysis
+accepted: no dashi API change; no rewrite of DSH's prompt or tool
+prose from rc.2; pi-ai may resolve 1.4.0, so cache reuse is
+conditional, neither a hit nor a miss measured; and one new route to
+the terminal: the DeepSeek API-key provider's model listing reports
+success and failure through console.error and console.warn. Ruled:
+test it against a loopback listener and stop if bytes reach the
+terminal. Stopped the same day after one run (the real launcher and
+native DSH rc.3, inline at 80 by 24, a fake key, a test-only preload
+that sends only the listing request to the listener): the line
+`[llm-deepseek-api-key] model listing from
+https://api.deepseek.com/models loaded 1 model(s), skipped 0 row(s)`
+arrived twice, the second time after dashi's first complete frame,
+took the input row and wrapped across the lower rule; the composer
+frame then broke. A DSH gap, named as such: no shim, no suppression of
+stderr, no disabled provider. Owner: the fleet on rc.2 now, rc.3 after
+a DSH fix. Reported upstream on his word the same day (discussion
+10985). On 2026-11-13 it was found not fixed in 0.2.2-rc.3: the
+console calls moved into the shared model-listing cache of
+dsh-llm-deepseek (lib/index.js:2726-2736, information to console.error
+and warnings to console.warn, on listing, refresh and notification
+failure at :2660, :2709 and :2678), and the catalog-problems warning
+remains (dsh-llm-deepseek-api-key lib/index.js:91); the architect's
+first reading that it was partly fixed was wrong. Superseded by W-156,
+ruling D1.
+
+### W-154 sessionbus plugin: file transfers in every product — status: merged 2026-11-12, held (owner codex-roller; 0.1.6 never to be published, folded into W-155)
+Opened 2026-11-12. Sessionbus kit 0.5.14 adds file transfer between
+peers; the plugin takes it for interactive peers and for lanes. The
+owner, relayed verbatim the same day, after the architect had offered
+options that included keeping the old kit or an opt-out:
+"file-transfer is mot opt in. and i never asked to have it only for
+codex (wgich is like not having at all). all pridyct must support it
+all. do you really liss idea of universal bus?"; then, on permissions:
+"do not overcompkicate stuff. i am cetsin, we can have transfer
+allowed by defaukt in all prodycts. as harbess permisdions do mot
+cover wgat mcp is doing", "so, be easier :)". Ruled: a bus feature
+lands in the plugin and in dashi, for interactive peers and lanes,
+with no hold or opt-out offered; transfers run through the kit's
+default filesystem executor as the OS user in every mode, with no
+permission hook, per-path prompt or policy layer, the limit stated in
+the CHANGELOG; tightening later stays open and is not a gate. The
+tool's action enum comes from the kit at run time (plugin.cjs:8,
+:535), so kit 0.5.14's five transfer actions change the tool's bytes
+and cost the fleet one re-prefill; dashi needs a dashi-app release
+that pins the new plugin.
+
+PR #76: accepted 2026-11-12 at 8c0d9ee with kit 0.5.15 exact (hosted
+run 43196078784, 17 of 17 on the first attempt; archive
+810bba7d...087c2) and handed on for a live acceptance with real models
+on the disposable host. Owner, relayed the same day: "Hold releases
+until fixed": every release waits until two kit transfer defects are
+fixed in new kit versions. The pull request moved to kit 0.5.16 (head
+3370d1b, archive 647c1cf0...; 242 of 242 unit tests, the alpha.3 gates
+passing, the alpha.1 below-floor refusal passing, rc.2 as observation
+only). Later the same day: "Keep DSH acceptance on hold": no further
+native or model window, no provider or configuration change, no
+incomplete release, and no asking again. The real-model rows were not
+run; three windows were stopped by the local model server answering
+SERVER. Merged on 2026-11-12 as a merge commit, not a squash:
+sessionbus-dsh main cb8a563a, parents b0a0ca3 and 3370d1b1; not
+reverted, squash merges asked for again. No tag. The disposable host
+carries the 647c1cf0 candidate in its sessionbus, web, acp and
+headless profiles. Ruled 2026-11-13 under W-155: 0.1.6 is never
+published; its changes ship in @sessionbus/dsh 0.2.0, whose CHANGELOG
+says so. The live transfer acceptance stays held.
+
+### W-155 sessionbus plugin 0.2.0 on DSH 0.2.2-rc.3 — status: open (owner codex-roller; phase 1 in progress, a DSH gap named)
+Planned 2026-11-12 from three findings of W-154: DSH 0.2.2-rc.2
+removed sessionController.agents.selectionFor and
+selectForNextRequest, the private seam behind a lane opened with a
+model or a reasoning effort (W-126; plugin.cjs:200-201, 243, 248); the
+runtime-resolution checker reads private Cordis reflection and breaks
+on Cordis 4.1; pending-input continuity was never covered beyond the
+alpha.3-pinned driver. Opened 2026-11-13 in the move of all our code
+to DSH 0.2.2-rc.3, published that day at 08:05Z under the dist-tag
+next while latest was 0.2.2-rc.1; owner: "we need to updat whole
+corpus of our code for it". Ruled on the read-only phase 0 reports:
+(C1) the floor of the new releases is exactly tested DSH 0.2.2-rc.3
+with Node 24.9.0 or newer; one public API family, no legacy or private
+adapter; the old support claims retired, their evidence kept as
+history. (C2) @sessionbus/dsh 0.2.0, folding in the unpublished 0.1.6
+work; roller 0.2.0. (C3) The plugin, then roller, then dashi (W-156),
+then one fleet move with one re-prefill; dashi pins exact plugin and
+roller releases. (C4) No change of our own model-facing bytes,
+measured on real rc.3; DSH's own delta measured in the native gate;
+nothing inferred from source. For the plugin: root identity through
+the public ctx.subagents.rootOf over ctx.agents.list(), the subagents
+service required (agents.roots() is gone in rc.3, which breaks peer
+startup of 0.1.5 and 0.1.6); a lane's model and effort through
+llm.resolveCallConfig and agent.model.select inside
+agent.runMaintenance, a busy resumed lane opened with either refused
+by name; proofs on public inventory and behaviour instead of
+reflection; the renderer baseline moved to rc.3. Phase 1 GO on branch
+w-155-dsh-022 from main cb8a563a.
+
+Stop 2026-11-13, a DSH gap. One native run (DSH 0.2.2-rc.3, Cordis
+4.1.0, the controlled model adapter; no real model, credential, owner
+profile or permanent daemon): with the first request held, a peer's
+marker to the running root got `injected`; one native agent/pre-step
+hook rejected the next step; DSH removed the claimed item and ended
+the turn `blocked`; at idle the marker was in no pending list, no user
+message and no request. Cause in source: dsh-agent-loop claims the
+next-step inbox items (Inbox.claim :103-110, preStep :683) before the
+pre-step decision (:712-714) and on reject ends the turn (:755-761)
+without restoring them. The plugin cannot fix this and does not try:
+no queue, rollback, replay or lock. Ruled: the README's known gaps say
+it next to W-144's gap (an `injected` receipt means native admission,
+not consumption), with one CHANGELOG line; the test becomes an exact
+known-gap oracle on rc.3 that fails when DSH changes, never a pass of
+continuity, any other DSH version unverified; a read-only list of the
+shipped rc.3 components that can return reject. The builder's list,
+not yet reviewed: the session controller, dsh-subagent, the goal round
+driver (which itself restores other claimed input before it rejects)
+and the experimental liveshare; none found in the shipped budget,
+limit, permission, sandbox or hook components, which does not exclude
+a user-installed hook. Upstream on the owner's word.
+
+Sequencing ruled the same day: the plugin's pull request may merge on
+its own, but its publication waits for W-156's cross-dashi leg, which
+validates the launcher and the app against the reviewed candidate
+archive through a test-only file spec, on exactly the same archive
+bytes; dashi then pins the published, byte-identical 0.2.0. In
+progress, not a handoff: the builder's measurement of the model-facing
+prefix of the first native request, taken on DSH's assembled
+LlmCallOptions and not on the provider wire, from plugin 0.1.6 on DSH
+0.2.1-alpha.3 to the 0.2.0 candidate on 0.2.2-rc.3. The sessionbus
+tool is byte-identical; the prefix is 693 bytes longer, 670 after
+normalizing paths and identifiers, with wait_agent added,
+exit_plan_mode, interrupt_agent and web_search removed, and
+list_agents, send_message, subagent and subagent_fork changed.
+Provider serialization and cache behaviour are not measured, and the
+fleet's DSH 0.2.1-rc.2 was not the baseline.
+
+Later rulings, 2026-11-13. The old packed shell client wrote a scratch
+web instance's fresh login link into captured output and passed it as
+an argument, against the rule that no proof captures a token; the
+builder found it, the three stopped capture files that held a link
+were redacted in place, the scratch profile that minted it was
+removed, and the client was replaced by one in-memory native client
+with a control that its captured output and arguments carry no login
+link or cookie. Its selectModel call runs only under the scratch DSH
+home. Every gate that uses a real Sessionbus daemon uses the published
+0.5.16, pinned by the release's own checksums; a full packed pass on
+the older 0.5.12 daemon is kept as non-final. The real-daemon groups
+proof runs once per OS, on the Node 24.9.0 floor row; the universal
+rows keep their synthetic daemon fixtures and adverse assertions. The
+upgrade test's installer call sites went from four to five for a
+stated reason: two published 0.1.5 baseline installs, each upgraded to
+the candidate, replace the retired cross-dashi call. The prefix
+measurement was accepted on its stated basis: the assembled request
+grows from 33103 to 33796 bytes, 670 after normalizing fixture paths
+and identifiers.
+
+### W-156 dashi on DSH 0.2.2-rc.3 — status: open (owner dsh-exec; phase 1 GO 2026-11-13)
+Opened 2026-11-13 in the same move; supersedes W-153. The phase 0
+report was accepted the same day: not a pin-only update. On rc.3
+current dashi meets incompatible controller projection frames,
+single-call tool execution, an export reader that was removed, removed
+subagent and schedule APIs and an obsolete subagent configuration
+field, and Cordis 4.1 invalidates the gate's private
+runtime-reflection proof; public replacements exist for each use, with
+no new durable state, queue, executor or shim. Accepted: the
+projection's `changes[]`, /export through a sessionQuery observation
+lease, turnBoundaryOf and presetForSession, the subagentCatalog
+projection, a native tool batch for /subtask and scheduling; /model
+keeps controller.selectModel, which saves defaults, as the user's
+meaning. Floor: DSH 0.2.2-rc.3 or newer with exact rc.3 pins, Node
+24.9.0 or newer in all four packages; no legacy fallbacks, the old
+legs retired as history.
+
+Rulings. (D1) W-153's noise is a DSH gap, named as one, and dashi
+guards its own terminal: while dashi owns the terminal any in-process
+console write corrupts the screen, whoever writes it, so dashi
+installs one console redirect (log, info, warn, error, debug) for
+exactly the span of terminal ownership and restores the originals when
+it releases the terminal, on normal exit, suspend and crash teardown.
+Captured lines go to one bounded in-memory buffer of the last lines,
+with no file and no persistence, shown in an existing diagnostics
+surface or as a one-line notice of how many were captured that the
+user can open; nothing is dropped silently and nothing is written
+behind the renderer; no filtering by source, no provider disabled, no
+blanket catch of exceptions. A host terminal-ownership guard, the same
+principle as the plugin's W-146, not a workaround for the DSH gap,
+which stays named. Control: a loopback PTY case for a successful
+listing, a failed listing, an invalid catalog and a refresh, each with
+zero foreign bytes on the screen and the lines in the buffer.
+
+(D2) /loop on the public ScheduleService with typed `every` timing and
+the current session as explicit target; list and stop act on this
+session's loops only; the list read to completion through total and
+offset; schedules made under the earlier tool contract recorded as
+observed after the move, not migrated invisibly. (D3) The job-notice
+parser anchored to the documented native forms only (the old suffix,
+inline output, `No new output`, truncated), with controls for
+ambiguous and foreign text; no inferred state, no new field. (D4) The
+CI, install and release matrix on Node 24.9.0 exactly, on Linux and
+macOS, plus the newest Node line on Linux; the canonical reproducible
+pack on one exact Node 24.x patch on Linux x64, pinned in
+scripts/pack-release.mjs, the docs and the tests, with the choice and
+its reason recorded; the Docker base and @types/node to match. (D5)
+The launcher checks process.versions.node before it spawns DSH and
+refuses below 24.9.0 with one clear message and a non-zero exit, with
+no new dependency; controls: 22 and 24.8 refused, 24.9, 25 and 26
+accepted. (D6) Phase 1 starts on branch w-156-dsh-022. Until plugin
+0.2.0 and roller 0.2.0 are published, tests may use their reviewed
+candidate archives through test-only file specs, labelled as such; the
+final pins are the published releases and the final gates run on them.
+No release, tag, fleet or host action; no line ceiling, but the diff
+size reported per file; any compatibility branch is a stop.
+
+Later the same day. D1 as built: the existing TerminalGuard owns the
+capture and restores the console in its stop path's finally; /status
+shows the lifetime count and the last 200 captured lines, each at most
+4096 characters with explicit truncation. D4 as chosen: the canonical
+pack uses Node 24.9.0 on Linux x64, the floor itself, so one toolchain
+serves the pack and the minimum rows. Upgrade tests: the four older
+upgrade baselines are replaced by one, the published dashi 0.2.2 on
+DSH 0.2.1-rc.2, which is npm latest and what the fleet runs; the
+broken-install repair row and the below-floor refusal stay; the README
+says that only the upgrade from 0.2.2 is tested and gives the repair
+route for anything older. The test daemon and the root kit test pin
+move to the published Sessionbus 0.5.16, with the checksums read from
+that release. The cross-dashi launcher and app leg, moved here from
+W-155, runs against the plugin's reviewed candidate archive.
 
 ## Backlog
 
@@ -6976,6 +7755,21 @@ plugin's list tool has no timeout and hangs for the whole stall. The
 three review reports are kept on the dsh host under
 ~/.local/state/dsh-architect/sessionbus-108/.
 
+Status 2026-11-13: fixed on the Sessionbus side, with no dashi or
+plugin change. sessionbus/sessionbus PR #116, merged at 427f9af6,
+releases waiters when a federated host goes silent (a 5 s probe and a
+15 s mark), keeps correlations, replays nothing, refuses a call at the
+cap instead of closing the link, and gives a partial list a
+`not_responding` entry for the silent host when the caller opts in; a
+link drops after 150 s without transport progress. The contributor's
+PR 109 was not merged. The architect's review of #116 to #119 was sent
+on 2026-11-10; its one blocker in #116, a targeted session lookup on a
+marked host answered with an empty success, was fixed by PR #120,
+merged 2026-11-11 at efb8deed. The fix shipped in Sessionbus 0.5.14
+and 0.5.15, and the plugin adopts kit 0.5.16 in W-154. A documented
+limit remains: a caller without the opt-in can still get an empty
+success for a list of the silent host alone. Closed for dashi.
+
 ### B-006 DSH: two processes drop each other's scheduled tasks — status: backlog (DSH gap, to be reproduced and reported)
 Found by the verifier of the W-131 host proof on 2026-10-13, from
 the installed @deepseek-ai/dsh-schedule 0.2.1-alpha.2 over
@@ -7020,6 +7814,22 @@ length bound (transcript.ts:211-215); each subagent refresh lists
 all host sessions (presentation.ts:47-50). Measure on a recorded
 session of the size the owner runs (context near half a million
 tokens) before deciding anything.
+
+Measured 2026-10-13 and 2026-10-14 in W-143: the CPU of one pulse tick
+of the working row with a turn open, by the reviewer's method (the
+built renderer, real timers, the process's CPU over the renderer's own
+ticks). At ee365ba, inline: 3.6 ms at 500 loaded cells, 83 ms at 2,000
+and 250 ms at 6,000, which is 99.8% of a core at four ticks a second;
+full screen 1.1 ms at 6,000. The step was the line cache: one render
+call took 1.5 ms at 510 cells and 15 ms at 520, past its 512 entries
+(renderer.ts:271). With the cache limit following the loaded cell
+count and the pulse at 500 ms: 3.1, 8.2 and 22.4 ms a tick, 0.6%, 1.6%
+and 4.5% of a core. What remains grows linearly with the loaded cells,
+because pi-tui 0.84.4's inline renderer makes passes over the whole
+document on every frame (dist/tui-main-screen.js:227-235, 319-343,
+553; dist/tui.js:850-858). A named pi-tui gap; an upstream report only
+on the owner's word. Not measured: a recorded session of the size the
+owner runs, and the other costs listed above.
 
 ## Upstream reports
 
@@ -7085,3 +7895,6 @@ contract (DESIGN.md section 11), no new mechanism. Opens after Phase C.
 - 2026-10-12 pnpm issue 16876 closed as completed the same day: the maintainer merged pnpm PR 16878, "fix(modules-cleaner): remove a dependency's bins before its directory (v10 backport)", into release/10, three hours after the report; not yet in a published 10.x release (W-130).
 - 2026-10-12 DSH Discussion #9261 (another user's report that `dsh plugin add` hangs on Windows after pnpm prints Done), follow-up comment: the same hang three times on macOS with pnpm 11.18.0 and the process list showing pnpm still alive; pnpm's worker-pool fix in 11.23.0, which the reported versions predate, stated as fitting and not proven; DSH's CLI wait is unbounded by its own README; two questions (is interrupt-and-rerun the supported recovery; an opt-in limit for unattended callers) (W-132). Posted on the owner's word after an independent check. https://github.com/deepseek-ai/deepseek-harness/discussions/9261#discussioncomment-18886224
 - 2026-10-13 DSH Discussion #4952 (another user's report that follow-ups queued during a turn are never admitted), reply under that day's comment on the error-end case: the case confirmed independently on the published 0.2.1-alpha.2 packages, with the next-step (steer) case added, a 97-line reproduction from published packages only, the retry interplay as source reading and arithmetic, the type comment that does not name an error-ended turn, and pointers to the comments on #274 and #9370 and to #7328; no side taken between a re-wake after an error end and a wake operation (W-144). Posted on the owner's word; the backing report checked twice and the reply once independently, the final wording verified by the architect's diff; read back identical. https://github.com/deepseek-ai/deepseek-harness/discussions/4952#discussioncomment-18908166
+- 2026-10-25 DSH Discussion #10985 (General; the repository has issues disabled): llm-deepseek-api-key writes model-listing diagnostics to the console, which prints into a terminal UI host's screen (0.2.1-rc.3) (W-153). Posted on the owner's word after an independent citation check whose four corrections were applied; read back identical. https://github.com/deepseek-ai/deepseek-harness/discussions/10985
+- 2026-11-13 DSH Discussion #10985, follow-up comment: in 0.2.2-rc.3 the adapter's console calls moved into the shared model-listing cache, which still writes to stderr on successful loads and on failures; source reading, no new run; related threads #12460 and #12780 (W-156). Posted on the owner's word; read back identical. https://github.com/deepseek-ai/deepseek-harness/discussions/10985#discussioncomment-19589200
+- 2026-11-13 DSH Discussion #10064, comment: the steering case of claim-before-pre-step on 0.2.2-rc.3 and 0.2.1-rc.2, with the contradicting type docs (W-155); #10064 states the same ordering for a human prompt, with a different ask. Drafted after a search of the discussions and an independent citation check; posted on the owner's word; read back identical. https://github.com/deepseek-ai/deepseek-harness/discussions/10064#discussioncomment-19590381
