@@ -56,7 +56,7 @@ describe('validated DSH patch surface', () => {
       peerDependencies: Record<string, string>;
     }
     const peers = Object.entries(core.peerDependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh'))
-    expect(peers).toHaveLength(35)
+    expect(peers).toHaveLength(36)
     for (const [name, range] of peers) expect(range, name).toBe(`>=${minimum}`)
     const readme = readFileSync(join(root, 'README.md'), 'utf8')
     for (const command of readme.matchAll(/@deepseek-ai\/dsh@([^\s`]+)/gu)) expect(command[1]).toBe(minimum)
@@ -97,7 +97,9 @@ describe('validated DSH patch surface', () => {
     ])
     expect(rowsAt(dashi, 4).find(row => row.id === 'preset-standard')?.name)
       .toBe('@deepseek-ai/dsh-agent-preset')
-    expect(dashi).toContain('modelSelectionSettings: true')
+    expect(dashi).toContain('modelSelection: true')
+    expect(dashi).toContain('modelDiscovery: true')
+    expect(dashi).not.toContain('modelSelectionSettings:')
     expect(dashi).not.toContain('toolFilter:')
     expect(rowsAt(dashi, 4).some(row => row.id === 'authorization')).toBe(false)
   })

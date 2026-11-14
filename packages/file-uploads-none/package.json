@@ -22,7 +22,7 @@
   "files": ["lib/**/*.js", "lib/**/*.d.ts"],
   "license": "MIT",
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": ">=24.9.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.5-alpha.1"

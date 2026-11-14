@@ -70,7 +70,9 @@ The implementation relies on these existing DSH facts:
   field is derived from the current process's Agent registry.
 - `ctx.sessionController.fork()` selects the completed `turn/end` boundary and
   creates the child through `ctx.agents.create()` with the correct seed,
-  inherited count, lineage, and `isSeeded` metadata.
+  inherited count and `isSeeded` metadata. Since 0.2.2-alpha.2 ordinary forks
+  deliberately record no source relationship (dsh-session 0.2.2-rc.3
+  README:32); the controller request accepts no metadata field.
 - `ctx.sessionQuery.searchSessions()` and `searchEvents()` use the base
   bundle's SQLite FTS backend.
 - `ctx.commands.execute(agent, line, images, signal)` owns parsing and takes the
@@ -561,10 +563,12 @@ through `ctx.fs`; `/memory` opens DSH's loaded instruction files;
 `/skills` lists and filters DSH's session-resolved skill catalog;
 `/diff` shows working-tree or last-turn changes; `/tasks` opens native
 job/subagent details, reads and kills jobs, `/bashes` aliases it, and `/subtask`
-starts a native continuable child; `/loop` creates, lists, and cancels
-DSH-owned fixed-rate schedules through the native Schedule tools;
+starts a native continuable child through one native tool batch; `/loop`
+creates, lists, and cancels DSH-owned fixed-rate schedules through the public
+ScheduleService, with an explicit current-session target and complete paging;
 `/plugins` reads DSH's plugin inventory; `/plugin` runs the current profile's
-DSH CLI; `/export` writes controller history as Markdown.
+DSH CLI; `/export` writes a sessionQuery observation's exact-cut history as
+Markdown and releases the lease after the native filesystem write.
 `/copy N` selects a completed assistant cell from the existing fold, while
 `/copy code` exposes its fenced blocks through the transient list overlay.
 
@@ -653,28 +657,26 @@ profile tree disposes, and terminal state is restored.
 
 ## 8. Fork and rewind
 
-Rewind changes conversation history only:
-
-```text
-Branch from “Find the stale-cache race…” at 10:14?
-Files will not be changed.
-```
-
-The complete algorithm is:
+Conversation rewind never rewrites its source. The bundled Roller command
+also offers code-only and code-and-conversation restore. The algorithm is:
 
 1. pick a stable displayed event boundary;
-2. call `ctx.sessionController.fork({sessionId, atSeq})`;
-3. resolve the returned Session ID to its exact Agent and switch through
-   section 7.
+2. for code restore, execute `/roller-restore` on the source Agent with that
+   same boundary (or `start` for the first prompt); stop on refusal/failure;
+3. for conversation restore, call `ctx.sessionController.fork({sessionId,
+   atSeq})`, or create a fresh conversation for the first prompt, then switch
+   through section 7. Code-only mode makes no fork.
 
-The controller owns completed-turn selection, seed balancing, lineage, ID
+The controller owns completed-turn selection, seed balancing, ID
 minting, child publication, and workspace attachment. `/fork` uses the latest
-completed boundary. The original remains durable and resumable.
+completed boundary. The original remains durable and resumable. A failed
+fork after code restore reports "files restored, conversation not rewound".
 
-DSH at the pinned revision has no native reversible workspace history.
-Therefore the TUI creates no snapshots, mutation journal, Git transaction, or
-diff-derived rollback. A future DSH-owned rollback command would appear
-through the ordinary command/result path.
+DSH deliberately makes ordinary forks independent of their source, and dashi
+records no replacement lineage. Roller refuses inherited-prefix restoration
+inside such forks; historical forks may retain DSH-recorded lineage. Roller
+owns the journal; the TUI creates no snapshots,
+mutation journal, Git transaction or diff-derived rollback.
 
 ## 9. Runtime architecture
 
@@ -813,6 +815,14 @@ sibling components. No patch or fork is shipped.
 output, alternate screen, capability-query listeners, and timers. One
 idempotent disposer handles normal exit, partial boot, exceptions, SIGINT,
 SIGTERM, editor/suspend handoff, and broken output.
+
+While the terminal is acquired, this same guard redirects console.log, info,
+warn, error and debug to one disposable in-memory tail. `/status` shows the
+lifetime line count and last 200 lines, each bounded to 4096 characters with
+explicit truncation. All original methods are restored when ownership ends,
+including cooked editor/suspend handoff and failed stops. There is no file or
+source filter. DSH's model-listing console writes remain a named DSH gap;
+direct stream writes and child stderr are outside this console guard.
 
 The 2026-07-31 DSH “fail-loud releases the terminal” incident is a release
 requirement, not merely history. Once any plugin acquires terminal state, every

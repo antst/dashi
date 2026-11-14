@@ -1,19 +1,22 @@
-FROM node:22-bookworm-slim
+ARG NODE_VERSION=24.9.0
+FROM node:${NODE_VERSION}-bookworm-slim
 
-ENV COREPACK_HOME=/tmp/corepack LANG=C.UTF-8 LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 # git supports clean-install fixtures; procps supports PTY signal tests; screen
 # and tmux cover multiplexers; bubblewrap is DSH's Linux sandbox backend.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends bubblewrap git procps screen tmux \
   && rm -rf /var/lib/apt/lists/* \
-  && corepack enable \
+  && npm install --global pnpm@11.28.5 \
   && mkdir -p /workspace/.pnpm-store /workspace/node_modules \
     /workspace/packages/dashi/node_modules /workspace/packages/dashi-app/node_modules \
     /workspace/packages/dashi-launcher/node_modules /workspace/packages/file-uploads-none/node_modules \
   && chmod 0777 /workspace/.pnpm-store /workspace/node_modules \
     /workspace/packages/dashi/node_modules /workspace/packages/dashi-app/node_modules \
     /workspace/packages/dashi-launcher/node_modules /workspace/packages/file-uploads-none/node_modules
+
+RUN test "$(pnpm --version)" = "11.28.5"
 
 WORKDIR /workspace
 

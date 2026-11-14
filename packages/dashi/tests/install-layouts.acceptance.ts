@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { expect, it, vi } from 'vitest'
-import { TestPtyShell } from './pty-shell.js'
+import { RuntimePtyShell as TestPtyShell } from './pty-shell.js'
 import { assertActiveRuntime, type RuntimeRecord } from './runtime-record.js'
-import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
+import { currentRecordedJsonl, recordedEvents, recordedSession } from './fixtures/session-format.js'
 import { startTestDaemon } from './sessionbus-harness.js'
 import { isExpectedInstallOutcome, recordInstallFailure, recordInstallTimeout, runInstallCommand } from './install-failure.js'
 import { pruneInstallLayout } from './install-layout-cleanup.js'
@@ -49,11 +49,10 @@ const version = /@deepseek-ai\/dsh@(\S+)/u.exec(fences['install:G-npm']?.join('\
 if (!version) throw new Error('README global install does not declare an exact DSH version')
 const current = JSON.parse(readFileSync(join(root, 'packages/dashi/package.json'), 'utf8')).version as string
 const historicalVersions: Readonly<Record<string, string>> = {
-  '0.2.0-alpha.1': '0.2.1-alpha.2', '0.2.0-alpha.2': '0.2.1-alpha.2',
-  '0.2.0': '0.2.1-alpha.2', '0.2.1': '0.2.1-alpha.3',
+  '0.2.2': '0.2.1-rc.2',
 }
 const nativeBindingError = 'No usable native binding found for node-addon-require-builtin-' + process.platform + '-' + process.arch
-const workspace = mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), 'dashi-' + layout + '-'))
+const workspace = realpathSync(mkdtempSync(join(process.env.DASHI_INSTALL_EVIDENCE ?? tmpdir(), 'dashi-' + layout + '-')))
 const home = join(workspace, 'user')
 let project = join(workspace, 'project')
 const tools = join(workspace, 'tools')
@@ -69,12 +68,16 @@ const env: NodeJS.ProcessEnv = {
   XDG_CONFIG_HOME: join(home, 'config'), XDG_CACHE_HOME: join(home, 'cache'),
   XDG_DATA_HOME: join(home, 'data'), XDG_STATE_HOME: join(home, 'state'),
   XDG_RUNTIME_DIR: join(home, 'runtime'), PNPM_HOME: pnpmHome,
+  PNPM_CONFIG_STORE_DIR: join(workspace, 'pnpm-store'), PNPM_CONFIG_CACHE_DIR: join(workspace, 'pnpm-cache'),
+  // pnpm 10 reads npm_config_*; 11+ reads PNPM_CONFIG_*. Both name the same owned paths.
+  npm_config_store_dir: join(workspace, 'pnpm-store'), npm_config_cache_dir: join(workspace, 'pnpm-cache'),
   npm_config_cache: join(workspace, 'npm-cache'), npm_config_userconfig: join(home, '.npmrc'),
   npm_config_prefix: globalPrefix,
   DSH_TELEMETRY_DISABLED: '1', NO_COLOR: '1', TERM: 'xterm-256color', PS1: '', PROMPT_COMMAND: '',
   GIT_CONFIG_COUNT: '0', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null',
 }
-for (const key of ['NODE_PATH', 'SESSIONBUS_LAUNCH_TOKEN', 'SESSIONBUS_GROUPS', 'SESSIONBUS_SOCKET',
+for (const key of ['NODE_PATH', 'pnpm_config_store_dir', 'pnpm_config_cache_dir',
+  'SESSIONBUS_LAUNCH_TOKEN', 'SESSIONBUS_GROUPS', 'SESSIONBUS_SOCKET',
   'SESSIONBUS_HUB', 'SESSIONBUS_HUB_SECRET_FILE', 'DSH_DASHI_ROOT_EVENTS']) delete env[key]
 mkdirSync(env.XDG_RUNTIME_DIR as string)
 writeFileSync(env.npm_config_userconfig as string, '')
@@ -151,7 +154,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     writeFileSync(join(workspace, 'result.json'), JSON.stringify({ ...result, passed: true }))
     if (result?.platform !== undefined && process.env.GITHUB_STEP_SUMMARY !== undefined) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       '\nInstall ' + layout + ' / ' + result.platform + ': PASS, ' + Number(result.wallSeconds).toFixed(2)
-      + 's (fresh candidate, reconstructed alpha.1/alpha.2/0.2.0/0.2.1→candidate).\n')
+      + 's (fresh candidate, published 0.2.2/DSH rc.2→candidate).\n')
     console.log('install cell PASS ' + layout + '; wall ' + Number(result?.wallSeconds).toFixed(2) + 's; evidence ' + workspace)
     console.log('install prune: ' + (performance.now() - pruneStarted).toFixed(2) + 'ms')
   }, testCeiling(60_000)) // CI: 180s, almost twice the measured 91s; strict: 60s vs 18.5-29s.
@@ -174,6 +177,18 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     await run('node', ['--version'])
     await run('npm', ['--version'])
     expect((await sh('pnpm --version')).trim()).toBe(pmVersion)
+    // npm layouts also use pnpm through DSH's plugin manager. Check the actual
+    // installed modules, not only a setting that pnpm might ignore.
+    const privateStore = (await run(pm, ['store', 'path'])).trim()
+    expect(privateStore.startsWith(env.PNPM_CONFIG_STORE_DIR! + '/'), 'pnpm uses this row\'s private store').toBe(true)
+    expect((await run(pm, ['config', 'get', 'cache-dir'])).trim()).toBe(env.PNPM_CONFIG_CACHE_DIR)
+    const assertPrivateStore = (profile: string, label: string): void => {
+      const modules = join(profile, 'node_modules', '.modules.yaml')
+      const storeLine = readFileSync(modules, 'utf8').split('\n')
+        .find(line => /^\s*(?:"storeDir"|storeDir):/u.test(line))?.trim()
+      expect(['storeDir: ' + privateStore, '"storeDir": ' + JSON.stringify(privateStore) + ','], modules).toContain(storeLine)
+      writeFileSync(join(workspace, 'build-control-store-' + label + '.json'), JSON.stringify({ modules, storeDir: privateStore }))
+    }
 
     const artifacts: Record<string, string> = {}
     const packedFiles: Record<string, string[]> = {}
@@ -254,6 +269,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
       for (const [index, file] of ['package.json', 'pnpm-lock.yaml'].entries()) {
         expect(readFileSync(join(profile, file)), 'refused add preserves ' + file).toEqual(before[index])
       }
+      assertPrivateStore(profile, 'below-floor')
       result = {
         layout, candidate: manifest.name + '@' + manifest.version, node: process.version,
         pmVersion, wallSeconds: (performance.now() - started) / 1000,
@@ -288,7 +304,6 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     }
     const verifyPacked = async (record: RuntimeRecord, commandPrefix: string, label: string): Promise<void> => {
       const installed = Object.fromEntries(Object.entries(record.packages).map(([name, pkg]) => [name, pkg.dir]))
-      installed['@antst/dsh-file-uploads-none'] = record.fileUploadsProvider!.package.dir
       installed['@antst/dashi-launcher'] = await nativePackage(commandPrefix, '@antst/dashi-launcher')
       const hashes: Record<string, string> = {}
       for (const [name, files] of Object.entries(packedFiles)) for (const file of files) {
@@ -303,11 +318,15 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
     const snapshot = join(workspace, 'recorded.jsonl')
     writeFileSync(snapshot, currentRecordedJsonl(join(root, 'packages/dashi/tests/fixtures/replay-session.jsonl')))
     // A standalone observer must not inherit the candidate package's admission floor.
-    const observerPath = join(workspace, 'runtime-observer.mjs')
+    const observerPath = join(workspace, 'observer', 'runtime-observer.mjs')
+    mkdirSync(dirname(observerPath))
     writeFileSync(observerPath, readFileSync(join(root, 'packages/dashi/tests/fixtures/runtime-observer.mjs')))
+    writeFileSync(join(workspace, 'resolve-package.mjs'), readFileSync(join(root, 'packages/dashi/tests/resolve-package.mjs')))
     const observer = pathToFileURL(observerPath).href
+    await import(observer)
     const patch = readFileSync(join(root, 'packages/dashi/tests/fixtures/clean-replay.patch.yml'), 'utf8')
       + "\n- insert:\n    - id: runtime-observer\n      name: '" + observer + "'\n"
+    let legacyLoop: { sessionId: string; scheduleId: string } | undefined
     const smoke = async (
       command: string, target: string, label: string, candidate = false, selectedPrefix = launcherPrefix,
       dshVersion = version,
@@ -315,8 +334,8 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
       const nativeHome = env.DSH_HOME as string
       const runtimePath = join(workspace, 'runtime-' + label + '.json')
       const shell = new TestPtyShell(project, {
-        ...env, DSH_SNAPSHOT_FILE: snapshot, DASHI_RUNTIME_RECORD: runtimePath,
-      })
+        ...env, DSH_SNAPSHOT_FILE: snapshot,
+      }, runtimePath)
       let sessionLog: string | undefined
       try {
         shell.write(command + "; printf '\\n__W124_EXIT__%s\\n' \"$?\"\n")
@@ -328,12 +347,13 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         await vi.waitFor(() => { expect(existsSync(runtimePath), shell.output.slice(-4000)).toBe(true) }, { timeout: 20_000 })
         const record = JSON.parse(readFileSync(runtimePath, 'utf8')) as RuntimeRecord
         assertActiveRuntime(record, dshVersion, target, candidate ? 'candidate' : 'published')
+        assertPrivateStore(join(nativeHome, 'profiles', 'dashi'), label)
         const dsh = record.resolution.filter(entry => entry.name.startsWith('@deepseek-ai/dsh'))
-        process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}; plugin=${record.packages['@sessionbus/dsh']?.version}\n`)
+        process.stdout.write(`resolved DSH ${label}: ${String(dsh.length)} entries; versions=${JSON.stringify([...new Set(dsh.map(entry => entry.version))])}; CLI=${record.packages['@deepseek-ai/dsh']?.version}; plugin=${record.packages['@sessionbus/dsh']?.version}; roller=${record.packages['@antst/roller']?.version}; companions=${JSON.stringify(Object.fromEntries(Object.entries(record.companions).map(([name, pkg]) => [name, pkg.version])))}\n`)
         const piAi = resolvedPiAiVersion(join(record.packages['@deepseek-ai/dsh']!.dir, 'package.json'))
         process.stdout.write(`resolved pi-ai ${label}: ${piAi} (native CLI adapter; CLI ${dshVersion})\n`)
         expect(record.packages['@deepseek-ai/dsh']?.dir.startsWith(workspace)).toBe(true)
-        console.log('mounted provider ' + label + ': ' + JSON.stringify(record.fileUploadsProvider)
+        console.log('public no-upload behavior ' + label + ': ' + JSON.stringify(record.noUpload)
           + '; app pin=' + record.packages['@antst/dashi-app']?.manifest.dependencies?.['@antst/dsh-file-uploads-none'])
         if (candidate) await verifyPacked(record, selectedPrefix, label)
         shell.write('install smoke\r')
@@ -354,6 +374,19 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
           expect(events.some(event => event.type === 'turn/end'
             && (event.data as { reason: { kind: string } }).reason.kind === 'completed')).toBe(true)
         }, { timeout: 30_000 })
+        if (process.platform === 'linux' && layout === 'P-pnpm10' && label === '0.2.2-installed') {
+          // The published old app creates the native v1 row, not a hand-written
+          // fixture or a dashi migration. Seven days avoids a delivery in this proof.
+          shell.write('/loop 10080m W156 legacy reminder\r')
+          await vi.waitFor(() => {
+            const created = recordedEvents(sessionLog!).filter(event => event.type === 'command/done')
+              .find(event => event.data.kind === 'success' && event.data.text?.startsWith('scheduled '))
+            const scheduleId = /^scheduled (schedule-[\da-f-]+) · every 168h · W156 legacy reminder$/u.exec(
+              String(created?.data.text))?.[1]
+            expect(scheduleId, shell.output.slice(-4000)).toBeDefined()
+            legacyLoop = { sessionId: id!, scheduleId: scheduleId! }
+          }, { timeout: 20_000 })
+        }
         shell.write('/exit\r')
         await shell.waitFor('__W124_EXIT__0')
         return record
@@ -455,10 +488,12 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         // README: repeat the chosen DSH installation command before updating the profile.
         if (layout === 'G-npx') cliPrefix = 'npx --yes @deepseek-ai/dsh@' + version
         else await sh(commands(layout?.startsWith('G-pnpm') ? installMarker + '-packages' : installMarker, current, true)[0]!)
-        if (process.platform === 'linux' && layout === 'G-pnpm11' && baseline === '0.2.1') {
+        if (process.platform === 'linux' && layout === 'G-pnpm11' && baseline === '0.2.2') {
           // Today's old-app/new-CLI state, deterministic even after the release-age window passes.
-          console.log('install stage broken-today: published 0.2.1 profile on ' + dshVersion + ' beside CLI ' + version)
-          const broken = new TestPtyShell(project, { ...env, DSH_SNAPSHOT_FILE: snapshot })
+          console.log('install stage broken-today: published 0.2.2 profile on ' + dshVersion + ' beside CLI ' + version)
+          const refusalPath = join(workspace, 'runtime-broken-today.json')
+          expect(existsSync(refusalPath)).toBe(false)
+          const broken = new TestPtyShell(project, { ...env, DSH_SNAPSHOT_FILE: snapshot }, { expectRefusal: true, path: refusalPath })
           try {
             broken.write('dashi\n')
             await vi.waitFor(() => {
@@ -472,6 +507,7 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
             writeFileSync(join(workspace, 'pty-broken-today.log'), broken.output)
             await broken.close()
           }
+          expect(existsSync(refusalPath), 'refused before the app or observer became active').toBe(false)
         }
         removeHistoricalHolds(dshVersion)
         // Move only the test model to the new CLI's version; its patch is not recomposed.
@@ -481,6 +517,40 @@ it(layout + ': README installs converge from fresh, reconstructed historical sta
         expect(readFileSync(patchPath), 'README upgrade preserves the complete profile patch').toEqual(beforePatch)
         await smoke(upgraded, current, baseline + '-candidate', true,
           layout === 'G-npx' ? upgraded.replace(/dashi$/u, '') : launcherPrefix)
+        if (process.platform === 'linux' && layout === 'P-pnpm10') {
+          expect(legacyLoop, 'published 0.2.2 must create the old native schedule').toBeDefined()
+          const legacyRuntimePath = join(workspace, 'runtime-legacy-loop.json')
+          const legacy = legacyLoop!, shell = new TestPtyShell(project, { ...env, DSH_SNAPSHOT_FILE: snapshot }, legacyRuntimePath)
+          try {
+            shell.write(upgraded + ' --resume ' + quote(legacy.sessionId) + "; printf '\\n__LEGACY_LOOP_EXIT__%s\\n' \"$?\"\n")
+            await shell.waitFor('idle ·')
+            expect(shell.output).toContain(legacy.sessionId)
+            await vi.waitFor(() => { expect(existsSync(legacyRuntimePath), shell.output.slice(-4000)).toBe(true) }, { timeout: 20_000 })
+            assertActiveRuntime(JSON.parse(readFileSync(legacyRuntimePath, 'utf8')) as RuntimeRecord, version, current)
+            assertPrivateStore(profile, 'legacy-loop')
+            const listedAt = shell.output.length
+            shell.write('/loop\r')
+            await shell.waitFor(legacy.scheduleId + ' · every 168h', listedAt)
+            const log = findLog(join(env.DSH_HOME as string, 'replay-sessions'), legacy.sessionId)
+            expect(log, 'resumed legacy owner has a native session log').toBeDefined()
+            await vi.waitFor(() => { expect(recordedEvents(log!).some(event => event.type === 'command/done'
+              && event.data.kind === 'success' && event.data.text === legacy.scheduleId + ' · every 168h · W156 legacy reminder')).toBe(true) }, { timeout: 20_000 })
+            const stopAt = shell.output.length
+            shell.write('/loop stop ' + legacy.scheduleId + '\r')
+            await shell.waitFor('stopped ' + legacy.scheduleId, stopAt)
+            const emptyAt = shell.output.length
+            shell.write('/loop\r')
+            await shell.waitFor('no active schedules', emptyAt)
+            shell.write('/exit\r')
+            await shell.waitFor('__LEGACY_LOOP_EXIT__0')
+            process.stdout.write('native schedule upgrade: published0.2.2/rc2 created old row; rc3 resumed same owner, listed and stopped it; no dashi migration\n')
+          } finally {
+            writeFileSync(join(workspace, 'pty-legacy-loop.log'), shell.output)
+            const log = findLog(join(env.DSH_HOME as string, 'replay-sessions'), legacy.sessionId)
+            if (log !== undefined) writeFileSync(join(workspace, 'session-legacy-loop.jsonl'), readFileSync(log))
+            await shell.close()
+          }
+        }
       }
     }
     expect([...markerOwners].filter(([marker, owner]) => owner === layout && !consumedMarkers.has(marker))

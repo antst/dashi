@@ -3,12 +3,13 @@ import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-const version = '0.5.12'
+const version = '0.5.16'
+// Official release asset: https://github.com/sessionbus/sessionbus/releases/download/v0.5.16/SHA256SUMS
 const checksums = {
-  'darwin-arm64': 'b9908a19f542ff07907fdef423e352cc229ddb725904bfe5ed84971cd58c72bc',
-  'darwin-x64': '4ae2548f9b2f0f68c7284430032421c24d8683414aaddab4539d019c966e1bd5',
-  'linux-arm64': '8c8ca010f064dcfaf251260d727527c81b4dc2a003c287f67d68bd9ec2ec237d',
-  'linux-x64': 'ec4361b001a49c45087ea63453560a3cd16463697d959b8c8edcee2c8681f785',
+  'darwin-arm64': '1ae2659c038f32c63b06eec6f798d3e9eaaf630743d7d5e39985cb82ec0a8b62',
+  'darwin-x64': '8796b443495bcfae57a6518f88fa9566dce73288fdc619a94e88939d20eb292f',
+  'linux-arm64': '82f81f351e4705d123d1fcb137966d9835cd401c8405a26f0a9c8905a2c74f3d',
+  'linux-x64': 'e183d3f2ad8b999c612238e921fcdb093a6b52342c2ba7509c47e6551c7f0a03',
 }
 const platform = `${process.platform}-${process.arch}`
 const expected = checksums[platform]

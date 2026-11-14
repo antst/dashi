@@ -7,7 +7,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import { describe, expect, it, vi } from 'vitest'
 import {
   agentPresetOverlay, completionOptions, contextOverlay, modelOverlay, permissionOverlay, sessionOverlay,
-  sessionStatusLine,
+  sessionStatusLine, statusOverlay,
 } from '../src/catalogs.js'
 
 function agent(): Agent {
@@ -15,6 +15,18 @@ function agent(): Agent {
 }
 
 describe('terminal catalogs', () => {
+  it.each([false, true])('labels native seeded=%s lineage without inventing a source', isSeeded => {
+    const ctx = { sessionProjections: { snapshot: () => ({ values: {} }) },
+      permissionPresets: { current: () => 'workspace-write' } } as unknown as Context
+    const subject = { session: { header: { isSeeded } } } as unknown as Agent
+    const root = { id: 'native-id', cwd: '/work', model: 'm', status: 'idle' as const }
+    const overlay = statusOverlay(ctx, subject, root)
+    expect(overlay).toMatchObject({ lines: expect.arrayContaining([
+      isSeeded ? 'Lineage: fork (source not recorded by DSH)' : 'Lineage: root session',
+    ]) })
+    expect(statusOverlay(ctx, subject, { ...root, parent: 'historical-source', parentTurn: 2 }))
+      .toMatchObject({ lines: expect.arrayContaining(['Lineage: forked from historical-source at turn 2']) })
+  })
   it('keeps setup actions available beside an empty or failed native model catalog', () => {
     const overlay = modelOverlay({ default: { model: 'm', provider: 'p' }, routableProviders: [], groups: [], failures: [{ name: 'P', id: 'p', message: 'native failure' }] }, undefined,
       [{ label: 'Add provider', value: { kind: 'model-add-provider' } }])

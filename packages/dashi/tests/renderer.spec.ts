@@ -2,7 +2,7 @@ import { Terminal as HeadlessTerminal } from '@xterm/headless'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createTerminalShell } from '../src/application.js'
 import { sessionOverlay } from '../src/catalogs.js'
 import { VERSION_LINE } from '../src/help.js'
@@ -953,6 +953,49 @@ describe('terminal renderer', () => {
     await shell.dispose()
   })
 
+  for (const inline of [false, true]) for (const mode of ['collapsed', 'expanded', 'hidden'] as const) {
+    it(`preserves ${mode} cell framing without redundant filtering in ${inline ? 'inline' : 'full-screen'} mode`, async () => {
+      const mixed: TerminalCell[] = [
+        { key: 'a', kind: 'assistant', text: 'first answer' },
+        { key: 'b', kind: 'tool', text: 'bare tool' },
+        { key: 'c', kind: 'user', text: 'next prompt' },
+        { key: 'd', kind: 'error', text: 'card tool', tool: { card: 'generic', title: 'card tool', body: 'expanded detail' } },
+        { key: 'e', kind: 'assistant', text: 'last answer\nsecond line' },
+      ]
+      for (const cells of [[], mixed, [mixed[1]!, mixed[3]!]]) {
+        const expected = cells.filter(cell => !(mode === 'hidden' && (cell.tool !== undefined || cell.kind === 'tool')))
+        const filter = vi.spyOn(cells, 'filter')
+        const make = (initialCells: readonly TerminalCell[]) => {
+          const terminal = new ScreenTerminal(80, 24)
+          let scrollOffset = 0
+          const state = { ...initialViewState('/work', inline), cells: initialCells, toolMode: mode }
+          const renderer = createRenderer({
+            dispatch: () => {}, readState: () => ({ ...state, scrollOffset }), inline, terminal,
+          })
+          return { renderer, terminal, draw: (offset: number) => { scrollOffset = offset; renderer.render(false) } }
+        }
+        const actual = make(cells), reference = make(expected)
+        try {
+          actual.renderer.start(); reference.renderer.start()
+          for (const offset of [0, 1, Math.max(0, cells.length - 1)]) {
+            actual.terminal.output = ''; reference.terminal.output = ''
+            actual.draw(offset); reference.draw(offset)
+            await actual.terminal.flush(); await reference.terminal.flush()
+            expect(actual.terminal.output).toBe(reference.terminal.output)
+            expect(actual.terminal.lines()).toEqual(reference.terminal.lines())
+            const count = inline ? expected.length : Math.max(1, expected.length - offset)
+            expect(actual.renderer.materializedCells()).toBe(expected.length === 0 ? 0 : count)
+            expect(actual.renderer.materializedCells()).toBe(reference.renderer.materializedCells())
+          }
+          if (mode === 'hidden') expect(filter).toHaveBeenCalled()
+          else expect(filter).not.toHaveBeenCalled()
+        } finally {
+          reference.renderer.stop(true); actual.renderer.stop(true); filter.mockRestore()
+        }
+      }
+    })
+  }
+
   it('materializes only viewport plus overscan and keeps 200k-cell redraw p95 below 25 ms', async () => {
     const terminal = new ScreenTerminal(80, 24)
     const cells = Array.from({ length: 200_000 }, (_, index) => ({
@@ -1037,6 +1080,25 @@ describe('terminal renderer', () => {
     expect(elapsed).toBeLessThan(testCeiling(150))
     expect(terminal.lines().join('\n')).toContain('Session 0')
     await shell.dispose()
+  })
+
+  it.each([undefined, 'native-researcher'])('keeps native subagent name %s with creation text and the navigation id', async name => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false,
+      initialRoot: { cwd: '/work', id: 'session', model: 'm', status: 'idle',
+        subagents: [{ id: 'child-session-id', label: 'research cause', mode: 'continuable', state: 'inactive',
+          ...(name === undefined ? {} : { name }) }],
+      },
+    })
+    try {
+      shell.start(); terminal.send('\u0002'); await shell.whenIdle(); await terminal.flush()
+      expect(terminal.liveLines().join('\n')).toContain(`Subagent · inactive · ${name === undefined ? '' : `${name} · `}research cause`)
+      terminal.send('\r'); await shell.whenIdle(); await terminal.flush()
+      expect(terminal.liveLines().join('\n')).toContain('child-session-id')
+      if (name !== undefined) expect(terminal.liveLines().join('\n')).toContain(`${name} · research cause`)
+    } finally { await shell.dispose() }
   })
 
   it('keeps activity counts in the main view and every entry in the shared details overlay', async () => {
@@ -1465,6 +1527,32 @@ describe('terminal renderer', () => {
       })
     }
   }
+
+  it('keeps a native fixed approval answerable without offering a custom action', async () => {
+    const terminal = new ScreenTerminal(80, 24)
+    const shell = createTerminalShell({
+      createView: bindings => createRenderer({ ...bindings, inline: false, terminal }),
+      cwd: '/work', exit: () => {}, inline: false,
+    })
+    shell.start()
+    const answer = shell.requestDecision({
+      answers: [], cursor: 0, custom: '', id: 'fixed-approval', index: 0, kind: 'question', owner: { id: 'session' }, selected: [],
+      questions: [{ allowCustom: false, id: 'scope', question: 'Allow this native scope?', multiSelect: false,
+        intent: { kind: 'approval', approve: 'Allow', reject: 'Deny', always: 'Always' },
+        options: [{ label: 'Allow' }, { label: 'Deny' }, { label: 'Always' }],
+      }],
+    })
+    void answer.catch(() => {})
+    try {
+      await shell.whenIdle(); await terminal.flush()
+      const screen = terminal.liveLines().join('\n')
+      for (const label of ['Allow', 'Deny', 'Always']) expect(screen).toContain(label)
+      expect(screen).not.toContain('Other')
+      terminal.send('\u001B[B'); terminal.send('\r')
+      await shell.whenIdle()
+      await expect(answer).resolves.toEqual({ answers: [{ id: 'scope', selected: ['Deny'] }] })
+    } finally { await shell.dispose() }
+  })
 
   it('renders plan-review intent through the existing decision overlay', async () => {
     const terminal = new ScreenTerminal(80, 24)

@@ -43,7 +43,7 @@ describe('dashi launcher', () => {
       dependencies?: unknown
     }
     expect(manifest.dependencies).toBeUndefined()
-    expect(readFileSync(launcher, 'utf8').trimEnd().split('\n')).toHaveLength(45)
+    expect(readFileSync(launcher, 'utf8').trimEnd().split('\n')).toHaveLength(51)
     const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json'], {
       cwd: packageDir, encoding: 'utf8', timeout: 30_000,
     })) as Array<{ files: Array<{ path: string }> }>
@@ -62,6 +62,16 @@ describe('dashi launcher', () => {
       'GROUPS:UNSET', 'TOKEN:UNSET', 'OTHER:kept', '',
     ].join('\n'))
     expect(result.status).toBe(42)
+  })
+
+  it.each(['22.23.3', '24.8.0', '24.9.0', '25.0.0', '26.0.0'])('checks Node %s before any child is spawned', version => {
+    const directory = fakePath('printf CHILD')
+    const preload = `data:text/javascript,${encodeURIComponent(`Object.defineProperty(process.versions, 'node', { value: '${version}' })`)}`
+    const result = spawnSync(process.execPath, ['--import', preload, launcher], { encoding: 'utf8', env: launcherEnv(directory) })
+    const rejected = version === '22.23.3' || version === '24.8.0'
+    expect(result.status).toBe(rejected ? 1 : 0)
+    expect(result.stdout).toBe(rejected ? '' : 'CHILD')
+    expect(result.stderr).toBe(rejected ? `dashi: Node >=24.9.0 is required (running ${version})\n` : '')
   })
 
   it('uses the sessionbus profile when the launch token is set', () => {

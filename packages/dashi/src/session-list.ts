@@ -1,4 +1,13 @@
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
+import type {} from '@deepseek-ai/dsh-workspace'
+import type { Context } from '@deepseek-ai/cordis'
+
+/** Selection reads the native archive set after the list, never a retained copy. */
+export async function resumableSessions(ctx: Context, signal: AbortSignal): Promise<readonly SessionSummary[]> {
+  const { items } = await ctx.sessionController.list({}, signal)
+  const archived = new Set(ctx.workspaceRegistry.archivedSessionIds)
+  return items.filter(item => !archived.has(item.sessionId))
+}
 
 export interface SessionListOptions {
   readonly all: boolean

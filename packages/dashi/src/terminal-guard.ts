@@ -1,4 +1,5 @@
 import { ProcessTerminal, type Terminal } from '@earendil-works/pi-tui'
+import { formatWithOptions } from 'node:util'
 import { filterWheelInput } from './mouse-input.js'
 
 export interface TerminalSession {
@@ -9,6 +10,7 @@ export interface TerminalSession {
 }
 
 export interface TerminalGuard {
+  diagnostics(): { readonly count: number; readonly lines: readonly string[] }
   dispose(): Promise<void>
   start(): void
   withCookedTerminal(operation: () => Promise<void>): Promise<void>
@@ -46,12 +48,21 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
   let phase: 'fresh' | 'active' | 'cooked' | 'released' = 'fresh'
   let disposal: Promise<void> | undefined
   let restoreOnExit: (() => void) | undefined
+  const levels = ['log', 'info', 'warn', 'error', 'debug'] as const
+  let originals: readonly typeof console.log[] | undefined
+  const lines: string[] = []
+  let count = 0
 
   const stopOwned = (): void => {
     if (restoreOnExit === undefined) return
     process.off('exit', restoreOnExit)
     restoreOnExit = undefined
-    session.stop(true)
+    try {
+      session.stop(true)
+    } finally {
+      levels.forEach((level, index) => { console[level] = originals![index]! })
+      originals = undefined
+    }
   }
 
   const startOwned = (): void => {
@@ -61,6 +72,17 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
       try { stopOwned() } catch { /* Exit listeners must not throw. */ }
     }
     process.once('exit', restoreOnExit)
+    originals = levels.map(level => console[level])
+    for (const level of levels) console[level] = (...args: unknown[]) => {
+      const text = formatWithOptions({ colors: false, depth: 4, maxArrayLength: 20, maxStringLength: 4_096, customInspect: false }, ...args)
+      for (const value of text.split(/\r?\n/u)) {
+        count++
+        const line = `[${level}] ${value}`
+        const suffix = '… [line truncated]'
+        lines.push(line.length > 4_096 ? `${line.slice(0, 4_096 - suffix.length)}${suffix}` : line)
+        if (lines.length > 200) lines.shift()
+      }
+    }
     session.start()
   }
 
@@ -73,6 +95,7 @@ export function createTerminalGuard(session: TerminalSession): TerminalGuard {
   }
 
   return {
+    diagnostics: () => ({ count, lines: [...lines] }),
     start() {
       if (phase !== 'fresh') return
       phase = 'active'

@@ -1,7 +1,7 @@
 import type { Context, Fiber } from '@deepseek-ai/cordis'
 import { basename } from 'node:path'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
-import type { Agent, TurnBoundaryProjection } from '@deepseek-ai/dsh-agent'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
 import type { JobListFrame } from '@deepseek-ai/dsh-api-job-controller'
 import type {} from '@deepseek-ai/dsh-attachment'
@@ -22,9 +22,6 @@ import { JobId } from '@deepseek-ai/dsh-jobs'
 import { boundContextSummary, createUserMessage, ToolCallId, type ContentBlock, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { expandAssistantStream } from '@deepseek-ai/dsh-llm/assistant-stream'
 import type {} from '@deepseek-ai/dsh-permission-presets'
-import type {
-  ScheduleCreateValue, ScheduleDeleteValue, ScheduleListValue, ScheduleView,
-} from '@deepseek-ai/dsh-schedule'
 import { SessionId, SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-session-query'
@@ -76,8 +73,9 @@ import type {
 import { createToolPresenter, type ToolPresenter } from './tool-presentation.js'
 import { quoteShellWord, runHumanShell } from './shell-command.js'
 import { markdownTranscript } from './session-export.js'
-import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
+import { isSessionId, resumableSessions, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
+import { runLoop } from './loop.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
 import { addModelProvider, credentialOptions, missingCredentialNotice, setModelCredential } from './model-setup.js'
 import { turnWorking, type TurnWorking, type WorkingStream } from './turn-working.js'
@@ -264,17 +262,6 @@ function usage(raw: string, expected: string): CommandResult | undefined {
   return raw.trim() === '' ? undefined : { kind: 'error', text: `usage: ${expected}` }
 }
 
-function loopInterval(seconds: number): string {
-  if (seconds % 3_600 === 0) return `${String(seconds / 3_600)}h`
-  return seconds % 60 === 0 ? `${String(seconds / 60)}m` : `${String(seconds)}s`
-}
-
-function loopLine(schedule: ScheduleView): string {
-  const rule = schedule.kind === 'every' ? `every ${loopInterval(schedule.everySeconds)}`
-    : schedule.kind === 'after' ? `after ${String(schedule.afterSeconds)}s` : `at ${schedule.scheduledAt}`
-  return `${String(schedule.id)} · ${rule} · ${schedule.prompt}`
-}
-
 function configValue(raw: string): unknown {
   try {
     return JSON.parse(raw)
@@ -294,6 +281,7 @@ export async function createSessionRuntime(
   tuiRoot: TuiRoot,
   dispatch: (action: UiAction) => void,
   decisions?: DecisionBindings,
+  diagnostics?: () => { readonly count: number; readonly lines: readonly string[] },
 ): Promise<SessionRuntime> {
   const lifetime = new AbortController()
   let accepting = true
@@ -303,7 +291,7 @@ export async function createSessionRuntime(
 
   let initialId = options.resume === undefined
     ? options.continue
-      ? continuation((await ctx.sessionController.list({}, lifetime.signal)).items, options.cwd)
+      ? continuation(await resumableSessions(ctx, lifetime.signal), options.cwd)
       : (await ctx.sessionController.create({ cwd: options.cwd, ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }), ...(options.sessionId === undefined ? {} : { sessionId: SessionId(options.sessionId) }) })).sessionId
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
@@ -359,9 +347,9 @@ export async function createSessionRuntime(
         : inheritedTurn(agent.session.snapshotEvents(), agent.session.inheritedEventCount)
       const events = eventsFromRecords(opening.records)
       let hasMore = opening.hasMore
-      const from = (ctx.sessionProjections.stateOf(agent.session, 'turnBoundary') as TurnBoundaryProjection | undefined)?.openTurnStartSeq
+      const from = ctx.agents.turnBoundaryOf(agent.session).openTurnStartSeq
       while (from != null && (events[0]?.seq ?? Infinity) > from && hasMore) {
-        const page = await ctx.sessionController.page({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]?.seq ?? opening.cursor + 1, maxMessages: 50 }, abort.signal).catch(() => undefined)
+        const page = await ctx.sessionController.events({ address: { kind: 'session', sessionId }, throughSeq: opening.cursor, beforeSeq: events[0]?.seq ?? opening.cursor + 1, maxMessages: 50 }, abort.signal).catch(() => undefined)
         if (page === undefined) break
         const older = eventsFromRecords(page.records)
         if (older.length === 0 || older.at(-1)!.seq >= (events[0]?.seq ?? Infinity)) break
@@ -612,14 +600,16 @@ export async function createSessionRuntime(
         if (frame.type === 'baseline') {
           report('DSH session control emitted a second baseline', bound.root.id)
         } else if (frame.type === 'projection') {
-          if (String(frame.sessionId) === bound.root.id && frame.key === 'contextPressure') {
-            const percent = contextPercent(frame.value)
-            const { contextPercent: _previous, ...root } = bound.root
-            bound.root = { ...root, ...(percent === undefined ? {} : { contextPercent: percent }) }
-            dispatch({ type: 'root-presentation', contextPercent: percent ?? null, rootId: bound.root.id })
+          for (const change of frame.changes) {
+            if (String(frame.sessionId) === bound.root.id && change.key === 'contextPressure') {
+              const percent = contextPercent(change.val)
+              const { contextPercent: _previous, ...root } = bound.root
+              bound.root = { ...root, ...(percent === undefined ? {} : { contextPercent: percent }) }
+              dispatch({ type: 'root-presentation', contextPercent: percent ?? null, rootId: bound.root.id })
+            }
+            if (change.key === 'subagentCatalog' || change.key === 'subagentTiming'
+              || change.key === 'title' || change.key === 'tokenUsage') scheduleSubagents(bound)
           }
-          if (frame.key === 'subagent' || frame.key === 'subagentTiming'
-            || frame.key === 'title' || frame.key === 'tokenUsage') scheduleSubagents(bound)
         }
       }
     } catch (error) {
@@ -703,8 +693,7 @@ export async function createSessionRuntime(
   }
 
   const restoreFirstConversation = async (bound: Binding, prompt: string): Promise<void> => {
-    const agentPreset = ctx.sessionProjections.stateOf(bound.agent.session, 'agentPreset')
-      ?? ctx.agentPresets.defaultId
+    const agentPreset = ctx.agentPresets.presetForSession(bound.agent.session) ?? ctx.agentPresets.defaultId
     const modelProjection = ctx.sessionProjections.snapshot(bound.agent.session, ['modelSelection'])
       .values.modelSelection
     const selection = rewindModelSelection(modelProjection)
@@ -735,7 +724,7 @@ export async function createSessionRuntime(
       case 'open-resume':
         dispatch({
           type: 'open-overlay',
-          overlay: sessionOverlay((await ctx.sessionController.list({}, lifetime.signal)).items, bound.root.id,
+          overlay: sessionOverlay(await resumableSessions(ctx, lifetime.signal), bound.root.id,
             operation.all === true ? undefined : bound.root.cwd),
         })
         return
@@ -743,7 +732,7 @@ export async function createSessionRuntime(
         if (isSessionId(operation.sessionId)) await replace(SessionId(operation.sessionId))
         else {
           const matches = sessionMatches(
-            (await ctx.sessionController.list({}, lifetime.signal)).items, operation.sessionId,
+            await resumableSessions(ctx, lifetime.signal), operation.sessionId,
             operation.all === true ? undefined : bound.root.cwd,
           )
           const [match] = matches
@@ -776,11 +765,14 @@ export async function createSessionRuntime(
           await restoreFirstConversation(bound, operation.prompt)
           return
         }
+        if (operation.mode === 'both') await restoreFiles(bound, operation.atSeq)
         const child = await ctx.sessionController.fork({
           atSeq: operation.atSeq, sessionId: bound.agent.id, allowMigration: false,
+        }).catch((error: unknown) => {
+          if (operation.mode === 'both') throw new Error(`files restored, conversation not rewound: ${detail(error)}`, { cause: error })
+          throw error
         })
         await replace(child.sessionId)
-        if (operation.mode === 'both') await restoreFiles(current(), operation.atSeq)
         dispatch({ type: 'composer-set', text: operation.prompt })
         return
       }
@@ -808,28 +800,7 @@ export async function createSessionRuntime(
     const loop = async (invocation: CommandInvocation): Promise<CommandResult> => {
       const stale = ensureCurrent(invocation)
       if (stale !== undefined) return stale
-      const raw = invocation.rawInput.trim()
-      const stop = /^stop\s+(\S+)$/u.exec(raw)
-      const create = /^(\d+)([mh])\s+(.+)$/su.exec(raw)
-      if (raw !== '' && stop === null && create === null) {
-        return { kind: 'error', text: 'usage: /loop [INTERVAL TEXT | stop ID]' }
-      }
-      const name = raw === '' ? 'schedule_list' : stop === null ? 'schedule_create' : 'schedule_delete'
-      const args = raw === '' ? {} : stop === null ? {
-        every_seconds: Number(create![1]) * (create![2] === 'h' ? 3_600 : 60), prompt: create![3],
-        title: boundContextSummary(create![3]!.replace(/\s+/gu, ' ').trim()),
-      } : { id: stop[1] }
-      const result = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
-        agent: bound.agent, arguments: args, callId: ToolCallId(`${String(invocation.commandId)}:loop`),
-        name, signal: invocation.signal,
-      }))
-      if (result.isError) return { kind: 'error', text: result.error.message }
-      const value = result.value as unknown as ScheduleCreateValue | ScheduleDeleteValue | ScheduleListValue
-      if (!Array.isArray(value) && 'message' in value) return { kind: 'error', text: value.message }
-      if (Array.isArray(value)) return { kind: 'success', text: value.length === 0 ? 'no active schedules' : value.map(loopLine).join('\n') }
-      if ('deleted' in value) return value.deleted ? { kind: 'success', text: `stopped ${String(value.id)}` }
-        : { kind: 'error', text: `schedule ${String(value.id)} not found` }
-      return { kind: 'success', text: `scheduled ${loopLine(value)}` }
+      return runLoop(ctx.schedule, bound.agent.id, invocation.rawInput, invocation.signal)
     }
     const askAside = async (invocation: CommandInvocation, prompt = invocation.rawInput.trim()): Promise<CommandResult> => {
       const stale = ensureCurrent(invocation)
@@ -842,32 +813,51 @@ export async function createSessionRuntime(
       const resolved = await ctx.sessionController.resolveAgent(forked.sessionId)
       if ('error' in resolved) throw resolved.error
       const child = resolved.agent
-      const turn = inheritedTurn(child.session.snapshotEvents(), child.session.inheritedEventCount)
-      if (turn === undefined) throw new Error('the fork contains no completed turn')
-      const iterator = ctx.sessionController.follow({
-        address: { kind: 'session', sessionId: child.id }, maxMessages: 50,
-      }, invocation.signal)[Symbol.asyncIterator]()
-      await firstSnapshot(iterator)
-      await ctx.sessionController.rename({
-        sessionId: child.id, title: `btw · ${prompt.split(/\s+/u).slice(0, 6).join(' ')}`,
-      })
-      const from = child.session.seq
-      child.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      let primary: { readonly error: unknown } | undefined
       try {
-        for (;;) {
-          const next = await iterator.next()
-          if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
-          if (next.value.type === 'event' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+        const turn = inheritedTurn(child.session.snapshotEvents(), child.session.inheritedEventCount)
+        if (turn === undefined) throw new Error('the fork contains no completed turn')
+        const iterator = ctx.sessionController.follow({
+          address: { kind: 'session', sessionId: child.id }, maxMessages: 50,
+        }, invocation.signal)[Symbol.asyncIterator]()
+        const from = child.session.seq
+        try {
+          await firstSnapshot(iterator)
+          await ctx.sessionController.rename({
+            sessionId: child.id, title: `btw · ${prompt.split(/\s+/u).slice(0, 6).join(' ')}`,
+          })
+          child.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+          for (;;) {
+            const next = await iterator.next()
+            if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
+            if (next.value.type === 'event' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+          }
+        } finally {
+          await iterator.return?.()
         }
-      } finally {
-        await iterator.return?.()
+        await ctx.sessions.flush(child.session)
+        const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
+          .filter(cell => cell.kind !== 'user')
+        dispatch({ type: 'open-overlay', overlay: {
+          cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}${boundary.open ? ' · trailing turn open' : ''}`,
+        } })
+      } catch (error) {
+        primary = { error }
       }
-      await ctx.sessions.flush(child.session)
-      const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
-        .filter(cell => cell.kind !== 'user')
-      dispatch({ type: 'open-overlay', overlay: {
-        cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}${boundary.open ? ' · trailing turn open' : ''}`,
-      } })
+      let archiveFailure: Error | undefined
+      try {
+        if (invocation.signal.aborted) child.cancel({ kind: 'user' })
+        await child.whenIdle()
+        await ctx.workspaceRegistry.archiveSession(child.id)
+      } catch (error) {
+        archiveFailure = new Error(`answer shown; side session not archived: ${detail(error)}`, { cause: error })
+      }
+      if (primary !== undefined || archiveFailure !== undefined) {
+        const failure = primary === undefined ? archiveFailure : archiveFailure === undefined ? primary.error
+          : new Error(`${detail(primary.error)}\n${archiveFailure.message}`, { cause: primary.error })
+        if (invocation.signal.aborted && archiveFailure !== undefined) report(failure, bound.root.id)
+        throw failure
+      }
       return { kind: 'success' }
     }
     const definitions: readonly CommandDefinition[] = [
@@ -889,7 +879,11 @@ export async function createSessionRuntime(
           if (stale !== undefined) return stale
           const invalid = usage(invocation.rawInput, '/status')
           if (invalid !== undefined) return invalid
-          dispatch({ type: 'open-overlay', overlay: statusOverlay(ctx, bound.agent, bound.root) })
+          const overlay = statusOverlay(ctx, bound.agent, bound.root)
+          const captured = diagnostics?.()
+          dispatch({ type: 'open-overlay', overlay: overlay.kind !== 'info' || captured === undefined ? overlay : {
+            ...overlay, lines: [...overlay.lines, '', `${String(captured.count)} diagnostics captured (showing last ${String(captured.lines.length)}; at most 200 lines, 4096 characters each)`, ...captured.lines],
+          } })
           return { kind: 'success' }
         },
       },
@@ -1108,13 +1102,18 @@ export async function createSessionRuntime(
           if (stale !== undefined) return stale
           const text = invocation.rawInput.trim()
           if (text === '') return { kind: 'error', text: 'usage: /subtask TEXT' }
-          const result = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
-            agent: bound.agent, arguments: { description: boundContextSummary(text.replace(/\s+/gu, ' ').trim()), prompt: text },
-            callId: ToolCallId(`${String(invocation.commandId)}:subtask`), name: 'subagent', signal: invocation.signal,
+          const callId = ToolCallId(`${String(invocation.commandId)}:subtask`)
+          const batch = await ctx.agents.withInitiator(bound.agent, () => ctx.tools.execute({
+            agent: bound.agent, signal: invocation.signal, calls: [{ type: 'tool-call',
+              arguments: JSON.stringify({ description: boundContextSummary(text.replace(/\s+/gu, ' ').trim()), prompt: text }),
+              id: callId, name: 'subagent',
+            }],
           }))
+          const result = batch.results.find(item => item.callId === callId)?.result
+          if (result === undefined) throw new Error('DSH subtask batch returned no matching result')
           if (result.isError) return { kind: 'error', text: result.error.message }
-          const started = result.value as { readonly subagentId: SessionId }
-          return { kind: 'success', text: `subtask ${String(started.subagentId)} started` }
+          const started = result.value as { readonly kind: 'activation'; readonly name: string }
+          return { kind: 'success', text: `subtask ${started.name} started` }
         },
       },
       {
@@ -1136,8 +1135,7 @@ export async function createSessionRuntime(
           if (stale !== undefined) return stale
           const raw = invocation.rawInput.trim()
           const blank = !bound.agent.session.snapshotEvents().some(event => event.type === 'turn/start')
-          const selected = ctx.sessionProjections.stateOf(bound.agent.session, 'agentPreset')
-            ?? ctx.agentPresets.defaultId
+          const selected = ctx.agentPresets.presetForSession(bound.agent.session) ?? ctx.agentPresets.defaultId
           if (raw !== '') return {
             kind: 'error', text: 'Use /agents to choose a preset. DSH has no preset authoring API; declare presets in profile configuration.',
           }
@@ -1155,14 +1153,14 @@ export async function createSessionRuntime(
           if (stale !== undefined) return stale
           const path = invocation.rawInput.trim() || `dashi-${bound.root.id}.md`
           const fs = ctx.fs
-          const [cwd, target, inspection] = await Promise.all([
+          const [cwd, target] = await Promise.all([
             fs.resolve('.', { cwd: bound.root.cwd, signal: lifetime.signal }),
             fs.resolve(path, { cwd: bound.root.cwd, signal: lifetime.signal }),
-            ctx.sessionController.inspect(bound.agent.id, lifetime.signal),
           ])
           if (!fs.contains(cwd, target)) {
             return { kind: 'error', text: 'export path must be inside the session working directory' }
           }
+          using inspection = await ctx.sessionQuery.observeSession(bound.agent.id, { signal: lifetime.signal, projectionMode: 'none' })
           const content = markdownTranscript(
             bound.root.id, bound.root.cwd, bound.root.title,
             foldCells(inspection.events, bound.presenter),
@@ -1327,6 +1325,7 @@ export async function createSessionRuntime(
             ...(question.detail === undefined ? {} : { detail: question.detail }),
             ...(question.header === undefined ? {} : { header: question.header }),
             ...(question.intent === undefined ? {} : { intent: question.intent }),
+            ...(question.intent?.kind === 'approval' ? { allowCustom: false } : {}),
           })),
           selected: [],
         }, request.signal).then(answer => ({ answers: answer.answers.map(item => ({
@@ -1530,7 +1529,7 @@ export async function createSessionRuntime(
       try {
         const first = bound.events[0]
         if (first === undefined) throw new Error('DSH reported earlier history without an opening event')
-        const page = await ctx.sessionController.page({
+        const page = await ctx.sessionController.events({
           address: { kind: 'session', sessionId: bound.agent.id },
           beforeSeq: first.seq,
           maxMessages: 50,

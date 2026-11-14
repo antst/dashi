@@ -46,6 +46,20 @@ function shellCell(message: UserMessage, pending: boolean): TerminalCell {
   }
 }
 
+function jobNoticeHead(text: string): string | undefined {
+  if (text.split(') finished [status: ').length !== 2 || text.includes('\n[notice truncated]')) return undefined
+  const headers: string[] = []
+  for (const suffix of ['. Read its output with job_output.', '. No new output.']) {
+    if (text.endsWith(suffix)) headers.push(text.slice(0, -suffix.length))
+  }
+  const inline = ']. Output:\n'
+  if (text.split(inline).length === 2) headers.push(text.slice(0, text.indexOf(inline) + 1))
+  const matches = headers.map(header => /^background job (\S+) \(([^():\r\n]+): ([\s\S]*)\) finished \[status: ((?:completed|killed|failed)(?:, [\s\S]*)?)\]$/u.exec(header))
+    .filter(match => match !== null)
+  const match = matches.length === 1 ? matches[0] : undefined
+  return match === undefined ? undefined : `Job · ${match[1]} · ${match[4]} · ${match[3]}`
+}
+
 function collapsedContextCell(message: UserMessage, key: string): TerminalCell | undefined {
   const source = message.source as unknown as Record<string, unknown>
   if (source.kind === 'skill-invocation') return undefined
@@ -59,13 +73,10 @@ function collapsedContextCell(message: UserMessage, key: string): TerminalCell |
   const first = form === 'notice' && typeof source.summary === 'string' ? source.summary : lines[0] ?? ''
   let head = `Context · ${String(form)} · ${first.trim()} · ${String(lines.length)} lines`
   if (form === 'notice' && source.kind === 'tool-jobs') {
-    // @deepseek-ai/dsh-tool-jobs 0.2.1-alpha.2 README.md:40 documents this exact form.
-    // The one boundary and exact terminal suffix admit nested bracket detail.
-    const match = message.content.length === 1 && message.content[0]?.type === 'text'
-      && text.split(') finished [status: ').length === 2
-      ? /^background job (\S+) \(([^():\r\n]+): ([\s\S]*)\) finished \[status: ((?:completed|killed|failed)(?:, [\s\S]*)?)\]\. Read its output with job_output\.$/u.exec(text)
-      : null
-    head = match === null ? `Job notice · ${first}` : `Job · ${match[1]} · ${match[4]} · ${match[3]}`
+    // Native tool-jobs README: old lookup suffix, inline output, or no output.
+    // Capped/ambiguous notices stay notices; only native complete state is shown.
+    head = (message.content.length === 1 && message.content[0]?.type === 'text' ? jobNoticeHead(text) : undefined)
+      ?? `Job notice · ${first}`
   } else if (form === 'notice' && source.kind === 'subagent-settled') head = `Subagent notice · ${first}`
   return {
     collapsed: true,

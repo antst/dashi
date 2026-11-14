@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { activityCounts, contextPercent, jobViews, subagentViews } from '../src/presentation.js'
@@ -32,13 +32,13 @@ describe('DSH presentation adapters', () => {
   })
 
   it('joins the DSH child catalog with title, timing, and token projections', async () => {
+    const dispose = vi.fn()
     const ctx = {
-      get: () => ({
-        listChildren: () => Promise.resolve([{
+      get: () => ({}),
+      sessionQuery: { observeSession: vi.fn(async () => ({ [Symbol.dispose]: dispose, projections: { values: { subagentCatalog: [{
           id: SessionId('child'), createdAt: 1,
-          mode: 'continuable', label: 'research',
-        }]),
-      }),
+          mode: 'continuable', label: 'research', name: 'native-researcher',
+        }] } } })) },
       sessionController: {
         list: () => Promise.resolve({ items: [{
           sessionId: SessionId('child'), agentAvailable: true, blank: false, running: false, updatedAt: 1,
@@ -51,9 +51,11 @@ describe('DSH presentation adapters', () => {
       },
     } as unknown as Context
     await expect(subagentViews(ctx, SessionId('parent'), new AbortController().signal)).resolves.toEqual([{
-      elapsedMs: 1_250, id: 'child', label: 'research', mode: 'continuable', state: 'inactive',
+      elapsedMs: 1_250, id: 'child', label: 'research', name: 'native-researcher', mode: 'continuable', state: 'inactive',
       summary: 'Found the cause', tokens: 20,
     }])
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(ctx.sessionQuery.observeSession).toHaveBeenCalledExactlyOnceWith(SessionId('parent'), { signal: expect.any(AbortSignal) })
   })
 
   it('reports an unavailable native catalog instead of inventing an empty one', async () => {
@@ -64,10 +66,11 @@ describe('DSH presentation adapters', () => {
 
   it('preserves external and unknown children without inventing activity or token facts', async () => {
     const ctx = {
-      get: () => ({ listChildren: async () => [
+      get: () => ({}),
+      sessionQuery: { observeSession: async () => ({ [Symbol.dispose]() {}, projections: { values: { subagentCatalog: [
         { id: SessionId('remote'), mode: 'external', createdAt: 1, label: 'remote work' },
         { id: SessionId('unknown'), mode: 'unknown', createdAt: 1 },
-      ] }),
+      ] } } }) },
       sessionController: { list: async () => ({ items: [{
         sessionId: SessionId('remote'), agentAvailable: true, blank: false, running: true, updatedAt: 1,
       }] }) },
@@ -76,5 +79,19 @@ describe('DSH presentation adapters', () => {
       { id: 'remote', mode: 'external', label: 'remote work', state: 'unknown' },
       { id: 'unknown', mode: 'unknown', label: 'unknown', state: 'unknown' },
     ])
+  })
+
+  it('disposes a native observation even when the child catalog is unavailable', async () => {
+    const dispose = vi.fn()
+    const ctx = { get: () => ({}), sessionQuery: { observeSession: async () => ({ projections: { values: {} }, [Symbol.dispose]: dispose }) } } as unknown as Context
+    await expect(subagentViews(ctx, SessionId('parent'), new AbortController().signal)).rejects.toThrow('DSH subagent catalog projection is unavailable')
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('propagates a quarantined native domain instead of calling it an empty child catalog', async () => {
+    const error = Object.assign(new Error('native domain quarantined'), { code: 'unknown-state' })
+    const ctx = { get: () => ({}), sessionQuery: { observeSession: vi.fn(async () => { throw error }) } } as unknown as Context
+    await expect(subagentViews(ctx, SessionId('parent'), new AbortController().signal)).rejects.toBe(error)
+    expect(ctx.sessionQuery.observeSession).toHaveBeenCalledOnce()
   })
 })

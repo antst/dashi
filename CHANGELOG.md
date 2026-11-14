@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Require DSH **0.2.2-rc.3** and Node **24.9.0 or newer**, with exact DSH pins and Cordis 4.1. Upgrade DSH before re-adding dashi; resumed sessions incur a new context re-prefill because DSH's own prompt, tools and skills changed (W-156).
+- Keep in-process console diagnostics off the acquired terminal and expose a bounded in-memory tail in `/status`; restore normal console output for editors, suspension and exit. DSH's direct model-listing console writes remain a named upstream gap (W-156).
+- Use DSH's public batched projections and tool executor, observation leases and native session-fenced schedules; preserve fixed-action approvals and read the documented inline job-notice forms without inferring state (W-156).
+- Restore files from the source journal before rewinding the conversation; Roller refuses file restoration strictly inside an inherited fork prefix because DSH deliberately records no fork source (W-156).
+- Show the native child's name in `/subtask` results, activity, details and navigation, retaining the creation text (W-156).
+- Archive idle `/btw` and `/recap` side sessions through DSH so continuation and resume pickers keep the main conversation; ordinary rewound and forked conversations remain resumable (W-156).
+
 ## 0.2.2
 
 - Require DSH **0.2.1-rc.2**, with exact app-owned DSH dependencies and its stable Cordis companions. To upgrade, repeat the README's DSH install command first, then its dashi-app command (W-151, W-152).

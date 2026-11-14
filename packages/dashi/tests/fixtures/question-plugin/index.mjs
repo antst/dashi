@@ -4,9 +4,15 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions', 'workspaceRegistry']
 
 export function apply(ctx) {
+  const sideEvents = process.env.DSH_DASHI_SIDE_EVENTS
+  ctx.on('workspace/session-archived', ({ sessionId }) => {
+    if (sideEvents !== undefined) appendFileSync(sideEvents, `${JSON.stringify({
+      type: 'archived', id: sessionId, status: ctx.agents.get(sessionId)?.status,
+    })}\n`)
+  })
   const workingGate = process.env.DSH_WORKING_PROOF
   if (workingGate !== undefined) ctx.tools.register(defineTool({
     name: 'dashi_working_hold',
@@ -26,12 +32,13 @@ export function apply(ctx) {
     description: 'Read native schedule history or create a one-shot deletion barrier.',
     handler: async ({ agent, rawInput }) => {
       if (rawInput.trim() === 'barrier') {
-        return { kind: 'success', text: JSON.stringify(await ctx.schedule.create(agent.id, {
-          after_seconds: 60, title: 'W114 deletion barrier', prompt: 'W114 deletion barrier',
-        })) }
+        return { kind: 'success', text: JSON.stringify(await ctx.schedule.create({
+          timing: { kind: 'after', after_seconds: 60 }, title: 'W114 deletion barrier', prompt: 'W114 deletion barrier',
+          target: { kind: 'session', sessionId: agent.id },
+        }, agent.id)) }
       }
       return { kind: 'success', text: JSON.stringify({
-        history: await ctx.schedule.history({ sessionId: agent.id, id: rawInput.trim(), limit: 10 }),
+        history: await ctx.schedule.history({ id: rawInput.trim(), limit: 10 }),
         catalog: await ctx.schedule.catalog(),
       }) }
     },
@@ -96,7 +103,11 @@ export function apply(ctx) {
     },
   }))
   let stdoutBroken = false
-  ctx.on('agent/assistant-stream', ({ frame }) => {
+  ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+    if (sideEvents !== undefined && agent !== ctx.tuiRoot.current()
+      && frame.type === 'chunk' && frame.chunk.type === 'text-delta') {
+      appendFileSync(sideEvents, `${JSON.stringify({ type: 'side-delta', id: agent.id })}\n`)
+    }
     if (process.env.DSH_DASHI_BREAK_STDOUT !== '1' || stdoutBroken
       || !JSON.stringify(frame).includes('Inspecting')) return
     stdoutBroken = true

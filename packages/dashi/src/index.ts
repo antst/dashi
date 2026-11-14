@@ -8,7 +8,7 @@ import { readClipboardImage } from './clipboard-image.js'
 import { editDraftExternally } from './external-editor.js'
 import { FLAG_HELP, VERSION_LINE } from './help.js'
 import {
-  formatSessionList, isSessionId, parseSessionListArgs, sessionMatches, sessionNotFound, type SessionListOptions,
+  formatSessionList, isSessionId, parseSessionListArgs, resumableSessions, sessionMatches, sessionNotFound, type SessionListOptions,
 } from './session-list.js'
 import {
   createSessionRuntime, LaunchArgumentError, type RootLaunchOptions, type SessionRuntime,
@@ -18,7 +18,7 @@ import { TuiRoot } from './tui-root.js'
 export const name = 'dashi'
 export const inject = [
   'agentPresets', 'agents', 'attachments', 'authorization', 'cmdlineArgs', 'commands', 'credentials', 'fs', 'jobs', 'llm', 'loader', 'permissionPresets', 'subagents',
-  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools',
+  'jobController', 'pluginInventory', 'sessionController', 'sandboxPolicy', 'schedule', 'sessionProjections', 'sessionQuery', 'sessions', 'settings', 'shell', 'skills', 'systemPrompt', 'tools', 'workspaceRegistry',
 ]
 
 interface ParsedArgs extends Omit<RootLaunchOptions, 'cwd'> {
@@ -131,7 +131,7 @@ function installSessionList(ctx: Context, options: SessionListOptions, ready: Ap
   const abort = new AbortController()
   let listing: Promise<void> | undefined
   const announce = ready.onReady(() => {
-    listing = ctx.sessionController.list({}, abort.signal).then(({ items }) => {
+    listing = resumableSessions(ctx, abort.signal).then(items => {
       const cwd = options.all ? undefined : resolve(options.cwd ?? process.cwd())
       process.stdout.write(`${formatSessionList(items, cwd, options.json)}\n`)
       exit(0)
@@ -195,16 +195,17 @@ export function apply(ctx: Context): void {
           request: decision => shell?.requestDecision(decision)
             ?? Promise.reject(new Error('dashi terminal is not ready')),
         },
+        () => shell?.diagnostics() ?? { count: 0, lines: [] },
       )
       const sendPrompt = (): void => {
         if (parsed.prompt !== undefined) shell?.dispatch({ type: 'composer-changed', text: parsed.prompt })
         if (parsed.prompt !== undefined) shell?.dispatch({ type: 'submit' })
       }
       let pickerItems = parsed.resumePicker
-        ? (await ctx.sessionController.list({}, new AbortController().signal)).items : undefined
+        ? await resumableSessions(ctx, new AbortController().signal) : undefined
       if (parsed.resume !== undefined && !isSessionId(parsed.resume)) {
         const matches = sessionMatches(
-          (await ctx.sessionController.list({}, new AbortController().signal)).items,
+          await resumableSessions(ctx, new AbortController().signal),
           parsed.resume, parsed.resumeAll ? undefined : cwd,
         )
         const [match] = matches
@@ -254,22 +255,27 @@ export function apply(ctx: Context): void {
         sendPrompt()
       }
     })().catch(async (error: unknown) => {
-      process.stderr.write(`dashi: startup failed: ${error instanceof Error ? error.message : String(error)}\n`)
-      await runtime?.shutdown()
-      await shell?.dispose()
-      exit(error instanceof LaunchArgumentError ? 2 : 1)
+      try {
+        await runtime?.shutdown()
+      } finally {
+        try { await shell?.dispose() }
+        finally {
+          process.stderr.write(`dashi: startup failed: ${error instanceof Error ? error.message : String(error)}\n`)
+          exit(error instanceof LaunchArgumentError ? 2 : 1)
+        }
+      }
     })
   })
   ctx.effect(() => async () => {
     announce()
     changed()
-    await boot
     try {
+      await boot
       await runtime?.shutdown()
     } finally {
-      await shell?.dispose()
+      try { await shell?.dispose() }
+      finally { process.stdout.off('error', stdoutError) }
     }
-    process.stdout.off('error', stdoutError)
   }, 'dashi.profile-boot')
   exitOnStdinEnd(ctx, 'dashi.stdin')
 }

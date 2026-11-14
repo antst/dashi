@@ -1,4 +1,5 @@
 import { FLAG_HELP, VERSION_LINE } from './help.js'
+import type { AskUserQuestionIntent } from '@deepseek-ai/dsh-user-questions'
 import type { TurnWorking } from './turn-working.js'
 export interface RootView {
   readonly contextPercent?: number
@@ -34,6 +35,7 @@ export interface SubagentView {
   readonly id: string
   readonly label: string
   readonly mode: 'continuable' | 'one-shot' | 'external' | 'unknown'
+  readonly name?: string
   readonly state: 'inactive' | 'running' | 'unknown'
   readonly summary?: string
   readonly tokens?: number
@@ -103,7 +105,7 @@ export interface QuestionItem {
   readonly detail?: string
   readonly header?: string
   readonly id: string
-  readonly intent?: { readonly approve: string; readonly kind: 'plan-review' }
+  readonly intent?: AskUserQuestionIntent
   readonly multiSelect: boolean
   readonly options: readonly QuestionOption[]
   readonly question: string

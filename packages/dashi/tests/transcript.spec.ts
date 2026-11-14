@@ -17,6 +17,15 @@ function openTurnEvents(): SessionEvent[] {
 }
 
 describe('foldCells', () => {
+  it.each(['. No new output.', '. Output:\nfirst\nsecond'])('reads a complete native inline notice: %s', suffix => {
+    const state = 'completed, exit code: 3; [sandbox: denied]'
+    const text = `background job bash-abc (bash: exit 3) finished [status: ${state}]${suffix}`
+    const data = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'tool-jobs', form: 'notice', summary: 'native summary' } as never })
+    const event = { type: 'user/message', seq: 0, time: 0, data } as unknown as SessionEvent
+    expect(foldCells([event])[0]).toMatchObject({ text, detail: `Job · bash-abc · ${state} · exit 3` })
+    expect(foldCells([{ ...event, data: { ...data, source: { kind: 'plugin:foreign', form: 'notice', summary: 'foreign' } } } as unknown as SessionEvent])[0]?.detail)
+      .toContain('Context · notice · foreign')
+  })
   it('restores real background bash exit, user-kill and sandbox notices with their whole native bracket', () => {
     const events = restoreRecordedEvents(new URL('./fixtures/live-activity-bash-notices.jsonl', import.meta.url))
     const messages = events.filter(event => event.type === 'user/message' && String(event.data.source.kind) === 'tool-jobs')
@@ -54,8 +63,12 @@ describe('foldCells', () => {
     'background job bash-7 (bash: echo failed) finished [status: stopping]. Read its output with job_output.',
     'background job bash-7 (bash: echo failed) finished [status: completed]. Read its output with job_output. extra',
     'BACKGROUND job bash-7 (bash: echo) finished [status: failed]. Read its output with job_output.',
+    'unrelated notice: background job bash-7 (bash: echo) finished [status: completed]. Read its output with job_output.',
     'background job bash-7 (bash: echo) finished [status: failed, x) finished [status: completed]. Read its output with job_output.',
     'background job bash-7 (bash: echo ) finished [status: completed, fake) finished [status: unknown]. Read its output with job_output.',
+    'background job bash-7 (bash: echo) finished [status: completed]. Output:\nfake) finished [status: failed]',
+    'background job bash-7 (bash: echo) finished [status: completed, exit code: 0]. Output:\nambiguous]. No new output.',
+    'background job bash-7 (bash: echo) finished [status: completed]. Output:\nfirst]. Output:\nsecond',
   ])('fails closed on an undocumented job-notice body: %s', text => {
     const message = createUserMessage({ content: [{ type: 'text', text }],
       source: { kind: 'tool-jobs', form: 'notice', summary: 'native\nsummary\u001B[2J' } as never })
@@ -63,6 +76,13 @@ describe('foldCells', () => {
     expect(foldCells([event])[0]).toMatchObject({
       collapsed: true, kind: 'context', text, detail: 'Job notice · native\nsummary\u001B[2J',
     })
+  })
+
+  it('accepts unambiguous inline output even when its body ends like a notice suffix', () => {
+    const text = 'background job bash-7 (bash: echo) finished [status: completed]. Output:\nactual output]. No new output.'
+    const data = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'tool-jobs', form: 'notice' } as never })
+    expect(foldCells([{ type: 'user/message', seq: 1, time: 1, data } as unknown as SessionEvent])[0]?.detail)
+      .toBe('Job · bash-7 · completed · echo')
   })
 
   it('does not infer a subagent stop reason or parse another source/form as a job', () => {

@@ -67,6 +67,7 @@ function packageViolation(specifier) {
 }
 
 const failures = []
+console.log(`gate: Node ${process.versions.node}`)
 const workspace = await readFile(fileURLToPath(new URL('../pnpm-workspace.yaml', import.meta.url)), 'utf8')
 const catalog = workspace.split('\ncatalog:\n', 2)[1] ?? ''
 for (const [, packageName, version] of catalog.matchAll(/^  '(@deepseek-ai\/dsh(?:-[^']+)?)': (\S+)$/gm)) {
@@ -130,9 +131,10 @@ const packageFiles = (await filesBelow(fileURLToPath(new URL('../packages', impo
   .filter(path => path.endsWith('package.json'))
 for (const path of packageFiles) {
   const manifest = JSON.parse(await readFile(path, 'utf8'))
-  if (relative(root, path) === 'packages/dashi-app/package.json'
-    && manifest.dependencies?.['@antst/roller'] !== '0.1.4') {
-    failures.push('packages/dashi-app/package.json: @antst/roller must be pinned to 0.1.4')
+  if (relative(root, path) === 'packages/dashi-app/package.json') {
+    for (const name of ['@antst/roller', '@sessionbus/dsh']) if (manifest.dependencies?.[name] !== '0.2.0') {
+      failures.push(`packages/dashi-app/package.json: ${name} must be pinned to 0.2.0`)
+    }
   }
   for (const field of ['dependencies', 'devDependencies', 'peerDependencies']) {
     for (const dependency of Object.keys(manifest[field] ?? {})) {

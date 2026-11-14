@@ -1,6 +1,7 @@
 import type { SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
+import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
-import { formatSessionList, isSessionId, parseSessionListArgs, sessionMatches } from '../src/session-list.js'
+import { formatSessionList, isSessionId, parseSessionListArgs, resumableSessions, sessionMatches } from '../src/session-list.js'
 
 function summary(
   sessionId: string,
@@ -18,6 +19,21 @@ function summary(
 }
 
 describe('profile session list', () => {
+  it('reads the current native archive set after list and again on every selection', async () => {
+    let archived: string[] = []
+    const items = [summary('ordinary', '/work', 1), summary('side', '/work', 2)]
+    const ctx = { sessionController: { list: async () => {
+      await Promise.resolve()
+      archived = ['side']
+      return { items }
+    } }, workspaceRegistry: { get archivedSessionIds() { return archived } } } as unknown as Context
+    expect((await resumableSessions(ctx, new AbortController().signal)).map(item => item.sessionId)).toEqual(['ordinary'])
+    ctx.sessionController.list = async () => ({ items }) as never
+    archived = []
+    expect(await resumableSessions(ctx, new AbortController().signal)).toEqual(items)
+    ctx.sessionController.list = async () => ({ items: [] }) as never
+    expect(await resumableSessions(ctx, new AbortController().signal)).toEqual([])
+  })
   it('recognizes exact IDs and resolves native titles before case-insensitive substrings', () => {
     const items = [
       summary('session-one', '/work', 3, 'Exact Name'),

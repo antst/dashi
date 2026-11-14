@@ -21,6 +21,6 @@
   "files": ["bin/dashi.js"],
   "license": "MIT",
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": ">=24.9.0"
   }
 }
