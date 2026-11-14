@@ -1835,6 +1835,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const cwd = join(testDir, `open-turn-${String(Date.now())}`)
     mkdirSync(cwd)
     const before = new Set(listedSessions(cwd).map(row => row.sessionId))
+    const sideEvents = join(cwd, 'side-events.jsonl')
     const parent = 'session-00000000-0000-0000-0000-000000000690'
     const seed = new PtyShell(replayFixture, undefined, cwd)
     try {
@@ -1851,6 +1852,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
 
     const shell = new PtyShell(btwChildFixture, undefined, cwd, {
       DSH_SNAPSHOT_CHILD_FILES: replayFixture,
+      DSH_DASHI_SIDE_EVENTS: sideEvents,
     })
     try {
       const start = await launch(shell,
@@ -1901,8 +1903,14 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     }
 
     const rows = listedSessions(cwd)
-    const children = rows.filter(row => !before.has(row.sessionId) && row.sessionId !== parent)
-      .map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+    const archived = readFileSync(sideEvents, 'utf8').trim().split('\n')
+      .map(line => JSON.parse(line) as { type: string; id: string; status?: string })
+      .filter(row => row.type === 'archived')
+    expect(archived).toHaveLength(1)
+    expect(archived[0]).toMatchObject({ status: 'idle' })
+    expect(rows.filter(row => !before.has(row.sessionId)).map(row => row.sessionId)).toEqual([parent])
+    expect(rows.map(row => row.sessionId)).not.toContain(archived[0]!.id)
+    const children = archived.map(row => ({ id: row.id, log: sessionLog(row.id) }))
     expect(children).toHaveLength(1)
     const child = children[0]
     expect(child, JSON.stringify(rows)).toBeDefined()

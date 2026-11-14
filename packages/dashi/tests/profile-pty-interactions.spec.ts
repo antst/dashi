@@ -4,7 +4,7 @@ import { historicalSessionFormatCatalog } from '@deepseek-ai/dsh-session-format-
 import { describe, expect, it, onTestFailed, vi } from 'vitest'
 import { testCeiling } from './test-budget.js'
 import { countAudibleBells } from './terminal-output.js'
-import { currentRecordedJsonl, recordedSession } from './fixtures/session-format.js'
+import { currentRecordedJsonl, recordedEvents, recordedSession } from './fixtures/session-format.js'
 import {
   root,
   dsh,
@@ -1342,7 +1342,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       await shell.waitFor('\u001B[22;1H\u001B[2K', clearComposerAt)
       const statusAt = shell.output.length
       shell.write('/status\r')
-      await shell.waitFor('Lineage: root session', statusAt)
+      await shell.waitFor('Lineage: fork (source not recorded by DSH)', statusAt)
       expect((await parsedFrame(shell.output.slice(start))).text).not.toContain(`forked from ${parent}`)
       shell.write('\u001B')
       await shell.waitFor('idle ·', statusAt)
@@ -1697,6 +1697,18 @@ describe.sequential('shipped profile terminal lifecycle', () => {
         expect(shell.output.slice(releasedAt)).toContain('Resume with:')
       })
     } finally { await shell.close() }
+    if (scenario === 'source journal') {
+      const continued = new PtyShell(rollerFixture, undefined, workspace)
+      try {
+        const resumeAt = await launch(continued,
+          `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen -c`)
+        expect(sessionId(continued.output, resumeAt)).toBe(child)
+        expect(sessionLog(child).header.isSeeded).toBe(true)
+        const releasedAt = continued.output.length
+        continued.write('\u0004\u0004')
+        await continued.waitFor('\u001B[?1049l', releasedAt)
+      } finally { await continued.close() }
+    }
   }, testCeiling(60_000))
 
   it('/fork switches to a child at the latest completed turn', async () => {
@@ -1714,7 +1726,7 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       shell.write('/fork\r')
       child = await waitForOtherSession(shell, parent, forkAt)
       shell.write('/status\r')
-      await shell.waitFor('Lineage: root session', forkAt)
+      await shell.waitFor('Lineage: fork (source not recorded by DSH)', forkAt)
       const closeAt = shell.output.length
       shell.write('\u001B')
       await shell.waitFor('idle ·', closeAt)
@@ -2408,8 +2420,15 @@ describe.sequential('shipped profile terminal lifecycle', () => {
     const cwd = join(testDir, `btw-${String(Date.now())}`)
     mkdirSync(cwd)
     const before = new Set(listedSessions(cwd).map(row => row.sessionId))
+    const sideEvents = join(cwd, 'side-events.jsonl')
     const shell = new PtyShell(threeTurnFixture, undefined, cwd, {
       DSH_SNAPSHOT_CHILD_FILES: [btwChildFixture, recapChildFixture].join(delimiter),
+      DSH_DASHI_SIDE_EVENTS: sideEvents,
+    })
+    onTestFailed(() => {
+      const capture = join(root, '.cache', 'w156-b2')
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(join(capture, `btw-recap-${process.pid}.pty.log`), shell.output)
     })
     let parent = ''
     try {
@@ -2455,15 +2474,19 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       ['btw · why is this isolated', 'why is this isolated'],
       ['btw · Summarize this conversation so far in', 'Summarize this conversation so far in ten lines: goal, decisions, open items.'],
     ] as const
-    const children = rows.filter(row => !before.has(row.sessionId) && row.sessionId !== parent)
-      .map(row => ({ id: row.sessionId, log: sessionLog(row.sessionId) }))
+    const archived = readFileSync(sideEvents, 'utf8').trim().split('\n')
+      .map(line => JSON.parse(line) as { type: string; id: string; status?: string })
+      .filter(row => row.type === 'archived')
+    expect(archived).toHaveLength(2)
+    expect(archived.every(row => row.status === 'idle' && !before.has(row.id) && row.id !== parent)).toBe(true)
+    const children = archived.map(row => ({ id: row.id, log: sessionLog(row.id) }))
     expect(children).toHaveLength(2)
     for (const [title, prompt] of cases) {
       const child = children.find(item => item.log.events.filter(event => event.type === 'session/title')
         .at(-1)?.data?.title === title)
       expect(child, JSON.stringify(rows)).toBeDefined()
       const id = child?.id ?? ''
-      expect(rows.map(row => row.sessionId)).toContain(id)
+      expect(rows.map(row => row.sessionId)).not.toContain(id)
       const log = child?.log ?? sessionLog(id)
       expect(log.header.parentSession).toBeUndefined()
       expect(log.header.isSeeded).toBe(true)
@@ -2472,7 +2495,87 @@ describe.sequential('shipped profile terminal lifecycle', () => {
       expect(JSON.stringify(suffix)).toContain(prompt)
       expect(JSON.stringify(suffix)).toContain(prompt.startsWith('Summarize') ? 'RECAP_SIDE_ANSWER' : 'BTW_SIDE_ANSWER')
     }
+    const continued = new PtyShell(threeTurnFixture, undefined, cwd)
+    onTestFailed(() => {
+      const capture = join(root, '.cache', 'w156-b2')
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(join(capture, `btw-resume-${process.pid}.pty.log`), continued.output)
+    })
+    try {
+      const start = await launch(continued, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen -c`)
+      expect(sessionId(continued.output, start)).toBe(parent)
+      const pickerAt = continued.output.length
+      continued.write('/resume\r')
+      await continued.waitFor('Resume session', pickerAt)
+      await vi.waitFor(async () => {
+        const frame = await parsedFrame(continued.output.slice(start))
+        const rows = frame.text.split('\n').map(line => line.trimStart()).filter(line => /^(?:› )?\d+ /u.test(line))
+        expect(rows).toHaveLength(1)
+        expect(rows[0]).toContain('› 1 establish the main conversation · ')
+        expect(frame.text).toContain(parent)
+        for (const [title] of cases) expect(frame.text).not.toContain(title)
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      expect(rows.filter(row => !before.has(row.sessionId)).map(row => row.sessionId)).toEqual([parent])
+      const closedAt = continued.output.length
+      continued.write('\u001B')
+      await continued.waitFor('idle ·', closedAt)
+      const releasedAt = continued.output.length
+      continued.write('\u0004\u0004')
+      await continued.waitFor('\u001B[?1049l', releasedAt)
+    } finally { await continued.close() }
   }, 90_000)
+
+  it('shutdown cancels and archives a side answer; continuation still opens the root', async () => {
+    const cwd = join(testDir, `btw-cancel-${String(Date.now())}`)
+    mkdirSync(cwd)
+    const before = new Set(listedSessions(cwd).map(row => row.sessionId))
+    const sideEvents = join(cwd, 'side-events.jsonl')
+    const shell = new PtyShell(threeTurnFixture, undefined, cwd, {
+      DSH_SNAPSHOT_CHILD_FILES: btwChildFixture, DSH_REPLAY_PACE_MS: '300',
+      DSH_DASHI_SIDE_EVENTS: sideEvents,
+    })
+    onTestFailed(() => {
+      const capture = join(root, '.cache', 'w156-b2')
+      mkdirSync(capture, { recursive: true })
+      writeFileSync(join(capture, `btw-cancel-${process.pid}.pty.log`), shell.output)
+      if (existsSync(sideEvents)) writeFileSync(join(capture, `btw-cancel-${process.pid}.events.jsonl`), readFileSync(sideEvents))
+    })
+    let parent = '', child = ''
+    try {
+      const start = await launch(shell, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen`)
+      parent = sessionId(shell.output, start)
+      shell.write('establish cancel source\r')
+      await waitForIdleAfter(shell, 'First turn complete.', start)
+      shell.write('/btw stop this side answer\r')
+      await vi.waitFor(() => {
+        const row = readFileSync(sideEvents, 'utf8').trim().split('\n')
+          .map(line => JSON.parse(line) as { type: string; id: string }).find(row => row.type === 'side-delta')
+        expect(row).toBeDefined()
+        child = row!.id
+      }, { timeout: testCeiling(20_000), interval: 20 })
+      const releasedAt = shell.output.length
+      shell.write('\u0004\u0004') // the existing runtime-lifetime command abort
+      await shell.waitFor('Resume with:', releasedAt)
+      await shell.waitFor('\u001B[?1049l', releasedAt)
+    } finally { await shell.close() }
+    const proof = readFileSync(sideEvents, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+    expect(proof).toContainEqual({ type: 'archived', id: child, status: 'idle' })
+    const file = findSessionFile(join(home, 'replay-sessions'), child)
+    const log = recordedSession(file)
+    const own = recordedEvents(file).slice(log.inheritedEventCount)
+    expect(own.flatMap(event => event.type === 'turn/end' ? [event.data.reason] : []))
+      .toEqual([{ kind: 'aborted', reason: { kind: 'user' } }])
+    expect(own.some(event => event.type === 'turn/end' && event.data.reason.kind === 'completed')).toBe(false)
+    expect(listedSessions(cwd).filter(row => !before.has(row.sessionId)).map(row => row.sessionId)).toEqual([parent])
+    const continued = new PtyShell(threeTurnFixture, undefined, cwd)
+    try {
+      const start = await launch(continued, `${quote(dsh)} --profile dashi --patch ${quote(replayPatch)} --fullscreen -c`)
+      expect(sessionId(continued.output, start)).toBe(parent)
+      const releasedAt = continued.output.length
+      continued.write('\u0004\u0004')
+      await continued.waitFor('\u001B[?1049l', releasedAt)
+    } finally { await continued.close() }
+  }, 60_000)
 
   it('/btw refuses a running root without changing its conversation', async () => {
     const cwd = join(testDir, `btw-running-${String(Date.now())}`)

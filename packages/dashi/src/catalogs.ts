@@ -254,7 +254,7 @@ export function statusOverlay(ctx: Context, agent: Agent, root: RootView): Overl
       `Title: ${root.title ?? 'Untitled'}`,
       `Cwd: ${root.cwd}`,
       root.parent === undefined
-        ? 'Lineage: root session'
+        ? agent.session.header.isSeeded === true ? 'Lineage: fork (source not recorded by DSH)' : 'Lineage: root session'
         : `Lineage: forked from ${root.parent} at turn ${String(root.parentTurn ?? 'unknown')}`,
       `Model: ${model === null || model === undefined ? root.model : `${model.provider}/${model.model}`}`,
       `Effort: ${model?.reasoningEffort ?? root.effort ?? 'default'}`,

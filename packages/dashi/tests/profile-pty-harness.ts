@@ -367,6 +367,7 @@ export function sessionLog(id: string, sessionHome = home): {
   return { header, events: events as Array<{ type: string; seq: number; data?: Record<string, unknown> }> }
 }
 
+/** All unarchived profile sessions; cwd is only the command's working directory. Use per-test ID deltas. */
 export function listedSessions(cwd: string): Array<{ sessionId: string; title: string | null }> {
   const output = run(dsh, ['--profile', 'dashi', '--patch', sessionListPatch, 'sessions', 'list', '--all', '--json'], {
     ...process.env, DSH_HOME: home, DSH_TELEMETRY_DISABLED: '1',

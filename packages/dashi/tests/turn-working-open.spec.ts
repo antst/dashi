@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionControlFrame, SessionFollowFrame } from '@deepseek-ai/dsh-api-session-controller'
+import type { SessionControlFrame, SessionFollowFrame, SessionSummary } from '@deepseek-ai/dsh-api-session-controller'
 import type { CommandDefinition, CommandInvocation } from '@deepseek-ai/dsh-commands'
 import { SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
@@ -21,6 +21,7 @@ type Page = { records: SessionEvent[]; hasMore: boolean }
 
 async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Array<Page | Error>, waiting = false, boundary: { start: number | null | undefined } = { start: 1 }, options: {
   control?: SessionControlFrame[]; decisions?: DecisionBindings; diagnostics?: () => { count: number; lines: string[] }
+  continuation?: { items: SessionSummary[]; archived: string[] }
 } = {}) {
   const openTurnStart = boundary.start
   const cursor = Math.max(4, records.at(-1)?.seq ?? 0)
@@ -47,7 +48,7 @@ async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Arr
   const definitions = new Map<string, CommandDefinition>()
   const listeners = new Map<string, (...args: any[]) => any>()
   const snapshotEvents = vi.fn(() => { throw new Error('deprecated read forbidden in this path') })
-  const session = { id, header: { id, cwd: '/fixture' }, snapshotEvents }
+  const session = { id, header: { id, cwd: '/fixture', ...(options.continuation === undefined ? {} : { isSeeded: true }) }, snapshotEvents }
   const agent = { id, session, status: openTurnStart == null ? 'idle' : 'running', options: { provider: 'replay' }, inbox: { nextStep: [] },
     ctx: { inject: (_services: string[], apply: (ctx: unknown) => void) => {
       apply({ commands: { register: (definition: CommandDefinition) => { definitions.set(definition.name, definition) } } })
@@ -67,11 +68,12 @@ async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Arr
       return { openTurnStartSeq: openTurnStart ?? null }
     }), withInitiator: vi.fn(async (_agent: unknown, operation: () => unknown) => operation()) },
     tools: { execute: vi.fn() },
-    sessionController: { resolveAgent: async () => ({ agent }), follow, events: page, fork: vi.fn(),
+    workspaceRegistry: { archivedSessionIds: options.continuation?.archived ?? [], archiveSession: vi.fn(async () => {}) },
+    sessionController: { resolveAgent: vi.fn(async () => ({ agent })), follow, events: page, fork: vi.fn(),
       control: async function* () {
         yield { type: 'baseline', value: { projections: {} } }
         for (const frame of options.control ?? []) yield frame
-      }, list: vi.fn(async () => ({ items: [] })) },
+      }, list: vi.fn(async () => ({ items: options.continuation?.items ?? [] })), rename: vi.fn(async () => ({})) },
     jobController: { list: () => once({ jobs: [] }) },
     get: (name: string) => name === 'subagents' ? {} : undefined,
     sessionQuery: { observeSession: vi.fn(async () => ({ events: records, projections: { values: { subagentCatalog: [] } }, [Symbol.dispose]() {} })) },
@@ -84,13 +86,119 @@ async function openFixture(records: SessionEvent[], hasMore: boolean, pages: Arr
   } as unknown as Context
   const root = { bind: vi.fn(), clear: vi.fn() } as unknown as TuiRoot
   const actions: UiAction[] = []
-  const runtime = await createSessionRuntime(ctx, { cwd: '/fixture', resume: id, continue: false, forkSession: false }, root, action => { actions.push(action) }, options.decisions, options.diagnostics)
-  const command = (name: string, rawInput = '') => definitions.get(name)!.handler({ agent, rawInput,
-    commandId: 'native-command', signal: new AbortController().signal } as unknown as CommandInvocation)
+  const runtime = await createSessionRuntime(ctx, { cwd: '/fixture', ...(options.continuation === undefined ? { resume: id } : {}),
+    continue: options.continuation !== undefined, forkSession: false }, root, action => { actions.push(action) }, options.decisions, options.diagnostics)
+  const command = (name: string, rawInput = '', signal = new AbortController().signal) => definitions.get(name)!.handler({ agent, rawInput,
+    commandId: 'native-command', signal } as unknown as CommandInvocation)
   return { runtime, page, snapshotEvents, ctx, root, agent, actions, finishTurn, command, listeners }
 }
 
+async function asideFixture() {
+  const inherited = [{ type: 'turn/end', seq: 1, time: 1000,
+    data: { turn: 1, reason: { kind: 'completed' } } }] as SessionEvent[]
+  const f = await openFixture(inherited, false, [], false, { start: null })
+  f.snapshotEvents.mockImplementation(() => inherited as never)
+  const child = { id: SessionId('native-side'), cancel: vi.fn(), whenIdle: vi.fn(async () => {}), steer: vi.fn(),
+    session: { seq: 1, inheritedEventCount: 1, snapshotEvents: () => inherited } }
+  const iterator = { next: vi.fn(async () => ({ done: false, value: { type: 'snapshot' } } as unknown)),
+    return: vi.fn(async () => ({ done: true })) }
+  iterator.next.mockResolvedValueOnce({ done: false, value: { type: 'snapshot' } })
+    .mockResolvedValueOnce({ done: false, value: { type: 'event', event: inherited[0] } })
+  vi.mocked(f.ctx.sessionController.fork).mockResolvedValueOnce({ sessionId: child.id } as never)
+  vi.mocked(f.ctx.sessionController.resolveAgent).mockResolvedValueOnce({ agent: child } as never)
+  f.ctx.sessionController.follow = vi.fn(() => ({ [Symbol.asyncIterator]: () => iterator })) as never
+  return { ...f, child, iterator }
+}
+
 describe('working facts at the runtime opening boundary', () => {
+  it('continues the ordinary seeded child rather than a newer archived side session', async () => {
+    const row = (sessionId: string, updatedAt: number): SessionSummary => ({ sessionId: SessionId(sessionId), updatedAt,
+      cwd: '/fixture', agentAvailable: true, blank: false, running: false })
+    const f = await openFixture([], false, [], false, { start: null }, { continuation: {
+      items: [row('archived-side', 10), row(id, 9), row('older-root', 1)], archived: ['archived-side'],
+    } })
+    try {
+      expect(f.runtime.root.id).toBe(id)
+      expect(f.ctx.sessionController.resolveAgent).toHaveBeenCalledExactlyOnceWith(id)
+      await f.runtime.activate({ kind: 'open-resume' })
+      expect(JSON.stringify(f.actions.at(-1))).not.toContain('archived-side')
+      expect(JSON.stringify(f.actions.at(-1))).toContain(id)
+    } finally { f.finishTurn(); await f.runtime.shutdown() }
+  })
+
+  it('does not create a fresh root when every continuation candidate is archived', async () => {
+    await expect(openFixture([], false, [], false, { start: null }, { continuation: {
+      items: [{ sessionId: id, updatedAt: 10, cwd: '/fixture', agentAvailable: true,
+        blank: false, running: false }], archived: [id],
+    } })).rejects.toThrow('no resumable DSH session in /fixture')
+  })
+
+  it.each(['btw', 'recap'])('archives /%s only after showing the answer and native idle', async name => {
+    const f = await asideFixture()
+    let idle!: () => void
+    f.child.whenIdle.mockImplementationOnce(() => new Promise<void>(resolve => { idle = resolve }))
+    const command = f.command(name, name === 'btw' ? 'side question' : '')
+    try {
+      await vi.waitFor(() => {
+        expect(f.actions.at(-1)).toMatchObject({ type: 'open-overlay', overlay: { title: 'Btw · turn 1' } })
+        expect(f.child.whenIdle).toHaveBeenCalledOnce()
+      })
+      expect(f.ctx.workspaceRegistry.archiveSession).not.toHaveBeenCalled()
+      idle()
+      await expect(command).resolves.toEqual({ kind: 'success' })
+      expect(f.ctx.workspaceRegistry.archiveSession).toHaveBeenCalledExactlyOnceWith(f.child.id)
+      expect(f.child.cancel).not.toHaveBeenCalled()
+    } finally { idle?.(); await command; f.finishTurn(); await f.runtime.shutdown() }
+  })
+
+  it('reports default archival refusal without pretending the side is hidden', async () => {
+    const f = await asideFixture()
+    vi.mocked(f.ctx.workspaceRegistry.archiveSession).mockRejectedValueOnce(new Error('native activity remains'))
+    try {
+      await expect(f.command('btw', 'side question')).rejects.toThrow('answer shown; side session not archived: native activity remains')
+      expect(f.actions.at(-1)).toMatchObject({ type: 'open-overlay', overlay: { title: 'Btw · turn 1' } })
+      expect(f.ctx.workspaceRegistry.archiveSession).toHaveBeenCalledExactlyOnceWith(f.child.id)
+      expect(f.child.cancel).not.toHaveBeenCalled()
+    } finally { f.finishTurn(); await f.runtime.shutdown() }
+  })
+
+  it.each([[true, true], [true, false], [false, true], [false, false]])(
+    'preserves primary failure=%s with archive failure=%s', async (primaryFails, archiveFails) => {
+      const f = await asideFixture(), primary = new Error('native request failed')
+      if (primaryFails) f.iterator.next.mockReset()
+        .mockResolvedValueOnce({ done: false, value: { type: 'snapshot' } }).mockRejectedValueOnce(primary)
+      if (archiveFails) vi.mocked(f.ctx.workspaceRegistry.archiveSession).mockRejectedValueOnce(new Error('native archive refused'))
+      try {
+        const command = f.command('btw', 'error ordering')
+        if (primaryFails && archiveFails) await expect(command).rejects.toMatchObject({
+          message: 'native request failed\nanswer shown; side session not archived: native archive refused', cause: primary,
+        })
+        else if (primaryFails) await expect(command).rejects.toBe(primary)
+        else if (archiveFails) await expect(command).rejects.toThrow('answer shown; side session not archived: native archive refused')
+        else await expect(command).resolves.toEqual({ kind: 'success' })
+        expect(f.ctx.workspaceRegistry.archiveSession).toHaveBeenCalledExactlyOnceWith(f.child.id)
+        expect(f.child.whenIdle).toHaveBeenCalledOnce()
+        expect(f.actions.some(action => action.type === 'open-overlay')).toBe(!primaryFails)
+      } finally { f.finishTurn(); await f.runtime.shutdown() }
+    },
+  )
+
+  it('cancels the side once on invocation abort, then waits for idle and archives by default', async () => {
+    const f = await asideFixture()
+    const abort = new AbortController(), order: string[] = []
+    f.iterator.next.mockReset().mockImplementationOnce(async () => ({ done: false, value: { type: 'snapshot' } }))
+      .mockImplementationOnce(async () => { abort.abort(new Error('UI aborted')); throw abort.signal.reason })
+    f.child.cancel.mockImplementationOnce(() => { order.push('cancel') })
+    f.child.whenIdle.mockImplementationOnce(async () => { order.push('idle') })
+    vi.mocked(f.ctx.workspaceRegistry.archiveSession).mockImplementationOnce(async () => { order.push('archive') })
+    try {
+      await expect(f.command('btw', 'cancelled side', abort.signal)).rejects.toThrow('UI aborted')
+      expect(f.child.cancel).toHaveBeenCalledExactlyOnceWith({ kind: 'user' })
+      expect(order).toEqual(['cancel', 'idle', 'archive'])
+      expect(f.ctx.workspaceRegistry.archiveSession).toHaveBeenCalledExactlyOnceWith(f.child.id)
+      expect(f.actions.some(action => action.type === 'open-overlay')).toBe(false)
+    } finally { f.finishTurn(); await f.runtime.shutdown() }
+  })
   it.each(['refused', 'failed'] as const)('does not fork when the source journal restore is %s', async outcome => {
     const f = await openFixture([], false, [], false, { start: null })
     try {

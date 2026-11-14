@@ -56,7 +56,7 @@ describe('validated DSH patch surface', () => {
       peerDependencies: Record<string, string>;
     }
     const peers = Object.entries(core.peerDependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh'))
-    expect(peers).toHaveLength(35)
+    expect(peers).toHaveLength(36)
     for (const [name, range] of peers) expect(range, name).toBe(`>=${minimum}`)
     const readme = readFileSync(join(root, 'README.md'), 'utf8')
     for (const command of readme.matchAll(/@deepseek-ai\/dsh@([^\s`]+)/gu)) expect(command[1]).toBe(minimum)

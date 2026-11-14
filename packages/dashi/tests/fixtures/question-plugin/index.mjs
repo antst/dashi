@@ -4,9 +4,15 @@ import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'dashi-question-fixture'
-export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions']
+export const inject = ['agentPresets', 'agents', 'authorization', 'commands', 'credentials', 'jobs', 'schedule', 'sessionController', 'settings', 'skills', 'subagentModelSelection', 'tools', 'tuiRoot', 'userQuestions', 'workspaceRegistry']
 
 export function apply(ctx) {
+  const sideEvents = process.env.DSH_DASHI_SIDE_EVENTS
+  ctx.on('workspace/session-archived', ({ sessionId }) => {
+    if (sideEvents !== undefined) appendFileSync(sideEvents, `${JSON.stringify({
+      type: 'archived', id: sessionId, status: ctx.agents.get(sessionId)?.status,
+    })}\n`)
+  })
   const workingGate = process.env.DSH_WORKING_PROOF
   if (workingGate !== undefined) ctx.tools.register(defineTool({
     name: 'dashi_working_hold',
@@ -97,7 +103,11 @@ export function apply(ctx) {
     },
   }))
   let stdoutBroken = false
-  ctx.on('agent/assistant-stream', ({ frame }) => {
+  ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+    if (sideEvents !== undefined && agent !== ctx.tuiRoot.current()
+      && frame.type === 'chunk' && frame.chunk.type === 'text-delta') {
+      appendFileSync(sideEvents, `${JSON.stringify({ type: 'side-delta', id: agent.id })}\n`)
+    }
     if (process.env.DSH_DASHI_BREAK_STDOUT !== '1' || stdoutBroken
       || !JSON.stringify(frame).includes('Inspecting')) return
     stdoutBroken = true

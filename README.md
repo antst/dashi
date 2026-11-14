@@ -7,8 +7,7 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 Use Node 24.9.0 or newer. The minimum
 supported DSH is `0.2.2-rc.3`; the next dashi release, `0.3.0`, uses DSH's
 0.2 integration.
-DSH's profile manager needs `pnpm` on PATH even when DSH is installed
-with npm or run by npx.
+For DSH plugin commands, have a directly installed pnpm on PATH (pnpm 10, 11 and 12 are tested). A Corepack-provided pnpm may select pnpm 12, which the Corepack bundled with Node 24 cannot start (`bin/pnpm.cjs` not found).
 
 ### Global or on-demand DSH
 
@@ -220,27 +219,16 @@ the Sessionbus plugin's older upload-provider dependency shadowing the app's
 pin; `pnpm dedupe` did not repair that path. Alpha.2 changed the plugin to
 pre.20, which consumes the provider as a peer.
 
-### Third-party plugins on DSH 0.2.1
+### Third-party plugins
 
 `dsh-codex@0.3.2` pins `@deepseek-ai/dsh-session-format-catalog` to
-`0.2.0-rc.1`. On DSH `0.2.2-rc.3`, it needs this override in the profile's
-`pnpm-workspace.yaml`, which DSH creates when it initialises the profile.
-Merge the entry into its top-level `overrides`, preserving all other settings
-and existing overrides:
-
-```yaml
-overrides:
-  '@deepseek-ai/dsh-session-format-catalog': 0.2.2-rc.3
-```
-
-If you followed the earlier `package.json` instruction, move all entries from
-its `pnpm.overrides` into the workspace file and remove that old block:
-pnpm 10 reads only that block when it exists, while pnpm 11 and 12 ignore it.
+`0.2.0-rc.1`. Its compatibility with DSH `0.2.2-rc.3` is untested; the earlier
+catalog-override instructions do not establish compatibility with this release.
 
 `dsh-plugin-subscriptions` 0.9.9 and earlier declare DSH peers ending at
-`0.2.0-rc.2`; no dsh-plugin-subscriptions release declares a DSH 0.2.1 peer.
-DSH 0.2.1 refuses it at startup;
-remove it from a 0.2.1 profile unless a release with a 0.2.1 peer exists.
+`0.2.0-rc.2`, outside this release's required DSH version. Remove those versions
+from the profile before upgrading; compatibility with a newer release needs
+its own validation.
 
 Without the launcher package, run `dsh --profile dashi` directly or use the
 shell alias documented below.
@@ -321,10 +309,17 @@ session picker. `--resume VALUE` accepts a complete DSH session UUID or a native
 title, matching the title exactly before a case-insensitive substring fallback.
 Names need not be unique: duplicate matches open the picker restricted to those
 sessions. Add `--all` to search every directory. A following prompt is submitted
-after resume. `--continue` (or `-c`) selects the most recently updated root in
+after resume. `--continue` (or `-c`) selects the most recently updated unarchived conversation in
 the current directory. `--agent PRESET` and `--session-id UUID` feed DSH's
 fresh-session creation; `--fork-session` branches the `--resume` or `--continue`
 target before binding it.
+
+After showing a `/btw` or `/recap` answer, dashi waits for its side session to
+be idle and asks DSH to archive it. Archived sessions are omitted from `-c`,
+the resume pickers and `sessions list`; explicit UUID resume uses DSH's own
+admission. If archival fails, the named partial error is shown and the side
+session stays resumable, including by `-c`. Ordinary `/fork` and `/rewind`
+children remain continuation candidates.
 
 Since `0.2.2-alpha.2`, DSH deliberately records no source relationship for
 ordinary forks; they are independent sessions that inherit history
@@ -524,7 +519,12 @@ them corrupt the screen. `/status` shows the capture count and the last 200
 lines; each line is limited to 4096 characters, with truncation marked. Nothing
 is written to a diagnostics file. The original console methods are restored
 for editors, suspension and exit. Direct writes to process streams or inherited
-child stderr are a separate DSH gap, not covered by this console guard (W-156).
+child stderr are outside this console guard (W-156).
+
+Open dashi parity gap: Esc and Ctrl-C do not cancel a running `/btw` or `/recap`
+side command; they target the current root, not the side session. Shutdown's
+existing command-abort path cancels the side child, waits for idle and attempts
+the same default archival. This cancellation limit predates DSH rc.3.
 
 DSH does not currently enforce writer ownership across processes; do not
 resume the same root in two DSH processes.

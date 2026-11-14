@@ -73,7 +73,7 @@ import type {
 import { createToolPresenter, type ToolPresenter } from './tool-presentation.js'
 import { quoteShellWord, runHumanShell } from './shell-command.js'
 import { markdownTranscript } from './session-export.js'
-import { isSessionId, sessionMatches, sessionNotFound } from './session-list.js'
+import { isSessionId, resumableSessions, sessionMatches, sessionNotFound } from './session-list.js'
 import { memoryOverlay } from './memory.js'
 import { runLoop } from './loop.js'
 import { foldAssistantStream, foldCells, pendingShellCells } from './transcript.js'
@@ -291,7 +291,7 @@ export async function createSessionRuntime(
 
   let initialId = options.resume === undefined
     ? options.continue
-      ? continuation((await ctx.sessionController.list({}, lifetime.signal)).items, options.cwd)
+      ? continuation(await resumableSessions(ctx, lifetime.signal), options.cwd)
       : (await ctx.sessionController.create({ cwd: options.cwd, ...(options.agentPreset === undefined ? {} : { agentPreset: options.agentPreset }), ...(options.sessionId === undefined ? {} : { sessionId: SessionId(options.sessionId) }) })).sessionId
     : SessionId(options.resume)
   if (options.forkSession) initialId = (await ctx.sessionController.fork({ sessionId: initialId, allowMigration: false })).sessionId
@@ -724,7 +724,7 @@ export async function createSessionRuntime(
       case 'open-resume':
         dispatch({
           type: 'open-overlay',
-          overlay: sessionOverlay((await ctx.sessionController.list({}, lifetime.signal)).items, bound.root.id,
+          overlay: sessionOverlay(await resumableSessions(ctx, lifetime.signal), bound.root.id,
             operation.all === true ? undefined : bound.root.cwd),
         })
         return
@@ -732,7 +732,7 @@ export async function createSessionRuntime(
         if (isSessionId(operation.sessionId)) await replace(SessionId(operation.sessionId))
         else {
           const matches = sessionMatches(
-            (await ctx.sessionController.list({}, lifetime.signal)).items, operation.sessionId,
+            await resumableSessions(ctx, lifetime.signal), operation.sessionId,
             operation.all === true ? undefined : bound.root.cwd,
           )
           const [match] = matches
@@ -813,32 +813,51 @@ export async function createSessionRuntime(
       const resolved = await ctx.sessionController.resolveAgent(forked.sessionId)
       if ('error' in resolved) throw resolved.error
       const child = resolved.agent
-      const turn = inheritedTurn(child.session.snapshotEvents(), child.session.inheritedEventCount)
-      if (turn === undefined) throw new Error('the fork contains no completed turn')
-      const iterator = ctx.sessionController.follow({
-        address: { kind: 'session', sessionId: child.id }, maxMessages: 50,
-      }, invocation.signal)[Symbol.asyncIterator]()
-      await firstSnapshot(iterator)
-      await ctx.sessionController.rename({
-        sessionId: child.id, title: `btw · ${prompt.split(/\s+/u).slice(0, 6).join(' ')}`,
-      })
-      const from = child.session.seq
-      child.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+      let primary: { readonly error: unknown } | undefined
       try {
-        for (;;) {
-          const next = await iterator.next()
-          if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
-          if (next.value.type === 'event' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+        const turn = inheritedTurn(child.session.snapshotEvents(), child.session.inheritedEventCount)
+        if (turn === undefined) throw new Error('the fork contains no completed turn')
+        const iterator = ctx.sessionController.follow({
+          address: { kind: 'session', sessionId: child.id }, maxMessages: 50,
+        }, invocation.signal)[Symbol.asyncIterator]()
+        const from = child.session.seq
+        try {
+          await firstSnapshot(iterator)
+          await ctx.sessionController.rename({
+            sessionId: child.id, title: `btw · ${prompt.split(/\s+/u).slice(0, 6).join(' ')}`,
+          })
+          child.steer(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'user' } }))
+          for (;;) {
+            const next = await iterator.next()
+            if (next.done === true) throw new Error('DSH session follow ended before the side turn completed')
+            if (next.value.type === 'event' && eventsFromRecords([next.value])[0]?.type === 'turn/end') break
+          }
+        } finally {
+          await iterator.return?.()
         }
-      } finally {
-        await iterator.return?.()
+        await ctx.sessions.flush(child.session)
+        const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
+          .filter(cell => cell.kind !== 'user')
+        dispatch({ type: 'open-overlay', overlay: {
+          cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}${boundary.open ? ' · trailing turn open' : ''}`,
+        } })
+      } catch (error) {
+        primary = { error }
       }
-      await ctx.sessions.flush(child.session)
-      const cells = foldCells(child.session.snapshotEvents(from), createToolPresenter(tool => ctx.tools.get(tool, child)))
-        .filter(cell => cell.kind !== 'user')
-      dispatch({ type: 'open-overlay', overlay: {
-        cells, kind: 'info', lines: [], title: `Btw · turn ${String(turn)}${boundary.open ? ' · trailing turn open' : ''}`,
-      } })
+      let archiveFailure: Error | undefined
+      try {
+        if (invocation.signal.aborted) child.cancel({ kind: 'user' })
+        await child.whenIdle()
+        await ctx.workspaceRegistry.archiveSession(child.id)
+      } catch (error) {
+        archiveFailure = new Error(`answer shown; side session not archived: ${detail(error)}`, { cause: error })
+      }
+      if (primary !== undefined || archiveFailure !== undefined) {
+        const failure = primary === undefined ? archiveFailure : archiveFailure === undefined ? primary.error
+          : new Error(`${detail(primary.error)}\n${archiveFailure.message}`, { cause: primary.error })
+        if (invocation.signal.aborted && archiveFailure !== undefined) report(failure, bound.root.id)
+        throw failure
+      }
       return { kind: 'success' }
     }
     const definitions: readonly CommandDefinition[] = [

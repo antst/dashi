@@ -67,6 +67,7 @@
     "@deepseek-ai/dsh-tools": ">=0.2.2-rc.3",
     "@deepseek-ai/dsh-user-approval": ">=0.2.2-rc.3",
     "@deepseek-ai/dsh-user-questions": ">=0.2.2-rc.3",
+    "@deepseek-ai/dsh-workspace": ">=0.2.2-rc.3",
     "@deepseek-ai/schemastery": ">=3.19.0",
     "@deepseek-ai/dsh-agent-preset-registry": ">=0.2.2-rc.3",
     "@deepseek-ai/dsh-api-job-controller": ">=0.2.2-rc.3"
