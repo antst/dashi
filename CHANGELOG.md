@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-14
 
 - Require DSH **0.2.2-rc.3** and Node **24.9.0 or newer**, with exact DSH pins and Cordis 4.1. Upgrade DSH before re-adding dashi; resumed sessions incur a new context re-prefill because DSH's own prompt, tools and skills changed (W-156).
 - Keep in-process console diagnostics off the acquired terminal and expose a bounded in-memory tail in `/status`; restore normal console output for editors, suspension and exit. DSH's direct model-listing console writes remain a named upstream gap (W-156).

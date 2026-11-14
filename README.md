@@ -5,9 +5,9 @@ dashi is a terminal UI for DeepSeek Harness. Linux and macOS are supported.
 ## Install
 
 Use Node 24.9.0 or newer. The minimum
-supported DSH is `0.2.2-rc.3`; the next dashi release, `0.3.0`, uses DSH's
+supported DSH is `0.2.2-rc.3`; dashi `0.3.0` uses DSH's
 0.2 integration.
-For DSH plugin commands, have a directly installed pnpm on PATH (pnpm 10, 11 and 12 are tested). A Corepack-provided pnpm may select pnpm 12, which the Corepack bundled with Node 24 cannot start (`bin/pnpm.cjs` not found).
+For DSH plugin commands, have a directly installed pnpm on PATH (pnpm 10, 11 and 12 are tested). A Corepack-provided pnpm may select pnpm 12, which the Corepack bundled with Node 24.9.0 cannot start (`bin/pnpm.cjs` not found).
 
 ### Global or on-demand DSH
 
@@ -18,8 +18,8 @@ With npm:
 <!-- install:G-npm -->
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.3
-npm install -g @antst/dashi-launcher@0.2.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+npm install -g @antst/dashi-launcher@0.3.0
+dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 dashi
 ```
 
@@ -28,7 +28,7 @@ With pnpm 10 or pnpm 12:
 <!-- install:G-pnpm10-packages install:G-pnpm11-packages install:G-pnpm12-packages -->
 ```sh
 pnpm add -g @deepseek-ai/dsh@0.2.2-rc.3
-pnpm add -g @antst/dashi-launcher@0.2.2
+pnpm add -g @antst/dashi-launcher@0.3.0
 ```
 
 For pnpm 11, apply the [global-store remedy](#dsh-installed-globally-with-pnpm-11)
@@ -36,7 +36,7 @@ below before starting DSH. Then:
 
 <!-- install:G-pnpm10 install:G-pnpm11 install:G-pnpm12 -->
 ```sh
-dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 dashi
 ```
 
@@ -44,9 +44,9 @@ With npx, without a permanent CLI installation:
 
 <!-- install:G-npx -->
 ```sh
-npx --yes @deepseek-ai/dsh@0.2.2-rc.3 plugin --profile dashi add @antst/dashi-app@0.2.2
-npx --yes --package=@deepseek-ai/dsh@0.2.2-rc.3 --package=@antst/dashi-launcher@0.2.2 dashi --version
-npx --yes --package=@deepseek-ai/dsh@0.2.2-rc.3 --package=@antst/dashi-launcher@0.2.2 dashi
+npx --yes @deepseek-ai/dsh@0.2.2-rc.3 plugin --profile dashi add @antst/dashi-app@0.3.0
+npx --yes --package=@deepseek-ai/dsh@0.2.2-rc.3 --package=@antst/dashi-launcher@0.3.0 dashi --version
+npx --yes --package=@deepseek-ai/dsh@0.2.2-rc.3 --package=@antst/dashi-launcher@0.3.0 dashi
 ```
 
 To start the installed profile directly, first check the CLI installation:
@@ -91,8 +91,8 @@ From your project directory, with npm:
 
 <!-- install:P-npm -->
 ```sh
-npm install --save-exact @deepseek-ai/dsh@0.2.2-rc.3 @antst/dashi-launcher@0.2.2
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+npm install --save-exact @deepseek-ai/dsh@0.2.2-rc.3 @antst/dashi-launcher@0.3.0
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 npm exec -- dashi
 ```
 
@@ -100,8 +100,8 @@ With pnpm 10, install as written:
 
 <!-- install:P-pnpm10 install:P-pnpm11 install:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @deepseek-ai/dsh@0.2.2-rc.3 @antst/dashi-launcher@0.2.2
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+pnpm add --save-exact @deepseek-ai/dsh@0.2.2-rc.3 @antst/dashi-launcher@0.3.0
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 pnpm exec dashi
 ```
 
@@ -163,7 +163,7 @@ second profile or an automatic migration.
 
 ### Upgrading an existing profile
 
-For the next release, dashi `0.3.0`, the tested starting point is dashi
+For dashi `0.3.0`, the tested starting point is dashi
 `0.2.2` on DSH `0.2.1-rc.2`.
 Direct upgrades from older dashi versions are not tested. For an older or
 broken installation, preserve the profile files listed below, repeat the DSH
@@ -178,8 +178,8 @@ For global npm:
 
 <!-- upgrade:G-npm -->
 ```sh
-npm install -g @antst/dashi-launcher@0.2.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+npm install -g @antst/dashi-launcher@0.3.0
+dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 dashi
 ```
 
@@ -187,8 +187,8 @@ For global pnpm:
 
 <!-- upgrade:G-pnpm10 upgrade:G-pnpm11 upgrade:G-pnpm12 -->
 ```sh
-pnpm add -g @antst/dashi-launcher@0.2.2
-dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+pnpm add -g @antst/dashi-launcher@0.3.0
+dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 dashi
 ```
 
@@ -196,8 +196,8 @@ For a project using npm:
 
 <!-- upgrade:P-npm -->
 ```sh
-npm install --save-exact @antst/dashi-launcher@0.2.2
-npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+npm install --save-exact @antst/dashi-launcher@0.3.0
+npm exec -- dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 npm exec -- dashi
 ```
 
@@ -205,8 +205,8 @@ For a project using pnpm:
 
 <!-- upgrade:P-pnpm10 upgrade:P-pnpm11 upgrade:P-pnpm12 -->
 ```sh
-pnpm add --save-exact @antst/dashi-launcher@0.2.2
-pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.2.2
+pnpm add --save-exact @antst/dashi-launcher@0.3.0
+pnpm exec dsh plugin --profile dashi add @antst/dashi-app@0.3.0
 pnpm exec dashi
 ```
 
@@ -316,8 +316,9 @@ target before binding it.
 
 After showing a `/btw` or `/recap` answer, dashi waits for its side session to
 be idle and asks DSH to archive it. Archived sessions are omitted from `-c`,
-the resume pickers and `sessions list`; explicit UUID resume uses DSH's own
-admission. If archival fails, the named partial error is shown and the side
+the resume pickers and `sessions list`. An archived session can be opened by
+its explicit UUID to read its history, but DSH blocks new turns and dashi has
+no unarchive command. If archival fails, the named partial error is shown and the side
 session stays resumable, including by `-c`. Ordinary `/fork` and `/rewind`
 children remain continuation candidates.
 
@@ -508,6 +509,13 @@ selection is terminal-specific: commonly Shift, but Option in iTerm2.
 animation, announces overlay titles, counts, and selections in reading order,
 adds ASCII status markers, and suppresses the terminal bell.
 
+## Known dashi limits
+
+Open dashi parity gap: Esc and Ctrl-C do not cancel a running `/btw` or `/recap`
+side command; they target the current root, not the side session. Shutdown's
+existing command-abort path cancels the side child, waits for idle and attempts
+the same default archival. This cancellation limit predates DSH rc.3.
+
 ## Known DSH gaps
 
 With host model selection disabled, DSH 0.2.2-rc.3's subagent tool still advertises its model fields, and the service refuses such calls.
@@ -520,11 +528,6 @@ lines; each line is limited to 4096 characters, with truncation marked. Nothing
 is written to a diagnostics file. The original console methods are restored
 for editors, suspension and exit. Direct writes to process streams or inherited
 child stderr are outside this console guard (W-156).
-
-Open dashi parity gap: Esc and Ctrl-C do not cancel a running `/btw` or `/recap`
-side command; they target the current root, not the side session. Shutdown's
-existing command-abort path cancels the side child, waits for idle and attempts
-the same default archival. This cancellation limit predates DSH rc.3.
 
 DSH does not currently enforce writer ownership across processes; do not
 resume the same root in two DSH processes.
